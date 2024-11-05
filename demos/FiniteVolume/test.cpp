@@ -126,8 +126,6 @@ int main(int argc, char* argv[])
 
 
 
-
-
     std::cout << " Time for Samurai : " << duration_samurai.count() << std::endl ; 
     std::cout << " Time for Xtensor : " << duration_xtensor.count() << std::endl ;
 

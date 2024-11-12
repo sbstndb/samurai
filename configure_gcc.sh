@@ -1,4 +1,4 @@
-export BUILD_DIR="build_debug"
+export BUILD_DIR="build_gcc"
 
 # spack load xtensor
 # spack load xsimd

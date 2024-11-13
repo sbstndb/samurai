@@ -363,6 +363,7 @@ namespace samurai
 
     namespace detail
     {
+
         template <class ForwardIt, class T>
         auto my_binary_search(ForwardIt first, ForwardIt last, const T& value)
         {
@@ -383,6 +384,34 @@ namespace samurai
             return -1;
         }
 
+
+// compete a linear search for litt amount of data. 
+        // its a naive implementation. We can I think achieve vectorized find 
+        // personal reminder : 
+        //      _mm256_movemask_epi8 _mm256_cmpeq_epi32
+	template <class ForwardIt, class T>
+	auto my_linear_search(ForwardIt first, ForwardIt last, const T& value){
+		for (int dist = 0 ; first != last; ++first, ++dist){
+			if (first -> contains(value)){
+				return dist ; 
+			}
+		}
+		return -1 ; 
+	}
+
+	// find selectionnant la méthode optimae considérant la taille de l'espce à chercher
+       template <class ForwardIt, class T>
+        auto my_hybrid_search(ForwardIt first, ForwardIt last, const T&value, std::size_t start_index, std::size_t end_index){
+		constexpr int threshold_search = 10 ; // arbitraire --> trouver meilleure valeur. benchmarks à faire
+                if ( (start_index - end_index) < threshold_search){
+                        return my_linear_search(first, last, value);
+                }
+                else {
+                        return my_binary_search(first, last, value);
+                }
+        }
+
+
         template <std::size_t dim, class TInterval, class index_t = typename TInterval::index_t, class coord_index_t = typename TInterval::coord_index_t>
         inline auto find_impl(const LevelCellArray<dim, TInterval>& lca,
                               std::size_t start_index,
@@ -392,9 +421,12 @@ namespace samurai
         {
             using lca_t     = const LevelCellArray<dim, TInterval>;
             using diff_t    = typename lca_t::const_iterator::difference_type;
-            auto find_index = my_binary_search(lca[0].cbegin() + static_cast<diff_t>(start_index),
+	    // my hybrid search stands for -- select the best find algo in this case. 
+            auto find_index = my_hybrid_search(lca[0].cbegin() + static_cast<diff_t>(start_index),
                                                lca[0].cbegin() + static_cast<diff_t>(end_index),
-                                               coord[0]);
+					       coord[0], 
+					       start_index, 
+					       end_index);
 
             return (find_index != -1) ? find_index + static_cast<diff_t>(start_index) : find_index;
         }
@@ -412,9 +444,11 @@ namespace samurai
         {
             using lca_t        = const LevelCellArray<dim, TInterval>;
             using diff_t       = typename lca_t::const_iterator::difference_type;
-            index_t find_index = my_binary_search(lca[N].cbegin() + static_cast<diff_t>(start_index),
+            index_t find_index = my_hybrid_search(lca[N].cbegin() + static_cast<diff_t>(start_index),
                                                   lca[N].cbegin() + static_cast<diff_t>(end_index),
-                                                  coord[N]);
+						  coord[N],
+						  start_index, 
+						  end_index);
 
             if (find_index != -1)
             {
@@ -441,9 +475,11 @@ namespace samurai
     {
         using lca_t        = const LevelCellArray<dim, TInterval>;
         using diff_t       = typename lca_t::const_iterator::difference_type;
-        index_t find_index = detail::my_binary_search(lca[d].cbegin() + static_cast<diff_t>(start_index),
+        index_t find_index = detail::my_hybrid_search(lca[d].cbegin() + static_cast<diff_t>(start_index),
                                                       lca[d].cbegin() + static_cast<diff_t>(end_index),
-                                                      coord);
+                                                      coord,
+						      start_index,
+						      end_index);
 
         return (find_index != -1) ? static_cast<std::size_t>(find_index) + start_index : std::numeric_limits<std::size_t>::max();
     }

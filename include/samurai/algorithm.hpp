@@ -403,7 +403,7 @@ namespace samurai
        template <class ForwardIt, class T>
         auto my_hybrid_search(ForwardIt first, ForwardIt last, const T&value, std::size_t start_index, std::size_t end_index){
 		constexpr int threshold_search = 10 ; // arbitraire --> trouver meilleure valeur. benchmarks à faire
-                if ( (start_index - end_index) < threshold_search){
+                if ( (end_index - start_index) < threshold_search){
                         return my_linear_search(first, last, value);
                 }
                 else {

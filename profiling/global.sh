@@ -1,3 +1,5 @@
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 
 
 kernel_list=(
@@ -20,5 +22,5 @@ for i in "${!kernel_list[@]}"; do
 	binary="${kernel_list[$i]}"
 	args="${arg_list[$i]}"
 	echo "Run $binary $args"
-	. ../profiling/run.sh ./$binary # $args
+	. ${SCRIPT_DIR}/run.sh ./$binary # $args
 done

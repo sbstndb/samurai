@@ -5,14 +5,14 @@ CURRENT_PATH=$(pwd)
 
 kernel_list=(
 #	"demos/FiniteVolume/finite-volume-level-set"
-	"demos/FiniteVolume/finite-volume-advection-2d"
+#	"demos/FiniteVolume/finite-volume-advection-2d"
 	"demos/tutorial/tutorial-graduation-case-2"
 	)
 
 arg_list=(
 #	"--max-level 6"
-	"--max-level 10"
-	"--max-level 14"
+#	"--max-level 4"
+	"--max-level 8"
 )
 
 

@@ -45,7 +45,7 @@ cd ${PROFILING_DIR}
 		mkdir -p maqao
 		mkdir -p vtune
 		cd perf
-			run_perf
+			run_perf 2>perf.txt
 		cd ..
 		cd maqao
 			run_maqao

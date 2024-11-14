@@ -32,7 +32,27 @@ function run_vtune {
 
 
 
-run_perf
-run_maqao
-run_vtune
+# create directoty
+# name of binary
+PROFILING_DIR="profiling_results"
+BINARY_NAME=$(basename ${KERNEL})
+mkdir -p "${PROFILING_DIR}"
+CURRENT_PATH=$(pwd)
+cd ${PROFILING_DIR}
+	mkdir -p ${BINARY_NAME}
+	cd ${BINARY_NAME}
+		mkdir -p perf
+		mkdir -p maqao
+		mkdir -p vtune
+		cd perf
+			run_perf
+		cd ..
+		cd maqao
+			run_maqao
+		cd ..
+		cd vtune
+			run_vtune
+		cd ..
+	cd ..
+cd ${CURRENT_PATH}
 

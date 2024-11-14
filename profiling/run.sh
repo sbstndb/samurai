@@ -14,17 +14,17 @@ KERNEL="$1"
 
 function run_perf {
 	echo "Launch PERF : ${KERNEL}."
-	. perf.sh all ${KERNEL}
+	. ../profiling/perf.sh all ${KERNEL}
 }
 
 function run_maqao {
         echo "Launch MAQAO : ${KERNEL}."
-        . maqao.sh oneview ${KERNEL}
+        . ../profiling/maqao.sh oneview ${KERNEL}
 }
 
 function run_vtune {
         echo "Launch VTUNE: ${KERNEL}."
-        . vtune.sh ${KERNEL}
+        . ../profiling/vtune.sh hotspots ${KERNEL}
 }
 
 

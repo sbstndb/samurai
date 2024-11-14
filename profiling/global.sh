@@ -20,5 +20,5 @@ for i in "${!kernel_list[@]}"; do
 	binary="${kernel_list[$i]}"
 	args="${arg_list[$i]}"
 	echo "Run $binary $args"
-	./$binary $args
+	. ../profiling/run.sh ./$binary # $args
 done

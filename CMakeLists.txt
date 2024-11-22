@@ -138,11 +138,13 @@ if(FIELD_CONTAINER MATCHES xtensor)
 elseif(FIELD_CONTAINER MATCHES eigen3)
   message(STATUS "Using Eigen3 as field container")
   list(APPEND DEPENDENCIES_CONFIGURED Eigen3)
+  find_package(xtensor CONFIG REQUIRED)
   find_package(Eigen3 CONFIG REQUIRED)
   target_link_system_libraries(
     samurai
     INTERFACE
     Eigen3::Eigen
+    xtensor
   )
   target_compile_definitions(samurai INTERFACE EIGEN_ARRAYBASE_PLUGIN="${CMAKE_CURRENT_SOURCE_DIR}/include/samurai/storage/eigen/array_eigen_addons.hpp")
 endif()

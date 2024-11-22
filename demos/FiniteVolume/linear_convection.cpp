@@ -5,7 +5,8 @@
 #include <samurai/hdf5.hpp>
 #include <samurai/mr/adapt.hpp>
 #include <samurai/mr/mesh.hpp>
-#include <samurai/petsc.hpp>
+//#include <samurai/petsc.hpp>
+#include <samurai/schemes/fv.hpp>
 #include <samurai/samurai.hpp>
 
 #include <filesystem>
@@ -45,7 +46,7 @@ int main(int argc, char* argv[])
     samurai::initialize(argc, argv);
 
     static constexpr std::size_t dim = 2;
-    using Config                     = samurai::MRConfig<dim, 3>;
+    using Config                     = samurai::MRConfig<dim, 1>;
     using Box                        = samurai::Box<double, dim>;
     using point_t                    = typename Box::point_t;
 
@@ -66,7 +67,7 @@ int main(int argc, char* argv[])
     double cfl = 0.95;
 
     // Multiresolution parameters
-    std::size_t min_level = 0;
+    std::size_t min_level = 1;
     std::size_t max_level = dim == 1 ? 5 : 3;
     double mr_epsilon     = 1e-4; // Threshold used by multiresolution
     double mr_regularity  = 1.;   // Regularity guess for multiresolution
@@ -146,7 +147,7 @@ int main(int argc, char* argv[])
     {
         velocity(1) = -1;
     }
-    auto conv = samurai::make_convection_weno5<decltype(u)>(velocity);
+    auto conv = samurai::make_convection_upwind<decltype(u)>(velocity);
 
     //--------------------//
     //   Time iteration   //
@@ -168,7 +169,7 @@ int main(int argc, char* argv[])
     if (nfiles != 1)
     {
         std::string suffix = (nfiles != 1) ? fmt::format("_ite_{}", nsave++) : "";
-        save(path, filename, u, suffix);
+        // save(path, filename, u, suffix);
     }
 
     double t = 0;
@@ -181,6 +182,7 @@ int main(int argc, char* argv[])
             dt += Tf - t;
             t = Tf;
         }
+	std::cout << mesh.nb_cells() << std::endl ; 
         std::cout << fmt::format("iteration {}: t = {:.2f}, dt = {}", nt++, t, dt) << std::flush;
 
         // Mesh adaptation
@@ -192,14 +194,14 @@ int main(int argc, char* argv[])
         u1.fill(0);
         u2.fill(0);
 
-        // unp1 = u - dt * conv(u);
+        unp1 = u - dt * conv(u);
 
         // TVD-RK3 (SSPRK3)
-        u1 = u - dt * conv(u);
-        samurai::update_ghost_mr(u1);
-        u2 = 3. / 4 * u + 1. / 4 * (u1 - dt * conv(u1));
-        samurai::update_ghost_mr(u2);
-        unp1 = 1. / 3 * u + 2. / 3 * (u2 - dt * conv(u2));
+        //u1 = u - dt * conv(u);
+        //samurai::update_ghost_mr(u1);
+        //u2 = 3. / 4 * u + 1. / 4 * (u1 - dt * conv(u1));
+        //samurai::update_ghost_mr(u2);
+        //unp1 = 1. / 3 * u + 2. / 3 * (u2 - dt * conv(u2));
 
         // u <-- unp1
         std::swap(u.array(), unp1.array());
@@ -210,11 +212,11 @@ int main(int argc, char* argv[])
             if (nfiles != 1)
             {
                 std::string suffix = (nfiles != 1) ? fmt::format("_ite_{}", nsave++) : "";
-                save(path, filename, u, suffix);
+                // save(path, filename, u, suffix);
             }
             else
             {
-                save(path, filename, u);
+                // save(path, filename, u);
             }
         }
 

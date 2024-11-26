@@ -12,7 +12,7 @@
 namespace fs = std::filesystem;
 
 
-int classic()
+int linear_convection(std::size_t max_level, double Tf) 
 {
 
     char program_name[] = "program_name";
@@ -33,13 +33,13 @@ int classic()
     double right_box = 1;
 
     // Time integration
-    double Tf  = 0.05;
+//    double Tf  = 0.05;
     double dt  = 0;
     double cfl = 0.95;
 
     // Multiresolution parameters
     std::size_t min_level = 1;
-    std::size_t max_level = 10;
+//    std::size_t max_level = 10;
     double mr_epsilon     = 1e-4; // Threshold used by multiresolution
     double mr_regularity  = 1.;   // Regularity guess for multiresolution
 
@@ -151,18 +151,44 @@ int classic()
 
 
 
-static void BM_classic(benchmark::State& state){
+static void CASE_linear_convection_little(benchmark::State& state){
 	for (auto _ : state){
-		classic();
+		linear_convection(7, 1.0);
 	}
 }
 
-BENCHMARK(BM_classic)
-	->Repetitions(10)
+static void CASE_linear_convection_medium(benchmark::State& state){
+        for (auto _ : state){
+                linear_convection(10, 0.05);
+	}
+}
+
+static void CASE_linear_convection_large(benchmark::State& state){
+        for (auto _ : state){
+                linear_convection(13, 0.0005);
+        }
+}
+
+
+
+
+BENCHMARK(CASE_linear_convection_little)
+	->Repetitions(4)
 	->ComputeStatistics("max", [](const std::vector<double>& v) -> double {
 		return *(std::max_element(std::begin(v), std::end(v)));
-	})
-;
+	});
 
+
+BENCHMARK(CASE_linear_convection_medium)
+        ->Repetitions(4)
+        ->ComputeStatistics("max", [](const std::vector<double>& v) -> double {
+                return *(std::max_element(std::begin(v), std::end(v)));
+	});
+
+BENCHMARK(CASE_linear_convection_large)
+        ->Repetitions(4)
+        ->ComputeStatistics("max", [](const std::vector<double>& v) -> double {
+                return *(std::max_element(std::begin(v), std::end(v)));
+        });
 
 

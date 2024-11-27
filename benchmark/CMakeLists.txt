@@ -26,6 +26,7 @@ set(SAMURAI_BENCHMARKS
     demos/FiniteVolume/linear_convection.cpp
     #    demos/FiniteVolume/level_set.cpp
     demos/FiniteVolume/advection_2d.cpp
+    demos/tutorial/graduation_2d.cpp
     main.cpp
 )
 

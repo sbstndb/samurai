@@ -153,7 +153,7 @@ int linear_convection(std::size_t max_level, double Tf)
 
 static void CASE_linear_convection_little(benchmark::State& state){
 	for (auto _ : state){
-		linear_convection(7, 1.0);
+		linear_convection(7, 2.0);
 	}
 }
 
@@ -165,7 +165,7 @@ static void CASE_linear_convection_medium(benchmark::State& state){
 
 static void CASE_linear_convection_large(benchmark::State& state){
         for (auto _ : state){
-                linear_convection(13, 0.0005);
+                linear_convection(13, 0.001);
         }
 }
 
@@ -173,20 +173,20 @@ static void CASE_linear_convection_large(benchmark::State& state){
 
 
 BENCHMARK(CASE_linear_convection_little)
-	->Repetitions(4)
+	->Repetitions(1)
 	->ComputeStatistics("max", [](const std::vector<double>& v) -> double {
 		return *(std::max_element(std::begin(v), std::end(v)));
 	});
 
 
 BENCHMARK(CASE_linear_convection_medium)
-        ->Repetitions(4)
+        ->Repetitions(1)
         ->ComputeStatistics("max", [](const std::vector<double>& v) -> double {
                 return *(std::max_element(std::begin(v), std::end(v)));
 	});
 
 BENCHMARK(CASE_linear_convection_large)
-        ->Repetitions(4)
+        ->Repetitions(1)
         ->ComputeStatistics("max", [](const std::vector<double>& v) -> double {
                 return *(std::max_element(std::begin(v), std::end(v)));
         });

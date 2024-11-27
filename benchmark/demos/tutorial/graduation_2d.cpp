@@ -189,10 +189,10 @@ BENCHMARK(CASE_graduation_2d_medium)
         ->Repetitions(1)
         ->ComputeStatistics("max", [](const std::vector<double>& v) -> double {
                 return *(std::max_element(std::begin(v), std::end(v)));
-        })
+        });
 
 BENCHMARK(CASE_graduation_2d_large)
         ->Repetitions(1)
         ->ComputeStatistics("max", [](const std::vector<double>& v) -> double {
                 return *(std::max_element(std::begin(v), std::end(v)));
-        })
+        });

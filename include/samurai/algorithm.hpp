@@ -399,17 +399,27 @@ namespace samurai
 	    //    return !(elem < value); 
 	    //});
 
-	    // third solution : naive implementation
+	    // third solution : naive implementation	    
+//	    int index3 = 0 ; 
+//	    for (auto it = first ; it != last ; ++it , ++index3){
+//		if (!(*it < value)){
+//			break ;
+//	    }
+//	    }
+//	    auto result = first ; 
+//	    std::advance(result, index3) ; 
+
+	    // 4th solution : nobreak one
+	    auto index4 = 0 ; 
+	    auto i2 = 0;//std::distance(first, last) ; 
+            for (auto it = first ; it != last ; ++it, ++i2){
+                if ((*it < value)){
+                        index4 = i2+1 ; 
+            }
+            }
+            auto result = first ;
+            std::advance(result, index4) ;
 	    
-	    int index3 = 0 ; 
-	    for (auto it = first ; it != last ; ++it , ++index3){
-		if (!(*it < value)){
-			break ;
-	    }
-	    }
-	    auto result = first ; 
-	    std::advance(result, index3) ; 
-	
 	    // last verifications
             if (!(result == last) && !(comp(*result, value)))
             {

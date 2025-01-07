@@ -391,9 +391,26 @@ namespace samurai
             {
                 return end < v;
             };
+	    // first solution : binary search 
+	    // auto result = std::lower_bound(first, last, value, comp) ;
+	    //
+	    // second solution : linear search from std
+	    //auto result = std::find_if(first, last, [value](const auto& elem) {
+	    //    return !(elem < value); 
+	    //});
 
-	    auto result = std::lower_bound(first, last, value, comp) ;
-
+	    // third solution : naive implementation
+	    
+	    int index3 = 0 ; 
+	    for (auto it = first ; it != last ; ++it , ++index3){
+		if (!(*it < value)){
+			break ;
+	    }
+	    }
+	    auto result = first ; 
+	    std::advance(result, index3) ; 
+	
+	    // last verifications
             if (!(result == last) && !(comp(*result, value)))
             {
 		// issue to solve : the vector<int> do not have contains method and do not store start then we

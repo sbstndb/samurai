@@ -382,6 +382,34 @@ namespace samurai
             }
             return -1;
         }
+	//@sbstndbs : here is a second version of binary search, for std::vector container composed by the several "interval.end"s. 
+	//We need to pass the lca to get the "intevral.start" value :-)
+	template <class It, class It2, class T>
+	auto my_binary_search2(It first, It last, It2 lca, const T& value){
+
+            auto comp = [](const auto& end, auto v)
+            {
+                return end < v;
+            };
+
+	    auto result = std::lower_bound(first, last, value, comp) ;
+
+            if (!(result == last) && !(comp(*result, value)))
+            {
+		// issue to solve : the vector<int> do not have contains method and do not store start then we
+		// 	need to get interval.start. 
+	    	auto index = static_cast<int>(std::distance (first, result)) ;     
+		///return (x >= start && x < end);
+		auto lca2 = lca ; 
+		std::advance (lca2, index) ; 
+                if (value >= (*lca2).start && value < (*lca2).end )
+                {
+                    return static_cast<int>(std::distance(first, result));
+                }
+            }
+            return -1;
+
+	}
 
         template <std::size_t dim, class TInterval, class index_t = typename TInterval::index_t, class coord_index_t = typename TInterval::coord_index_t>
         inline auto find_impl(const LevelCellArray<dim, TInterval>& lca,
@@ -392,8 +420,9 @@ namespace samurai
         {
             using lca_t     = const LevelCellArray<dim, TInterval>;
             using diff_t    = typename lca_t::const_iterator::difference_type;
-            auto find_index = my_binary_search(lca[0].cbegin() + static_cast<diff_t>(start_index),
-                                               lca[0].cbegin() + static_cast<diff_t>(end_index),
+            auto find_index = my_binary_search2(lca.m_ends[0].begin() + static_cast<diff_t>(start_index),
+                                               lca.m_ends[0].begin() + static_cast<diff_t>(end_index),
+					       lca[0].cbegin() + static_cast<diff_t>(start_index),
                                                coord[0]);
 
             return (find_index != -1) ? find_index + static_cast<diff_t>(start_index) : find_index;
@@ -412,8 +441,9 @@ namespace samurai
         {
             using lca_t        = const LevelCellArray<dim, TInterval>;
             using diff_t       = typename lca_t::const_iterator::difference_type;
-            index_t find_index = my_binary_search(lca[N].cbegin() + static_cast<diff_t>(start_index),
-                                                  lca[N].cbegin() + static_cast<diff_t>(end_index),
+            index_t find_index = my_binary_search2(lca.m_ends[N].begin() + static_cast<diff_t>(start_index),
+                                                  lca.m_ends[N].begin() + static_cast<diff_t>(end_index),
+						  lca[N].cbegin() + static_cast<diff_t>(start_index),
                                                   coord[N]);
 
             if (find_index != -1)
@@ -441,9 +471,10 @@ namespace samurai
     {
         using lca_t        = const LevelCellArray<dim, TInterval>;
         using diff_t       = typename lca_t::const_iterator::difference_type;
-        index_t find_index = detail::my_binary_search(lca[d].cbegin() + static_cast<diff_t>(start_index),
-                                                      lca[d].cbegin() + static_cast<diff_t>(end_index),
-                                                      coord);
+        index_t find_index = detail::my_binary_search2(lca.m_ends[d].begin() + static_cast<diff_t>(start_index),
+                                                      lca.m_ends[d].begin() + static_cast<diff_t>(end_index),
+						      lca[d].cbegin() + static_cast<diff_t>(start_index),
+						      coord);
 
         return (find_index != -1) ? static_cast<std::size_t>(find_index) + start_index : std::numeric_limits<std::size_t>::max();
     }

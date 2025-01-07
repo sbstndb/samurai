@@ -174,6 +174,9 @@ namespace samurai
         auto scaling_factor() const;
         void set_scaling_factor(double scaling_factor);
 
+
+	std::array<std::vector<value_t>, dim> m_ends;        ///@sbstndbs : aligned end array for fast find algorithm 
+								
       private:
 
 #ifdef SAMURAI_WITH_MPI
@@ -807,6 +810,7 @@ namespace samurai
                 {
                     // Adding the previous interval...
                     m_cells[N].emplace_back(curr_interval);
+		    m_ends[N].emplace_back(curr_interval.end);
 
                     // ... and creating a new one.
                     curr_interval = interval_t(i, i + 1, static_cast<index_t>(m_offsets[N - 1].size()) - i);
@@ -833,6 +837,7 @@ namespace samurai
         if (curr_interval.is_valid())
         {
             m_cells[N].emplace_back(curr_interval);
+	    m_ends[N].emplace_back(curr_interval.end);
         }
     }
 
@@ -844,6 +849,8 @@ namespace samurai
     {
         // Along the X axis, simply copy the intervals in cells[0]
         std::copy(interval_list.begin(), interval_list.end(), std::back_inserter(m_cells[0]));
+	std::transform(interval_list.begin(), interval_list.end(), std::back_inserter(m_ends[0]),
+                 [](const TInterval& interval){ return interval.end; });
     }
 
     template <std::size_t Dim, class TInterval>
@@ -862,17 +869,21 @@ namespace samurai
                 m_offsets[d - 1][i] = i;
             }
             m_cells[d].resize(size);
+	    m_ends[d].resize(size);
             for (std::size_t i = 0; i < size; ++i)
             {
                 m_cells[d][i] = {start_pt[d], end_pt[d], static_cast<index_t>(m_offsets[d - 1][i * dimensions[d]]) - start_pt[d]};
+		m_ends[d][i] = end_pt[d] ; 
             }
             size *= dimensions[d];
         }
 
         m_cells[0].resize(size);
+	m_ends[0].resize(size) ;
         for (std::size_t i = 0; i < size; ++i)
         {
             m_cells[0][i] = {start_pt[0], end_pt[0], static_cast<index_t>(i * dimensions[0]) - start_pt[0]};
+	    m_ends[0][i] = end_pt[0] ; 
         }
     }
 

@@ -371,7 +371,15 @@ namespace samurai
                 return interval.end < v;
             };
 
-            auto result = std::lower_bound(first, last, value, comp);
+            //auto result = std::lower_bound(first, last, value, comp);
+	    auto index = 0 ;
+	    for (auto it = first; it != last; ++it, ++index){
+			if(!(it->end < value)){
+				break;
+			}
+	    }
+	    auto result = first ;
+	    std::advance(result, index) ; 
 
             if (!(result == last) && !(comp(*result, value)))
             {
@@ -382,6 +390,7 @@ namespace samurai
             }
             return -1;
         }
+
 
         template <std::size_t dim, class TInterval, class index_t = typename TInterval::index_t, class coord_index_t = typename TInterval::coord_index_t>
         inline auto find_impl(const LevelCellArray<dim, TInterval>& lca,

@@ -189,8 +189,8 @@ namespace samurai
         template <class T1, class T2>
         inline auto flux(double a, const T1& ul, const T2& ur) const
         {
-            auto out = xt::xarray<double>::from_shape(ul.shape());
-            out.fill(0);
+
+            xt::xtensor<double, 1> out = xt::zeros<double>(ul.shape());
 
             auto mask1 = (a * ul < a * ur);
             auto mask2 = (ul * ur > 0.0);
@@ -198,8 +198,25 @@ namespace samurai
             auto min = xt::eval(xt::minimum(xt::abs(ul), xt::abs(ur)));
             auto max = xt::eval(xt::maximum(xt::abs(ul), xt::abs(ur)));
 
-            xt::masked_view(out, mask1 && mask2) = .5 * min * min;
-            xt::masked_view(out, !mask1)         = .5 * max * max;
+
+	std::size_t size = out.size();
+	
+	for (std::size_t i = 0; i < size; ++i) {	
+	    if (mask1(i) && mask2(i)) { 	
+	        out(i) = 0.5 * min(i) * min(i);	
+	    }
+	}
+
+	for (std::size_t i = 0; i < size; ++i) {
+	    if (!mask1(i)) {
+	        out(i) = 0.5 * max(i) * max(i);
+	    }
+	}
+
+
+
+            //xt::masked_view(out, mask1 && mask2) = .5 * min * min;
+            //xt::masked_view(out, !mask1)         = .5 * max * max;
 
             return out;
         }

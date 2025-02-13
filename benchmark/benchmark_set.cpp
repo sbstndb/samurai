@@ -5,7 +5,7 @@
 #include <samurai/level_cell_list.hpp>
 #include <samurai/subset/node_op.hpp>
 #include <samurai/subset/subset_op.hpp>
-
+/**
 template <std::size_t dim, class S>
 inline auto init_sets_1(S& set1, S& set2, S& set3)
 {
@@ -136,3 +136,5 @@ BENCHMARK(BM_SetCreationWithOn);
 BENCHMARK(BM_SetOPWithOn);
 BENCHMARK(BM_SetOPWithOn2);
 BENCHMARK(BM_BigDomain);
+
+**/

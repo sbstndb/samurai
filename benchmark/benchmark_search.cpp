@@ -118,6 +118,28 @@ void FIND_interval_search_end(benchmark::State& state){
 
 
 
+template <unsigned int dim>
+void FIND_interval_search_end_vector(benchmark::State& state){
+        using  TInterval = samurai::default_config::interval_t;
+        using lca_t = const samurai::LevelCellArray<dim, TInterval> ;
+        using diff_t = typename lca_t::const_iterator::difference_type ;
+
+        auto ca = cell_array_with_n_intervals<dim>(state.range(0)) ;
+        auto lca = ca[0] ;
+        xt::xtensor_fixed<int, xt::xshape<dim>> coord = {2*state.range(0)} ;
+        auto size = lca[dim-1].size() ;
+        auto integral = std::integral_constant<std::size_t, dim-1>{} ;
+        auto begin = lca[0].cbegin() + static_cast<diff_t>(0) ;
+        auto end = lca[0].cend() +static_cast<diff_t>(size);
+
+        for(auto _ : state ){
+		auto index = samurai::detail::interval_search(lca[0], 0, size, coord[0]) ; 
+                benchmark::DoNotOptimize(index) ;
+        }
+}
+
+
+
 BENCHMARK_TEMPLATE(FIND_find_begin,1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(FIND_find_begin,2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(FIND_find_begin,3)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
@@ -142,6 +164,9 @@ BENCHMARK_TEMPLATE(FIND_interval_search_end,1)->RangeMultiplier(2)->Range(1 << 1
 BENCHMARK_TEMPLATE(FIND_interval_search_end,2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(FIND_interval_search_end,3)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 
+BENCHMARK_TEMPLATE(FIND_interval_search_end_vector,1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(FIND_interval_search_end_vector,2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(FIND_interval_search_end_vector,3)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 
 
 /**

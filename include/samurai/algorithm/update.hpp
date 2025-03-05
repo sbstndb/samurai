@@ -178,6 +178,7 @@ namespace samurai
         std::vector<std::vector<value_t>> to_send(mesh.mpi_neighbourhood().size());
 
         std::size_t i_neigh = 0;
+	auto value_to_send = 0 ; 
         for (auto& neighbour : mesh.mpi_neighbourhood())
         {
             if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
@@ -191,10 +192,18 @@ namespace samurai
                     {
                         std::copy(field(level, i, index).begin(), field(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
                     });
+		    value_to_send += to_send[i_neigh].size() ; 
+            	     // Afficher le nombre de valeurs envoyées
+            	     //std::cout << fmt::format("Rang {} envoie {} valeurs au rang {} (niveau {})", 
+                     //             world.rank(), to_send[i_neigh].size(), neighbour.rank, level) << std::endl;
 
                 req.push_back(world.isend(neighbour.rank, neighbour.rank, to_send[i_neigh++]));
             }
         }
+
+       std::cout << fmt::format("Rang {} envoie {} valeurs(niveau {})", 
+                    world.rank(), value_to_send, level) << std::endl;
+	
 
         for (auto& neighbour : mesh.mpi_neighbourhood())
         {
@@ -204,6 +213,10 @@ namespace samurai
                 std::ptrdiff_t count = 0;
 
                 world.recv(neighbour.rank, world.rank(), to_recv);
+
+            std::cout << fmt::format("Rang {} reçoit {} valeurs du rang {} (niveau {})", 
+                                    world.rank(), to_recv.size(), neighbour.rank, level) << std::endl;
+
                 auto in_interface = intersection(neighbour.mesh[mesh_id_t::reference][level],
                                                  mesh[mesh_id_t::reference][level],
                                                  neighbour.mesh.subdomain())

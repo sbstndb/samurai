@@ -161,6 +161,13 @@ class SFC_LoadBalancer_interval : public samurai::LoadBalancer<SFC_LoadBalancer_
             nbCells_tot += nbCellsPerProc[ ip ];
         }
 
+    std::cout << "nbCellsPerProc : ";
+    for (size_t i = 0; i < nbCellsPerProc.size(); ++i) {
+        std::cout << "Proc " << i << " : " << nbCellsPerProc[i] << " ";
+    }
+    std::cout << std::endl;
+
+
         // no weight while computing load 
         double dc = nbCells_tot  / static_cast<double> ( world.size() );
 

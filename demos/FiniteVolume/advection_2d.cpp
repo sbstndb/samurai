@@ -268,7 +268,9 @@ int main(int argc, char* argv[])
 // Diffusion_LoadBalancer_cell not exist ???
 // Load_balancing::Diffusion donne de très mauvais resultats, peut-etre des parametres internes ? 
 
-    SFC_LoadBalancer_interval<dim, Morton> balancer;
+    SFC_LoadBalancer_interval<dim, Hilbert> balancer;
+//    SFC_LoadBalancer_interval<dim, Morton> balancer;
+//
 //    Void_LoadBalancer<dim> balancer;
 //    Diffusion_LoadBalancer_cell<dim> balancer;
 //     Diffusion_LoadBalancer_interval<dim> balancer;

@@ -719,7 +719,7 @@ namespace samurai
             }
 
             for( int iproc=0; iproc<world.size(); ++iproc ){
-		    std::cout << fmt::format("Proc # {}, req_send : {}, req_recv: {} ", iproc, req_send[ static_cast<size_t>( iproc )  ], req_recv[ static_cast<size_t>( iproc ) ] ) << std::endl;;            
+		    logs << fmt::format("Proc # {}, req_send : {}, req_recv: {} ", iproc, req_send[ static_cast<size_t>( iproc )  ], req_recv[ static_cast<size_t>( iproc ) ] ) << std::endl;;            
             }
 
             std::vector<mpi::request> req;
@@ -733,7 +733,7 @@ namespace samurai
 
                     req.push_back( world.isend( iproc, 17, to_send ) );
 
-		    std::cout  << fmt::format("\t> Sending from {} to # {} : {} cellules", world.rank(), iproc, to_send.nb_cells() ) << std::endl;
+		    logs  << fmt::format("\t> Sending from {} to # {} : {} cellules", world.rank(), iproc, to_send.nb_cells() ) << std::endl;
                 }
             }
 
@@ -745,7 +745,7 @@ namespace samurai
                     logs << fmt::format("\t> Recving from # {}", iproc ) << std::endl;
                     world.recv( iproc, 17, to_rcv );
                     
-		    std::cout << fmt::format("\t← Reçu {} cellules du rang {}", to_rcv.nb_cells(), iproc) << std::endl;
+		    logs << fmt::format("\t← Reçu {} cellules du rang {}", to_rcv.nb_cells(), iproc) << std::endl;
 
                     samurai::for_each_interval(to_rcv, [&](std::size_t level, const auto & interval, const auto & index ){
                         new_cl[ level ][ index ].add_interval( interval );

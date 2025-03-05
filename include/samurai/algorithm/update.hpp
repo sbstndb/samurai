@@ -105,10 +105,10 @@ namespace samurai
         auto min_level = mesh[mesh_id_t::reference].min_level();
         auto max_level = mesh[mesh_id_t::reference].max_level();
 #endif
-
+	int value_to_send = 0 ; 
         for (std::size_t level = max_level; level > min_level; --level)
         {
-            update_ghost_subdomains(level, field, other_fields...);
+            value_to_send += update_ghost_subdomains(level, field, other_fields...);
             update_ghost_periodic(level, field, other_fields...);
 
             auto set_at_levelm1 = intersection(mesh[mesh_id_t::reference][level], mesh[mesh_id_t::proj_cells][level - 1]).on(level - 1);
@@ -119,11 +119,11 @@ namespace samurai
         {
             update_bc(min_level - 1, field, other_fields...);
             update_ghost_periodic(min_level - 1, field, other_fields...);
-            update_ghost_subdomains(min_level - 1, field, other_fields...);
+            value_to_send += update_ghost_subdomains(min_level - 1, field, other_fields...);
         }
         update_bc(min_level, field, other_fields...);
         update_ghost_periodic(min_level, field, other_fields...);
-        update_ghost_subdomains(min_level, field, other_fields...);
+        value_to_send += update_ghost_subdomains(min_level, field, other_fields...);
 
         for (std::size_t level = min_level + 1; level <= max_level; ++level)
         {
@@ -135,10 +135,12 @@ namespace samurai
 
             expr.apply_op(variadic_prediction<pred_order, false>(field, other_fields...));
             update_ghost_periodic(level, field, other_fields...);
-            update_ghost_subdomains(level, field, other_fields...);
+            value_to_send += update_ghost_subdomains(level, field, other_fields...);
             update_bc(level, field, other_fields...);
         }
 
+	MPI_Barrier(MPI_COMM_WORLD);
+	std::cout << "value_to_send : " << value_to_send << " in rank " << world.rank() << std::endl ; 
         times::timers.stop("ghost update");
     }
 
@@ -166,6 +168,7 @@ namespace samurai
     template <class Field>
     int update_ghost_subdomains([[maybe_unused]] std::size_t level, [[maybe_unused]] Field& field)
     {
+	    int value_to_send = 0 ; 
 #ifdef SAMURAI_WITH_MPI
         // static constexpr std::size_t dim = Field::dim;
         using mesh_t    = typename Field::mesh_t;
@@ -178,7 +181,6 @@ namespace samurai
         std::vector<std::vector<value_t>> to_send(mesh.mpi_neighbourhood().size());
 
         std::size_t i_neigh = 0;
-	int value_to_send = 0 ; 
         for (auto& neighbour : mesh.mpi_neighbourhood())
         {
             if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
@@ -201,8 +203,8 @@ namespace samurai
             }
         }
 
-       std::cout << fmt::format("Rang {} envoie {} valeurs(niveau {})", 
-                    world.rank(), value_to_send, level) << std::endl;
+//       std::cout << fmt::format("Rang {} envoie {} valeurs(niveau {})", 
+//                    world.rank(), value_to_send, level) << std::endl;
 	
 
         for (auto& neighbour : mesh.mpi_neighbourhood())
@@ -214,8 +216,8 @@ namespace samurai
 
                 world.recv(neighbour.rank, world.rank(), to_recv);
 
-            std::cout << fmt::format("Rang {} reçoit {} valeurs du rang {} (niveau {})", 
-                                    world.rank(), to_recv.size(), neighbour.rank, level) << std::endl;
+//            std::cout << fmt::format("Rang {} reçoit {} valeurs du rang {} (niveau {})", 
+//                                    world.rank(), to_recv.size(), neighbour.rank, level) << std::endl;
 
                 auto in_interface = intersection(neighbour.mesh[mesh_id_t::reference][level],
                                                  mesh[mesh_id_t::reference][level],
@@ -233,18 +235,22 @@ namespace samurai
         }
         mpi::wait_all(req.begin(), req.end());
 #endif
+	return value_to_send ; 
     }
 
     template <class Field, class... Fields>
-    void update_ghost_subdomains(std::size_t level, Field& field, Fields&... other_fields)
+    int update_ghost_subdomains(std::size_t level, Field& field, Fields&... other_fields)
     {
-        update_ghost_subdomains(level, field);
-        update_ghost_subdomains(level, other_fields...);
+	    int value_to_send = 0 ; 
+        value_to_send += update_ghost_subdomains(level, field);
+        value_to_send += update_ghost_subdomains(level, other_fields...);
+	return value_to_send ; 
     }
 
     template <class Field>
-    void update_ghost_subdomains([[maybe_unused]] Field& field)
+    int update_ghost_subdomains([[maybe_unused]] Field& field)
     {
+	    int value_to_send = 0 ; 
 #ifdef SAMURAI_WITH_MPI
         using mesh_t    = typename Field::mesh_t;
         using mesh_id_t = typename mesh_t::mesh_id_t;
@@ -256,9 +262,10 @@ namespace samurai
 
         for (std::size_t level = min_level; level <= max_level; ++level)
         {
-            update_ghost_subdomains(level, field);
+            value_to_send += update_ghost_subdomains(level, field);
         }
 #endif
+	return value_to_send ; 
     }
 
     template <bool out = true, class Field>

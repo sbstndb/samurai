@@ -390,6 +390,11 @@ namespace samurai
 
         keep_only_one_coarse_tag(m_tag);
 
+
+	MPI_Barrier(MPI_COMM_WORLD);
+	usleep(1000) ; 
+	MPI_Barrier(MPI_COMM_WORLD);
+
         return update_field_mr(m_tag, m_fields, other_fields...);
     }
 

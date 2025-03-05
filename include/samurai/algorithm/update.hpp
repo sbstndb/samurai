@@ -164,7 +164,7 @@ namespace samurai
     }
 
     template <class Field>
-    void update_ghost_subdomains([[maybe_unused]] std::size_t level, [[maybe_unused]] Field& field)
+    int update_ghost_subdomains([[maybe_unused]] std::size_t level, [[maybe_unused]] Field& field)
     {
 #ifdef SAMURAI_WITH_MPI
         // static constexpr std::size_t dim = Field::dim;
@@ -178,7 +178,7 @@ namespace samurai
         std::vector<std::vector<value_t>> to_send(mesh.mpi_neighbourhood().size());
 
         std::size_t i_neigh = 0;
-	auto value_to_send = 0 ; 
+	int value_to_send = 0 ; 
         for (auto& neighbour : mesh.mpi_neighbourhood())
         {
             if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())

@@ -9,6 +9,12 @@
 #include <samurai/schemes/fv.hpp>
 
 #include <filesystem>
+
+
+#include <boost/mpi.hpp>
+#include <boost/serialization/serialization.hpp>
+
+
 namespace fs = std::filesystem;
 
 template <class Field>
@@ -29,9 +35,7 @@ void save(const fs::path& path, const std::string& filename, const Field& u, con
                            });
 
     samurai::save(path, fmt::format("{}{}", filename, suffix), mesh, u, level_);
-#ifndef SAMURAI_WITH_MPI
     samurai::dump(path, fmt::format("{}_restart{}", filename, suffix), mesh, u);
-#endif
 }
 
 int main(int argc, char* argv[])
@@ -134,104 +138,26 @@ int main(int argc, char* argv[])
         samurai::load(restart_file, mesh, u);
     }
 
-    auto unp1 = samurai::make_field<1>("unp1", mesh);
-    // Intermediary fields for the RK3 scheme
-    auto u1 = samurai::make_field<1>("u1", mesh);
-    auto u2 = samurai::make_field<1>("u2", mesh);
+    // Send mesh to other mpi rank
+    // using boost::mpi
 
-    unp1.fill(0);
-    u1.fill(0);
-    u2.fill(0);
 
-    // Convection operator
-    samurai::VelocityVector<dim> velocity;
-    velocity.fill(1);
-    if constexpr (dim == 2)
-    {
-        velocity(1) = -1;
+	boost::mpi::communicator world ;
+	int rank = world.rank() ; 
+	int size = world.size() ; 
+
+	double start = MPI_Wtime() ; 
+    if (rank == 0 ){
+	// send
+	world.send(1, 1, mesh); 
+	
     }
-    auto conv = samurai::make_convection_weno5<decltype(u)>(velocity);
-
-    //--------------------//
-    //   Time iteration   //
-    //--------------------//
-
-    if (dt == 0)
-    {
-        double dx             = mesh.cell_length(max_level);
-        auto a                = xt::abs(velocity);
-        double sum_velocities = xt::sum(xt::abs(velocity))();
-        dt                    = cfl * dx / sum_velocities;
+    else if (rank == 1){
+	world.recv(0, 1, mesh);
     }
+    double end = MPI_Wtime() ; 
+    std::cout << "Boost MPI comm : " << (end - start) << "s" << std::endl ; 
 
-    auto MRadaptation = samurai::make_MRAdapt(u);
-    MRadaptation(mr_epsilon, mr_regularity);
-
-    double dt_save    = nfiles == 0 ? dt : Tf / static_cast<double>(nfiles);
-    std::size_t nsave = 0, nt = 0;
-    if (nfiles != 1)
-    {
-        std::string suffix = (nfiles != 1) ? fmt::format("_ite_{}", nsave++) : "";
-        save(path, filename, u, suffix);
-    }
-
-#include <samurai/io/restart.hpp>
-    while (t != Tf)
-    {
-        // Move to next timestep
-        t += dt;
-        if (t > Tf)
-        {
-            dt += Tf - t;
-            t = Tf;
-        }
-        std::cout << fmt::format("iteration {}: t = {:.2f}, dt = {}", nt++, t, dt) << std::flush;
-
-        // Mesh adaptation
-        MRadaptation(mr_epsilon, mr_regularity);
-        samurai::update_ghost_mr(u);
-        unp1.resize();
-        u1.resize();
-        u2.resize();
-        u1.fill(0);
-        u2.fill(0);
-
-        // unp1 = u - dt * conv(u);
-
-        // TVD-RK3 (SSPRK3)
-        u1 = u - dt * conv(u);
-        samurai::update_ghost_mr(u1);
-        u2 = 3. / 4 * u + 1. / 4 * (u1 - dt * conv(u1));
-        samurai::update_ghost_mr(u2);
-        unp1 = 1. / 3 * u + 2. / 3 * (u2 - dt * conv(u2));
-
-        // u <-- unp1
-        std::swap(u.array(), unp1.array());
-
-        // Save the result
-        if (nfiles == 0 || t >= static_cast<double>(nsave + 1) * dt_save || t == Tf)
-        {
-            if (nfiles != 1)
-            {
-                std::string suffix = (nfiles != 1) ? fmt::format("_ite_{}", nsave++) : "";
-                save(path, filename, u, suffix);
-            }
-            else
-            {
-                save(path, filename, u);
-            }
-        }
-
-        std::cout << std::endl;
-    }
-
-    if constexpr (dim == 1)
-    {
-        std::cout << std::endl;
-        std::cout << "Run the following command to view the results:" << std::endl;
-        std::cout << "python <<path to samurai>>/python/read_mesh.py " << filename << "_ite_ --field u level --start 0 --end " << nsave
-                  << std::endl;
-    }
 
     samurai::finalize();
     return 0;

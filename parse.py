@@ -68,6 +68,7 @@ for line in lines:
     # Parser les lignes avec value_to_send
     if "value_to_send" in line:
         parts = line.split()
+        print(parts)
         value = int(parts[2])  # La valeur est en position 2
         rank_num = int(parts[-1])  # Le rank est le dernier élément
         value_to_send[rank_num].append(value)  # Ajouter la valeur à la liste du rank
@@ -76,6 +77,7 @@ for line in lines:
     elif "nbCellsPerProc" in line:
         parts = line.split()
         for i in range(rank):
+            print(parts)
             value = int(parts[5 + 4*i])  # Les valeurs commencent à l'index 3, avec un pas de 2
             nb_cells_per_proc[i].append(value)
 
@@ -94,13 +96,28 @@ for i in range(rank):
 
 
 import matplotlib.pyplot as plt
+
+# Assumant que rank et nb_cells_per_proc sont définis avant
 for i in range(rank):
-    plt.plot(nb_cells_per_proc[i], label="rank i")
+    plt.plot(nb_cells_per_proc[i], label=f"rank {i}")  # f-string pour une meilleure lisibilité
+
+plt.title("Cell quantity per rank over iterations")  # titre déplacé hors de la boucle
+plt.xlabel("Iteration")
+plt.ylabel("Cell number per subdomain")
+plt.grid()
+plt.legend()  # ajout de la légende pour voir les labels
+plt.savefig("nb_cells.png")  # Nom du fichier avec extension
 plt.show()
 
+
 for i in range(rank):
-    plt.plot(value_to_send[i], label="rank i")
+    plt.plot(value_to_send[i], label=f"rank {i}")  # f-string pour une meilleure lisibilité
+
+plt.title("Values to send per rank over iterations")  # titre déplacé hors de la boucle
+plt.xlabel("Iteration")
+plt.ylabel("Value to send per subdomain")
+plt.grid()
+plt.legend()  # ajout de la légende pour voir les labels
+plt.savefig("value_to_send.png")  # Nom du fichier avec extension
 plt.show()
-
-
 

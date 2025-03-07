@@ -87,7 +87,27 @@ namespace Load_balancing{
 
             std::vector<double> nbLoadPerProc;
             boost::mpi::all_gather( world, load, nbLoadPerProc );
-            
+
+
+double nbCells_tot = 0;
+        std::vector<double> nbCellsPerProc;
+        boost::mpi::all_gather( world, static_cast<double>( mesh.nb_cells( Mesh_t::mesh_id_t::cells ) ), nbCellsPerProc );
+
+        for(size_t ip=0; ip<nbCellsPerProc.size(); ++ip ) {
+            nbCells_tot += nbCellsPerProc[ ip ];
+        }
+
+
+if (world.rank() == 0){
+    std::cout << "nbCellsPerProc : ";
+    for (size_t i = 0; i < nbCellsPerProc.size(); ++i) {
+        std::cout << "Proc " << i << " : " << nbCellsPerProc[i] << " ";
+    }
+    std::cout << std::endl;
+ }
+
+
+
             double load_tot = 0.;
             for(size_t i=0; i<nbLoadPerProc.size(); ++i){
                 load_tot += nbLoadPerProc[ i ];

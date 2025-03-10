@@ -29,9 +29,9 @@ void save(const fs::path& path, const std::string& filename, const Field& u, con
                            });
 
     samurai::save(path, fmt::format("{}{}", filename, suffix), mesh, u, level_);
-#ifndef SAMURAI_WITH_MPI
+//#ifndef SAMURAI_WITH_MPI
     samurai::dump(path, fmt::format("{}_restart{}", filename, suffix), mesh, u);
-#endif
+//#endif
 }
 
 int main(int argc, char* argv[])

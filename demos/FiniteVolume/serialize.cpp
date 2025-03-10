@@ -38,6 +38,79 @@ void save(const fs::path& path, const std::string& filename, const Field& u, con
     samurai::dump(path, fmt::format("{}_restart{}", filename, suffix), mesh, u);
 }
 
+
+
+struct SimpleData{
+        int a;
+        double b;
+        double values[100] ;
+        double values2[10000];
+
+
+        template <class Archive>
+                void serialize(Archive & ar, const unsigned int){
+                        ar & a ;
+                        ar & b ;
+                        ar & values ;
+                        ar & values2 ;
+                }
+
+};
+
+
+void benchmark_raw_mpi_simple(int rank, int size, int num_iterations){
+	SimpleData data; 
+	if (rank == 0){
+		for (int i = 0 ; i < num_iterations; i++){
+			MPI_Send(&data.a, 1, MPI_INT, 1, 0, MPI_COMM_WORLD);
+			MPI_Send(&data.b, 1, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
+			MPI_Send(data.values, 100, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD);
+                        MPI_Send(data.values2, 10000, MPI_DOUBLE, 1, 3, MPI_COMM_WORLD);
+										      
+		}
+		int ack ; 
+	       MPI_Recv(&ack, 1, MPI_INT, 1, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	}	
+	else if (rank == 1){
+		for (int i = 0 ; i < num_iterations; i++){
+                        MPI_Recv(&data.a, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                        MPI_Recv(&data.b, 1, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);		
+			MPI_Recv(data.values, 100, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                        MPI_Recv(data.values2, 10000, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			
+		}
+	        int ack = 1;
+	        MPI_Send(&ack, 1, MPI_INT, 0, 2, MPI_COMM_WORLD);
+	}
+}
+
+
+
+
+void benchmark_boost_mpi_simple(int num_iterations) {
+    boost::mpi::communicator world;  
+    int rank = world.rank();
+    SimpleData data;
+
+
+    if (rank == 0) {
+        double start = MPI_Wtime(); 
+        for (int i = 0; i < num_iterations; ++i) {
+            world.send(1, 0, data); 
+        }
+        int ack;
+        world.recv(1, 1, ack);  
+        double end = MPI_Wtime();
+    } else if (rank == 1) {
+        for (int i = 0; i < num_iterations; ++i) {
+            world.recv(0, 0, data);
+        }
+        int ack = 1;
+        world.send(0, 1, ack); 
+    }
+}
+
+
 int main(int argc, char* argv[])
 {
     auto& app = samurai::initialize("Finite volume example for the linear convection equation", argc, argv);
@@ -142,21 +215,48 @@ int main(int argc, char* argv[])
     // using boost::mpi
 
 
+        auto field_mpi = samurai::make_field<1>("u", mesh);
+
+	auto rep = 1000 ; 
+
 	boost::mpi::communicator world ;
 	int rank = world.rank() ; 
 	int size = world.size() ; 
 
-	double start = MPI_Wtime() ; 
+	double start, end ; 
+    world.barrier();
+    start = MPI_Wtime() ; 
     if (rank == 0 ){
 	// send
-	world.send(1, 1, mesh); 
-	
+	for (int i = 0 ; i < rep ; i++)
+		world.send(1, 1, mesh); 	
     }
     else if (rank == 1){
+	// recv
+	for (int i = 0 ; i < rep ; i++)
 	world.recv(0, 1, mesh);
     }
-    double end = MPI_Wtime() ; 
-    std::cout << "Boost MPI comm : " << (end - start) << "s" << std::endl ; 
+    world.barrier();
+    end = MPI_Wtime() ; 
+    std::cout << "Boost MPI comm for mesh  : " << (end - start)/rep << "s" << std::endl ; 
+
+
+
+	MPI_Barrier(MPI_COMM_WORLD) ; 
+	start = MPI_Wtime() ; 
+	benchmark_raw_mpi_simple(rank, size, rep);
+	end = MPI_Wtime() ; 
+        std::cout << "Raw MPI SimpleData: " << (end - start) / rep << " s/op\n";
+
+
+        MPI_Barrier(MPI_COMM_WORLD) ;
+        start = MPI_Wtime() ;
+        benchmark_boost_mpi_simple(rep);
+        end = MPI_Wtime() ;
+        std::cout << "boost MPI SimpleData: " << (end - start) / rep << " s/op\n";
+    
+
+
 
 
     samurai::finalize();

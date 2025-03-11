@@ -178,8 +178,8 @@ namespace samurai
 
         std::array<std::vector<int>, dim> m_cells_start;
         std::array<std::vector<int>, dim> m_cells_end;
-        std::array<std::vector<int>, dim> m_cells_level;
         std::array<std::vector<int>, dim> m_cells_step;
+        std::array<std::vector<int>, dim> m_cells_index;
 
         class Proxy
         {
@@ -187,8 +187,8 @@ namespace samurai
 
             TInterval interval;
 
-            Proxy(int& start_, int& end_, int& level_, int& step_)
-                : interval(start_, end_, level_, step_)
+            Proxy(int& start_, int& end_, int& step_, int& index_)
+                : interval(start_, end_, step_, index_)
             {
             }
         };
@@ -241,8 +241,8 @@ namespace samurai
                 {
                     m_cells_start[dim].push_back(interval.start);
                     m_cells_end[dim].push_back(interval.end);
-                    m_cells_level[dim].push_back(interval.level);
                     m_cells_step[dim].push_back(interval.step);
+                    m_cells_index[dim].push_back(interval.index);
                 }
             }
         }

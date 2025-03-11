@@ -57,18 +57,14 @@ void SUBSET_difference_same_interval_different_level(benchmark::State& state)
     samurai::CellArray<dim> ca2(cl2);
     for (auto _ : state)
     {
-        if constexpr (delta_level != 0)
-        {
-            auto subset = samurai::difference(ca1[0], samurai::projection(ca2[delta_level], 0));
-            subset([](const auto&, const auto&) {}); // evaluation avec lambda vide
-            benchmark::DoNotOptimize(subset);
-        }
-        else if constexpr (delta_level == 0)
-        {
-            auto subset = samurai::difference(ca1[0], ca2[0]);
-            subset([](const auto&, const auto&) {}); // evaluation avec lambda vide
-            benchmark::DoNotOptimize(subset);
-        }
+        bool evaluated = false;
+        auto subset    = samurai::difference(ca1[0], ca2[0]);
+        subset(
+            [&evaluated](const auto&, const auto&)
+            {
+                evaluated = true;
+            });
+        benchmark::DoNotOptimize(subset);
     }
 }
 
@@ -86,21 +82,13 @@ void SUBSET_difference_different_interval_different_level(benchmark::State& stat
     samurai::CellArray<dim> ca2(cl2);
     for (auto _ : state)
     {
-        if constexpr (delta_level != 0)
-        {
-            auto subset = samurai::difference(ca1[0], samurai::projection(ca2[delta_level], 0));
-            subset([](const auto&, const auto&) {}); // evaluation avec lambda vide
-            benchmark::DoNotOptimize(subset);
-        }
-        else if constexpr (delta_level == 0)
-        {
-            auto subset = samurai::difference(ca1[0], ca2[0]);
-            subset([](const auto&, const auto&) {}); // evaluation avec lambda vide
-            benchmark::DoNotOptimize(subset);
-        }
+        auto subset = samurai::difference(ca1[0], ca2[0]);
+        subset([](const auto&, const auto&) {}); // evaluation avec lambda vide
+        benchmark::DoNotOptimize(subset);
     }
 }
 
+/**
 template <unsigned int dim, unsigned int delta_level>
 void SUBSET_difference_n1_interval_different_level(benchmark::State& state)
 {
@@ -311,11 +299,12 @@ void SUBSET_contraction(benchmark::State& state)
         benchmark::DoNotOptimize(subset);
     }
 }
+**/
 
 BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-
+/**
 BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level, 1, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level, 2, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level, 3, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
@@ -379,3 +368,4 @@ BENCHMARK_TEMPLATE(SUBSET_expand, 3)->RangeMultiplier(2)->Range(1 << 1, 1 << 10)
 BENCHMARK_TEMPLATE(SUBSET_contraction, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(SUBSET_contraction, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(SUBSET_contraction, 3)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+**/

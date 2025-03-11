@@ -176,6 +176,77 @@ namespace samurai
         auto scaling_factor() const;
         void set_scaling_factor(double scaling_factor);
 
+        std::array<std::vector<int>, dim> m_cells_start;
+        std::array<std::vector<int>, dim> m_cells_end;
+        std::array<std::vector<int>, dim> m_cells_level;
+        std::array<std::vector<int>, dim> m_cells_step;
+
+        class Proxy
+        {
+          public:
+
+            TInterval interval;
+
+            Proxy(int& start_, int& end_, int& level_, int& step_)
+                : interval(start_, end_, level_, step_)
+            {
+            }
+        };
+
+        class IteratorSOA
+        {
+            LevelCellArray* lca;
+            std::size_t index;
+
+          public:
+
+            IteratorSOA(LevelCellArray& lca_, std::size_t index_)
+                : lca(lca_)
+                , index(index_)
+            {
+            }
+
+            Proxy operator*()
+            {
+                Proxy(lca->m_cells_start[index], lca->m_cells_end[index], lca->m_cells_level[index], lca->m_cells_step[index]);
+            }
+
+            IteratorSOA& operator++()
+            {
+                ++index;
+                return *this;
+            }
+
+            bool operator!=(const IteratorSOA& other) const
+            {
+                return index != other.index || lca != other.lca;
+            }
+
+            IteratorSOA begin()
+            {
+                return IteratorSOA(this, 0);
+            }
+
+            IteratorSOA end()
+            {
+                return IteratorSOA(this, m_cells_start.size());
+            }
+        };
+
+        void convertAOStoSOA()
+        {
+            for (int i = 0; i < dim; i++)
+            {
+                for (auto& interval : m_cells[dim])
+                {
+                    m_cells_start[dim].push_back(interval.start);
+                    m_cells_end[dim].push_back(interval.end);
+                    m_cells_level[dim].push_back(interval.level);
+                    m_cells_step[dim].push_back(interval.step);
+                }
+            }
+        }
+
       private:
 
 #ifdef SAMURAI_WITH_MPI

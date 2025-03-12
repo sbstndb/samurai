@@ -311,7 +311,7 @@ namespace samurai
         {
             // Envoyer le nombre d'intervalles
             std::size_t nb_intervals = lca[d].size();
-            MPI_Send(&nb_intervals, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+            //            MPI_Send(&nb_intervals, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
 
             // Envoyer les intervalles (start, end, index)
             std::size_t total_size = nb_intervals * sizeof(TInterval);
@@ -341,14 +341,14 @@ namespace samurai
         // Pour chaque dimension d de 0 à Dim-1
         for (std::size_t d = 0; d < Dim; ++d)
         {
-            // Recevoir le nombre d'intervalles
-            std::size_t nb_intervals;
-            MPI_Recv(&nb_intervals, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+            MPI_Status status;
+            MPI_Probe(source, tag, comm, &status);
+            int count;
+            MPI_Get_count(&status, MPI_BYTE, &count);
+            std::size_t nb_intervals = count / sizeof(TInterval);
             lca[d].resize(nb_intervals);
 
-            // Recevoir les intervalles
-            std::size_t total_size = nb_intervals * sizeof(TInterval);
-            MPI_Recv(lca[d].data(), total_size, MPI_BYTE, source, tag, comm, MPI_STATUS_IGNORE);
+            MPI_Recv(lca[d].data(), count, MPI_BYTE, source, tag, comm, MPI_STATUS_IGNORE);
         }
 
         // Pour les dimensions d de 1 à Dim-1

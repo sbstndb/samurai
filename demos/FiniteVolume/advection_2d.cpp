@@ -30,9 +30,9 @@ void init(Field& u)
         [&](auto& cell)
         {
             auto center           = cell.center();
-            const double radius   = .2;
-            const double x_center = 0.3;
-            const double y_center = 0.3;
+            const double radius   = .1;
+            const double x_center = 0.2;
+            const double y_center = 0.5;
             if (((center[0] - x_center) * (center[0] - x_center) + (center[1] - y_center) * (center[1] - y_center)) <= radius * radius)
             {
                 u[cell] = 1;
@@ -179,7 +179,7 @@ int main(int argc, char* argv[])
     xt::xtensor_fixed<double, xt::xshape<dim>> min_corner = {0., 0.};
     xt::xtensor_fixed<double, xt::xshape<dim>> max_corner = {1., 1.};
     std::array<double, dim> a{
-        {1, 1}
+        {1, 0}
     };
     double Tf  = .1;
     double cfl = 0.5;

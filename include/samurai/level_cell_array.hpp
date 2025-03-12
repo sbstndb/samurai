@@ -291,6 +291,7 @@ namespace samurai
         mutable coord_type m_index;
     };
 
+#ifdef SAMURAI_WITH_MPI
     template <std::size_t Dim, class TInterval>
     void LevelCellArray<Dim, TInterval>::send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca, int dest, int tag, MPI_Comm comm)
     {
@@ -375,6 +376,7 @@ namespace samurai
             MPI_Recv(lca.offsets(d).data(), nb_offsets, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
         }
     }
+#endif
 
     ///////////////////////////////////
     // LevelCellArray implementation //

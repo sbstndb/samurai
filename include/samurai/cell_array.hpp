@@ -242,6 +242,7 @@ namespace samurai
     // CellArray implementation //
     //////////////////////////////
 
+#ifdef SAMURAI_WITH_MPI
     template <std::size_t dim_, class TInterval, std::size_t max_size_>
     void
     CellArray<dim_, TInterval, max_size_>::send_cell_array(const CellArray<dim_, TInterval, max_size_>& ca, int dest, int tag, MPI_Comm comm)
@@ -289,6 +290,7 @@ namespace samurai
             recv_level_cell_array(ca[level], source, tag, comm);
         }
     }
+#endif
 
     /**
      * Default contructor which sets the level for each LevelCellArray.

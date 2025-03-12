@@ -321,12 +321,8 @@ namespace samurai
         // Pour les dimensions d de 1 à Dim-1
         for (std::size_t d = 1; d < Dim; ++d)
         {
-            // Envoyer le nombre d'offsets
-            std::size_t nb_offsets = lca.offsets(d).size();
-            MPI_Send(&nb_offsets, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
-
             // Envoyer les offsets
-            MPI_Send(lca.offsets(d).data(), nb_offsets, MPI_UNSIGNED_LONG, dest, tag, comm);
+            MPI_Send(lca.offsets(d).data(), lca.offsets(d).size(), MPI_UNSIGNED_LONG, dest, tag, comm);
         }
     }
 
@@ -358,13 +354,12 @@ namespace samurai
         // Pour les dimensions d de 1 à Dim-1
         for (std::size_t d = 1; d < Dim; ++d)
         {
-            // Recevoir le nombre d'offsets
-            std::size_t nb_offsets;
-            MPI_Recv(&nb_offsets, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
-            lca.offsets(d).resize(nb_offsets);
-
-            // Recevoir les offsets
-            MPI_Recv(lca.offsets(d).data(), nb_offsets, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+            MPI_Status status;
+            MPI_Probe(source, tag, comm, &status);
+            int count;
+            MPI_Get_count(&status, MPI_UNSIGNED_LONG, &count);
+            lca.offsets(d).resize(count);
+            MPI_Recv(lca.offsets(d).data(), count, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
         }
     }
 #endif

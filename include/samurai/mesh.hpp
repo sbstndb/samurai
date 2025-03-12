@@ -21,6 +21,9 @@
 namespace mpi = boost::mpi;
 #endif
 
+#include <fstream>
+#include <sstream>
+
 namespace samurai
 {
 
@@ -198,7 +201,7 @@ namespace samurai
             ar & m_subdomain;
             ar & m_union;
             ar & m_min_level;
-            ar & m_min_level;
+            ar & m_max_level;
         }
 #endif
     };
@@ -615,6 +618,111 @@ namespace samurai
         }
 
         mpi::wait_all(req.begin(), req.end());
+
+        std::ofstream file("log_rank_" + std::to_string(world.rank()) + ".txt", std::ios::app);
+        std::vector<MPI_Request> reqs;
+        auto max_size = 16;
+
+        for (const auto& neighbour : m_mpi_neighbourhood)
+        {
+            // Pour chaque voisin
+            for (std::size_t i = 0; i < max_size + 1; ++i)
+            {
+                const auto& lca = neighbour.mesh.m_cells[mesh_id_t::cells][i];
+                ; // Référence à un levelcellarray
+                MPI_Request r;
+
+                auto m_level = lca.level();
+                //          MPI_Isend(&m_level, 1, MPI_UNSIGNED_LONG, neighbour.rank, 1000 + i, world, &r);
+                reqs.push_back(r);
+                // Envoi de m_cells pour chaque dimension
+                for (std::size_t d = 0; d < dim; ++d)
+                {
+                    // Envoi de la taille du vecteur
+                    std::size_t N = lca[d].size();
+                    file << " N sended : " << N << std::endl;
+                    MPI_Send(&N, 1, MPI_UNSIGNED_LONG, neighbour.rank, 2000 + i * dim + d, world);
+                    reqs.push_back(r);
+                    file << "recv N*sizeof(interval) : " << N * sizeof(interval_t) << std::endl;
+                    // Envoi des données si le vecteur n'est pas vide
+                    if (N > 0)
+                    {
+                        auto cells = lca[d].data();
+                        MPI_Isend(cells, N * sizeof(interval_t), MPI_BYTE, neighbour.rank, 3000 + i * dim + d, world, &r);
+                        reqs.push_back(r);
+                    }
+                }
+                // Envoi de m_offsets pour chaque dimension
+                for (std::size_t d = 1; d < dim - 1; ++d)
+                {
+                    // Envoi de la taille du vecteur
+                    std::size_t M = lca.offsets(d).size();
+                    MPI_Isend(&M, 1, MPI_UNSIGNED_LONG, neighbour.rank, 4000 + i * dim + d, world, &r);
+                    reqs.push_back(r);
+
+                    // Envoi des données si le vecteur n'est pas vide
+                    if (M > 0)
+                    {
+                        auto offsets = lca.offsets(d).data();
+                        MPI_Isend(offsets, M * sizeof(std::size_t), MPI_BYTE, neighbour.rank, 5000 + i * dim + d, world, &r);
+                        reqs.push_back(r);
+                    }
+                }
+            }
+        }
+
+        for (auto& neighbour : m_mpi_neighbourhood)
+        {
+            // Pour chaque voisin
+            for (std::size_t i = 0; i < max_size + 1; ++i)
+            {
+                auto& lca = neighbour.mesh.m_cells[mesh_id_t::cells][i]; // Référence à un levelcellarray dans mesh
+
+                // Réception de m_level
+                auto level = lca.level();
+                //          MPI_Recv(&level, 1, MPI_UNSIGNED_LONG, neighbour.rank, 1000 + i, world, MPI_STATUS_IGNORE);
+                // Réception de m_cells pour chaque dimension
+                for (std::size_t d = 0; d < dim; ++d)
+                {
+                    // Réception de la taille
+                    std::size_t N;
+                    MPI_Recv(&N, 1, MPI_UNSIGNED_LONG, neighbour.rank, 2000 + i * dim + d, world, MPI_STATUS_IGNORE);
+                    file << " N après : " << N << std::endl;
+
+                    // Redimensionnement et réception des données
+                    lca[d].resize(N);
+                    file << "size of lca[d] : " << lca[d].size() << std::endl;
+                    file << "capacity of lca[d] : " << lca[d].capacity() << std::endl;
+                    file << "recv :N*sizeof(interval) : " << N * sizeof(interval_t) << std::endl;
+                    file << "recv N finalement : " << N << std::endl;
+
+                    if (N > 0)
+                    {
+                        auto* data = lca[d].data();
+                        MPI_Recv(data, N * sizeof(interval_t), MPI_BYTE, neighbour.rank, 3000 + i * dim + d, world, MPI_STATUS_IGNORE);
+                    }
+                }
+                // Réception de m_offsets pour chaque dimension
+                for (std::size_t d = 1; d < dim - 1; ++d)
+                {
+                    // Réception de la taille
+                    std::size_t M;
+                    MPI_Recv(&M, 1, MPI_UNSIGNED_LONG, neighbour.rank, 4000 + i * dim + d, world, MPI_STATUS_IGNORE);
+
+                    // Redimensionnement et réception des données
+                    lca.offsets(d).resize(M);
+                    if (M > 0)
+                    {
+                        auto offsets = lca.offsets(d).data();
+                        MPI_Recv(offsets, M * sizeof(std::size_t), MPI_BYTE, neighbour.rank, 5000 + i * dim + d, world, MPI_STATUS_IGNORE);
+                    }
+                }
+            }
+        }
+
+        file.close();
+        MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUSES_IGNORE);
+
 #endif
     }
 

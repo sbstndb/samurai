@@ -314,13 +314,8 @@ namespace samurai
             MPI_Send(&nb_intervals, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
 
             // Envoyer les intervalles (start, end, index)
-            for (const auto& interval : lca[d])
-            {
-                MPI_Send(&interval.start, 1, MPI_INT, dest, tag, comm);
-                MPI_Send(&interval.end, 1, MPI_INT, dest, tag, comm);
-                MPI_Send(&interval.step, 1, MPI_INT, dest, tag, comm);
-                MPI_Send(&interval.index, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
-            }
+            std::size_t total_size = nb_intervals * sizeof(TInterval);
+            MPI_Send(lca[d].data(), total_size, MPI_BYTE, dest, tag, comm);
         }
 
         // Pour les dimensions d de 1 à Dim-1
@@ -356,13 +351,8 @@ namespace samurai
             lca[d].resize(nb_intervals);
 
             // Recevoir les intervalles
-            for (auto& interval : lca[d])
-            {
-                MPI_Recv(&interval.start, 1, MPI_INT, source, tag, comm, MPI_STATUS_IGNORE);
-                MPI_Recv(&interval.end, 1, MPI_INT, source, tag, comm, MPI_STATUS_IGNORE);
-                MPI_Recv(&interval.step, 1, MPI_INT, source, tag, comm, MPI_STATUS_IGNORE);
-                MPI_Recv(&interval.index, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
-            }
+            std::size_t total_size = nb_intervals * sizeof(TInterval);
+            MPI_Recv(lca[d].data(), total_size, MPI_BYTE, source, tag, comm, MPI_STATUS_IGNORE);
         }
 
         // Pour les dimensions d de 1 à Dim-1

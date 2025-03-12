@@ -686,7 +686,7 @@ namespace samurai
             mpi::wait_all(req.begin(), req.end());
     #endif
         }
-    **/
+**/
 
     template <class D, class Config>
     inline void Mesh_base<D, Config>::update_mesh_neighbour()
@@ -697,7 +697,7 @@ namespace samurai
         // Envoyer le maillage à chaque voisin
         for (const auto& neighbour : m_mpi_neighbourhood)
         {
-            send_mesh(*this, neighbour.rank, neighbour.rank, world);
+            send_mesh(derived_cast(), neighbour.rank, neighbour.rank, world);
         }
 
         // Recevoir le maillage de chaque voisin

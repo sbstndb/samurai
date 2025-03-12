@@ -163,6 +163,11 @@ namespace samurai
 
         mesh_t& cells();
 
+#ifdef SAMURAI_WITH_MPI
+        void send_mesh(const Mesh_base<D, Config>& mesh, int dest, int tag, MPI_Comm comm);
+        void recv_mesh(Mesh_base<D, Config>& mesh, int source, int tag, MPI_Comm comm);
+#endif
+
       private:
 
         void construct_subdomain();
@@ -202,6 +207,69 @@ namespace samurai
         }
 #endif
     };
+
+#ifdef SAMURAI_WITH_MPI
+    template <class D, class Config>
+    void Mesh_base<D, Config>::send_mesh(const Mesh_base<D, Config>& mesh, int dest, int tag, MPI_Comm comm)
+    {
+        //    using mesh_t = typename Mesh_base<D, Config>::mesh_t;
+
+        // Envoyer m_cells (chaque CellArray)
+        for (std::size_t id = 0; id < mesh_t::size; ++id)
+        {
+            mesh.m_cells[id].send_cell_array(mesh.m_cells[id], dest, tag, comm);
+        }
+
+        // Envoyer m_domain
+        mesh.m_domain.send_level_cell_array(mesh.m_domain, dest, tag, comm);
+
+        // Envoyer m_subdomain
+        mesh.m_subdomain.send_level_cell_array(mesh.m_subdomain, dest, tag, comm);
+
+        // Envoyer m_union
+        mesh.m_union.send_cell_array(mesh.m_union, dest, tag, comm);
+
+        // Envoyer m_min_level
+        MPI_Send(&mesh.m_min_level, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+
+        // Envoyer m_max_level
+        MPI_Send(&mesh.m_max_level, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+
+        // Envoyer m_periodic
+        MPI_Send(mesh.m_periodic.data(), Config::dim, MPI_C_BOOL, dest, tag, comm);
+    }
+
+    template <class D, class Config>
+    void Mesh_base<D, Config>::recv_mesh(Mesh_base<D, Config>& mesh, int source, int tag, MPI_Comm comm)
+    {
+        //    using mesh_t = typename Mesh_base<D, Config>::mesh_t;
+
+        // Recevoir m_cells
+        for (std::size_t id = 0; id < mesh_t::size; ++id)
+        {
+            mesh.m_cells[id].recv_cell_array(mesh.m_cells[id], source, tag, comm);
+        }
+
+        // Recevoir m_domain
+        mesh.m_domain.recv_level_cell_array(mesh.m_domain, source, tag, comm);
+
+        // Recevoir m_subdomain
+        mesh.m_subdomain.recv_level_cell_array(mesh.m_subdomain, source, tag, comm);
+
+        // Recevoir m_union
+        mesh.m_union.recv_cell_array(mesh.m_union, source, tag, comm);
+
+        // Recevoir m_min_level
+        MPI_Recv(&mesh.m_min_level, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+
+        // Recevoir m_max_level
+        MPI_Recv(&mesh.m_max_level, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+
+        // Recevoir m_periodic
+        MPI_Recv(mesh.m_periodic.data(), Config::dim, MPI_C_BOOL, source, tag, comm, MPI_STATUS_IGNORE);
+    }
+
+#endif
 
     template <class D, class Config>
     inline auto Mesh_base<D, Config>::derived_cast() & noexcept -> derived_type&
@@ -593,28 +661,50 @@ namespace samurai
         }
     }
 
+    /**
+        template <class D, class Config>
+        inline void Mesh_base<D, Config>::update_mesh_neighbour()
+        {
+    #ifdef SAMURAI_WITH_MPI
+            // send/recv the meshes of the neighbouring subdomains
+            mpi::communicator world;
+            std::vector<mpi::request> req;
+
+            std::transform(m_mpi_neighbourhood.cbegin(),
+                           m_mpi_neighbourhood.cend(),
+                           std::back_inserter(req),
+                           [&](const auto& neighbour)
+                           {
+                               return world.isend(neighbour.rank, neighbour.rank, derived_cast());
+                           });
+
+            for (auto& neighbour : m_mpi_neighbourhood)
+            {
+                world.recv(neighbour.rank, world.rank(), neighbour.mesh);
+            }
+
+            mpi::wait_all(req.begin(), req.end());
+    #endif
+        }
+    **/
+
     template <class D, class Config>
     inline void Mesh_base<D, Config>::update_mesh_neighbour()
     {
 #ifdef SAMURAI_WITH_MPI
-        // send/recv the meshes of the neighbouring subdomains
         mpi::communicator world;
-        std::vector<mpi::request> req;
 
-        std::transform(m_mpi_neighbourhood.cbegin(),
-                       m_mpi_neighbourhood.cend(),
-                       std::back_inserter(req),
-                       [&](const auto& neighbour)
-                       {
-                           return world.isend(neighbour.rank, neighbour.rank, derived_cast());
-                       });
-
-        for (auto& neighbour : m_mpi_neighbourhood)
+        // Envoyer le maillage à chaque voisin
+        for (const auto& neighbour : m_mpi_neighbourhood)
         {
-            world.recv(neighbour.rank, world.rank(), neighbour.mesh);
+            send_mesh(*this, neighbour.rank, neighbour.rank, world);
         }
 
-        mpi::wait_all(req.begin(), req.end());
+        // Recevoir le maillage de chaque voisin
+        for (auto& neighbour : m_mpi_neighbourhood)
+        {
+            recv_mesh(neighbour.mesh, neighbour.rank, world.rank(), world);
+        }
 #endif
     }
 

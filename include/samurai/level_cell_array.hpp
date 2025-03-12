@@ -178,7 +178,7 @@ namespace samurai
         void set_scaling_factor(double scaling_factor);
 
 #ifdef SAMURAI_WITH_MPI
-        void send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca, int dest, int tag, MPI_Comm comm);
+        void send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca, int dest, int tag, MPI_Comm comm) const;
         void recv_level_cell_array(LevelCellArray<Dim, TInterval>& lca, int source, int tag, MPI_Comm comm);
 #endif
 
@@ -293,7 +293,8 @@ namespace samurai
 
 #ifdef SAMURAI_WITH_MPI
     template <std::size_t Dim, class TInterval>
-    void LevelCellArray<Dim, TInterval>::send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca, int dest, int tag, MPI_Comm comm)
+    void
+    LevelCellArray<Dim, TInterval>::send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca, int dest, int tag, MPI_Comm comm) const
     {
         // Envoyer m_level
         // UNSIGNED_LONG --> prevoir d'utiliser un datatype ?

@@ -1,0 +1,2791 @@
+// Copyright 2018-2025 the samurai's authors
+// SPDX-License-Identifier:  BSD-3-Clause
+
+#pragma once
+
+#include <array>
+
+#include <fmt/format.h>
+
+#include "box.hpp"
+#include "cell_array.hpp"
+#include "cell_list.hpp"
+#include "static_algorithm.hpp"
+#include "subset/node.hpp"
+
+#ifdef SAMURAI_WITH_MPI
+#include <boost/serialization/vector.hpp>
+
+#include <boost/mpi.hpp>
+#include <boost/mpi/cartesian_communicator.hpp>
+namespace mpi = boost::mpi;
+#endif
+
+namespace samurai
+{
+
+    template <class CellArray, class MeshID>
+    struct MeshIDArray : private std::array<CellArray, static_cast<std::size_t>(MeshID::count)>
+    {
+        static constexpr std::size_t size = static_cast<std::size_t>(MeshID::count);
+        using base_type                   = std::array<CellArray, size>;
+        using base_type::operator[];
+
+        inline const CellArray& operator[](MeshID mesh_id) const
+        {
+            return operator[](static_cast<std::size_t>(mesh_id));
+        }
+
+        inline CellArray& operator[](MeshID mesh_id)
+        {
+            return operator[](static_cast<std::size_t>(mesh_id));
+        }
+    };
+
+    template <class MeshType>
+    struct MPI_Subdomain
+    {
+        int rank;
+        MeshType mesh;
+
+        MPI_Subdomain(int rank_)
+            : rank(rank_)
+        {
+        }
+    };
+
+    template <class D, class Config>
+    class Mesh_base
+    {
+      public:
+
+        using self_type = D;
+        using config    = Config;
+
+        static constexpr std::size_t dim                  = config::dim;
+        static constexpr std::size_t max_refinement_level = config::max_refinement_level;
+
+        using mesh_id_t  = typename config::mesh_id_t;
+        using interval_t = typename config::interval_t;
+        using value_t    = typename interval_t::value_t;
+        using index_t    = typename interval_t::index_t;
+
+        using cell_t   = Cell<dim, interval_t>;
+        using cl_type  = CellList<dim, interval_t, max_refinement_level>;
+        using lcl_type = typename cl_type::lcl_type;
+
+        using ca_type  = CellArray<dim, interval_t, max_refinement_level>;
+        using lca_type = typename ca_type::lca_type;
+
+        using coords_t = typename lca_type::coords_t;
+
+        using mesh_interval_t = typename ca_type::lca_type::mesh_interval_t;
+
+        using mesh_t = samurai::MeshIDArray<ca_type, mesh_id_t>;
+
+        using mpi_subdomain_t = MPI_Subdomain<D>;
+
+        std::size_t nb_cells(mesh_id_t mesh_id = mesh_id_t::reference) const;
+        std::size_t nb_cells(std::size_t level, mesh_id_t mesh_id = mesh_id_t::reference) const;
+
+        const ca_type& operator[](mesh_id_t mesh_id) const;
+
+        std::size_t max_level() const;
+        std::size_t& max_level();
+        std::size_t min_level() const;
+        std::size_t& min_level();
+
+        auto& origin_point() const;
+        void set_origin_point(const coords_t& origin_point);
+        double scaling_factor() const;
+        void set_scaling_factor(double scaling_factor);
+        void scale_domain(double domain_scaling_factor);
+        double cell_length(std::size_t level) const;
+        const lca_type& domain() const;
+        const lca_type& subdomain() const;
+        const ca_type& get_union() const;
+        bool is_periodic(std::size_t d) const;
+        const std::array<bool, dim>& periodicity() const;
+        // std::vector<int>& neighbouring_ranks();
+        std::vector<mpi_subdomain_t>& mpi_neighbourhood();
+
+        void swap(Mesh_base& mesh) noexcept;
+
+        template <typename... T, typename = std::enable_if_t<std::conjunction_v<std::is_convertible<T, value_t>...>, void>>
+        const interval_t& get_interval(std::size_t level, const interval_t& interval, T... index) const;
+        template <class E>
+        const interval_t& get_interval(std::size_t level, const interval_t& interval, const xt::xexpression<E>& index) const;
+        template <class E>
+        const interval_t& get_interval(std::size_t level, const xt::xexpression<E>& coord) const;
+
+        template <typename... T, typename = std::enable_if_t<std::conjunction_v<std::is_convertible<T, value_t>...>, void>>
+        index_t get_index(std::size_t level, value_t i, T... index) const;
+        template <class E>
+        index_t get_index(std::size_t level, value_t i, const xt::xexpression<E>& others) const;
+        template <class E>
+        index_t get_index(std::size_t level, const xt::xexpression<E>& coord) const;
+
+        template <typename... T, typename = std::enable_if_t<std::conjunction_v<std::is_convertible<T, value_t>...>, void>>
+        cell_t get_cell(std::size_t level, value_t i, T... index) const;
+        template <class E>
+        cell_t get_cell(std::size_t level, value_t i, const xt::xexpression<E>& index) const;
+        template <class E>
+        cell_t get_cell(std::size_t level, const xt::xexpression<E>& coord) const;
+
+        void update_mesh_neighbour();
+        void to_stream(std::ostream& os) const;
+
+      protected:
+
+        using derived_type = D;
+
+        Mesh_base() = default; // cppcheck-suppress uninitMemberVar
+        Mesh_base(const cl_type& cl, const self_type& ref_mesh);
+        Mesh_base(const cl_type& cl, std::size_t min_level, std::size_t max_level);
+        Mesh_base(const ca_type& ca, std::size_t min_level, std::size_t max_level);
+        Mesh_base(const samurai::Box<double, dim>& b,
+                  std::size_t start_level,
+                  std::size_t min_level,
+                  std::size_t max_level,
+                  double approx_box_tol = lca_type::default_approx_box_tol,
+                  double scaling_factor = 0);
+        Mesh_base(const samurai::Box<double, dim>& b,
+                  std::size_t start_level,
+                  std::size_t min_level,
+                  std::size_t max_level,
+                  const std::array<bool, dim>& periodic,
+                  double approx_box_tol = lca_type::default_approx_box_tol,
+                  double scaling_factor = 0);
+
+        derived_type& derived_cast() & noexcept;
+        const derived_type& derived_cast() const& noexcept;
+        derived_type derived_cast() && noexcept;
+
+        mesh_t& cells();
+
+      private:
+
+        void construct_subdomain();
+        void construct_union();
+        void update_sub_mesh();
+        void renumbering();
+        void partition_mesh(std::size_t start_level, const Box<double, dim>& global_box);
+        void load_balancing();
+        void load_transfer(const std::vector<double>& load_fluxes);
+        std::size_t max_nb_cells(std::size_t level) const;
+
+        lca_type m_domain;
+        lca_type m_subdomain;
+        std::size_t m_min_level;
+        std::size_t m_max_level;
+        std::array<bool, dim> m_periodic;
+        mesh_t m_cells;
+        ca_type m_union;
+        // std::vector<int> m_neighbouring_ranks;
+        std::vector<mpi_subdomain_t> m_mpi_neighbourhood;
+
+#ifdef SAMURAI_WITH_MPI
+        friend class boost::serialization::access;
+
+        template <class Archive>
+        void serialize(Archive& ar, const unsigned long)
+        {
+            for (std::size_t id = 0; id < mesh_t::size; ++id)
+            {
+                ar& m_cells[id];
+            }
+            ar & m_domain;
+            ar & m_subdomain;
+            ar & m_union;
+            ar & m_min_level;
+            ar & m_min_level;
+        }
+#endif
+    };
+
+    template <class D, class Config>
+    inline auto Mesh_base<D, Config>::derived_cast() & noexcept -> derived_type&
+    {
+        return *static_cast<derived_type*>(this);
+    }
+
+    template <class D, class Config>
+    inline auto Mesh_base<D, Config>::derived_cast() const& noexcept -> const derived_type&
+    {
+        return *static_cast<const derived_type*>(this);
+    }
+
+    template <class D, class Config>
+    inline auto Mesh_base<D, Config>::derived_cast() && noexcept -> derived_type
+    {
+        return *static_cast<derived_type*>(this);
+    }
+
+    template <class D, class Config>
+    inline Mesh_base<D, Config>::Mesh_base(const samurai::Box<double, dim>& b,
+                                           std::size_t start_level,
+                                           std::size_t min_level,
+                                           std::size_t max_level,
+                                           double approx_box_tol,
+                                           double scaling_factor_)
+        : m_domain{start_level, b, approx_box_tol, scaling_factor_}
+        , m_min_level{min_level}
+        , m_max_level{max_level}
+    {
+        assert(min_level <= max_level);
+        m_periodic.fill(false);
+
+#ifdef SAMURAI_WITH_MPI
+        partition_mesh(start_level, b);
+        // load_balancing();
+#else
+        this->m_cells[mesh_id_t::cells][start_level] = {start_level, b, approx_box_tol, scaling_factor_};
+#endif
+        construct_subdomain();
+        construct_union();
+        update_sub_mesh();
+        renumbering();
+        update_mesh_neighbour();
+
+        set_origin_point(origin_point());
+        set_scaling_factor(scaling_factor());
+    }
+
+    template <class D, class Config>
+    inline Mesh_base<D, Config>::Mesh_base(const samurai::Box<double, dim>& b,
+                                           std::size_t start_level,
+                                           std::size_t min_level,
+                                           std::size_t max_level,
+                                           const std::array<bool, dim>& periodic,
+                                           double approx_box_tol,
+                                           double scaling_factor_)
+        : m_domain{start_level, b, approx_box_tol, scaling_factor_}
+        , m_min_level{min_level}
+        , m_max_level{max_level}
+        , m_periodic{periodic}
+    {
+        assert(min_level <= max_level);
+
+#ifdef SAMURAI_WITH_MPI
+        partition_mesh(start_level, b);
+        // load_balancing();
+#else
+        this->m_cells[mesh_id_t::cells][start_level] = {start_level, b, approx_box_tol, scaling_factor_};
+#endif
+
+        construct_subdomain();
+        construct_union();
+        update_sub_mesh();
+        renumbering();
+        update_mesh_neighbour();
+
+        set_origin_point(origin_point());
+        set_scaling_factor(scaling_factor());
+    }
+
+    template <class D, class Config>
+    inline Mesh_base<D, Config>::Mesh_base(const cl_type& cl, std::size_t min_level, std::size_t max_level)
+        : m_min_level{min_level}
+        , m_max_level{max_level}
+    {
+        m_periodic.fill(false);
+        assert(min_level <= max_level);
+
+        this->m_cells[mesh_id_t::cells] = {cl};
+
+        construct_subdomain();
+        m_domain = m_subdomain;
+        construct_union();
+        update_sub_mesh();
+        renumbering();
+        update_mesh_neighbour();
+
+        set_origin_point(cl.origin_point());
+        set_scaling_factor(cl.scaling_factor());
+    }
+
+    template <class D, class Config>
+    inline Mesh_base<D, Config>::Mesh_base(const ca_type& ca, std::size_t min_level, std::size_t max_level)
+        : m_min_level{min_level}
+        , m_max_level{max_level}
+    {
+        m_periodic.fill(false);
+        assert(min_level <= max_level);
+
+        this->m_cells[mesh_id_t::cells] = ca;
+
+        construct_subdomain();
+        m_domain = m_subdomain;
+        construct_union();
+        update_sub_mesh();
+        renumbering();
+        update_mesh_neighbour();
+
+        set_origin_point(ca.origin_point());
+        set_scaling_factor(ca.scaling_factor());
+    }
+
+    template <class D, class Config>
+    inline Mesh_base<D, Config>::Mesh_base(const cl_type& cl, const self_type& ref_mesh)
+        : m_domain(ref_mesh.m_domain)
+        , m_min_level(ref_mesh.m_min_level)
+        , m_max_level(ref_mesh.m_max_level)
+        , m_periodic(ref_mesh.m_periodic)
+        , m_mpi_neighbourhood(ref_mesh.m_mpi_neighbourhood)
+
+    {
+        m_cells[mesh_id_t::cells] = {cl, false};
+
+        construct_subdomain();
+        construct_union();
+        update_sub_mesh();
+        renumbering();
+        update_mesh_neighbour();
+
+        set_origin_point(ref_mesh.origin_point());
+        set_scaling_factor(ref_mesh.scaling_factor());
+    }
+
+    template <class D, class Config>
+    inline auto Mesh_base<D, Config>::cells() -> mesh_t&
+    {
+        return m_cells;
+    }
+
+    template <class D, class Config>
+    inline std::size_t Mesh_base<D, Config>::max_nb_cells(std::size_t level) const
+    {
+        if (m_cells[mesh_id_t::reference][level][0].empty())
+        {
+            return 0;
+        }
+        auto last_xinterval = m_cells[mesh_id_t::reference][level][0].back();
+        return static_cast<std::size_t>(static_cast<index_t>(last_xinterval.start) + last_xinterval.index) + last_xinterval.size();
+    }
+
+    template <class D, class Config>
+    inline std::size_t Mesh_base<D, Config>::nb_cells(mesh_id_t mesh_id) const
+    {
+        return (mesh_id == mesh_id_t::reference) ? max_nb_cells(m_cells[mesh_id].max_level()) : m_cells[mesh_id].nb_cells();
+    }
+
+    template <class D, class Config>
+    inline std::size_t Mesh_base<D, Config>::nb_cells(std::size_t level, mesh_id_t mesh_id) const
+    {
+        return (mesh_id == mesh_id_t::reference) ? max_nb_cells(level) : m_cells[mesh_id][level].nb_cells();
+    }
+
+    template <class D, class Config>
+    inline auto Mesh_base<D, Config>::operator[](mesh_id_t mesh_id) const -> const ca_type&
+    {
+        return m_cells[mesh_id];
+    }
+
+    template <class D, class Config>
+    inline std::size_t Mesh_base<D, Config>::max_level() const
+    {
+        return m_max_level;
+    }
+
+    template <class D, class Config>
+    inline std::size_t& Mesh_base<D, Config>::max_level()
+    {
+        return m_max_level;
+    }
+
+    template <class D, class Config>
+    inline std::size_t Mesh_base<D, Config>::min_level() const
+    {
+        return m_min_level;
+    }
+
+    template <class D, class Config>
+    inline std::size_t& Mesh_base<D, Config>::min_level()
+    {
+        return m_min_level;
+    }
+
+    template <class D, class Config>
+    inline auto& Mesh_base<D, Config>::origin_point() const
+    {
+        return m_domain.origin_point();
+    }
+
+    template <class D, class Config>
+    inline void Mesh_base<D, Config>::set_origin_point(const coords_t& origin_point)
+    {
+        m_domain.set_origin_point(origin_point);
+        m_subdomain.set_origin_point(origin_point);
+        m_union.set_origin_point(origin_point);
+        for (std::size_t i = 0; i < static_cast<std::size_t>(mesh_id_t::count); ++i)
+        {
+            m_cells[i].set_origin_point(origin_point);
+        }
+    }
+
+    template <class D, class Config>
+    inline double Mesh_base<D, Config>::scaling_factor() const
+    {
+        return m_domain.scaling_factor();
+    }
+
+    template <class D, class Config>
+    inline void Mesh_base<D, Config>::set_scaling_factor(double scaling_factor)
+    {
+        m_domain.set_scaling_factor(scaling_factor);
+        m_subdomain.set_scaling_factor(scaling_factor);
+        m_union.set_scaling_factor(scaling_factor);
+        for (std::size_t i = 0; i < static_cast<std::size_t>(mesh_id_t::count); ++i)
+        {
+            m_cells[i].set_scaling_factor(scaling_factor);
+        }
+    }
+
+    template <class D, class Config>
+    inline void Mesh_base<D, Config>::scale_domain(double domain_scaling_factor)
+    {
+        set_scaling_factor(domain_scaling_factor * scaling_factor());
+    }
+
+    template <class D, class Config>
+    inline double Mesh_base<D, Config>::cell_length(std::size_t level) const
+    {
+        return samurai::cell_length(scaling_factor(), level);
+    }
+
+    template <class D, class Config>
+    inline auto Mesh_base<D, Config>::domain() const -> const lca_type&
+    {
+        return m_domain;
+    }
+
+    template <class D, class Config>
+    inline auto Mesh_base<D, Config>::subdomain() const -> const lca_type&
+    {
+        return m_subdomain;
+    }
+
+    template <class D, class Config>
+    inline auto Mesh_base<D, Config>::get_union() const -> const ca_type&
+    {
+        return m_union;
+    }
+
+    template <class D, class Config>
+    template <typename... T, typename U>
+    inline auto Mesh_base<D, Config>::get_interval(std::size_t level, const interval_t& interval, T... index) const -> const interval_t&
+    {
+        return m_cells[mesh_id_t::reference].get_interval(level, interval, index...);
+    }
+
+    template <class D, class Config>
+    template <class E>
+    inline auto Mesh_base<D, Config>::get_interval(std::size_t level,
+                                                   const interval_t& interval,
+                                                   const xt::xexpression<E>& index) const -> const interval_t&
+    {
+        return m_cells[mesh_id_t::reference].get_interval(level, interval, index);
+    }
+
+    template <class D, class Config>
+    template <class E>
+    inline auto Mesh_base<D, Config>::get_interval(std::size_t level, const xt::xexpression<E>& coord) const -> const interval_t&
+    {
+        return m_cells[mesh_id_t::reference].get_interval(level, coord);
+    }
+
+    template <class D, class Config>
+    template <typename... T, typename U>
+    inline auto Mesh_base<D, Config>::get_index(std::size_t level, value_t i, T... index) const -> index_t
+    {
+        return m_cells[mesh_id_t::reference].get_index(level, i, index...);
+    }
+
+    template <class D, class Config>
+    template <class E>
+    inline auto Mesh_base<D, Config>::get_index(std::size_t level, value_t i, const xt::xexpression<E>& others) const -> index_t
+    {
+        return m_cells[mesh_id_t::reference].get_index(level, i, others);
+    }
+
+    template <class D, class Config>
+    template <class E>
+    inline auto Mesh_base<D, Config>::get_index(std::size_t level, const xt::xexpression<E>& coord) const -> index_t
+    {
+        return m_cells[mesh_id_t::reference].get_index(level, coord);
+    }
+
+    template <class D, class Config>
+    template <typename... T, typename U>
+    inline auto Mesh_base<D, Config>::get_cell(std::size_t level, value_t i, T... index) const -> cell_t
+    {
+        return m_cells[mesh_id_t::reference].get_cell(level, i, index...);
+    }
+
+    template <class D, class Config>
+    template <class E>
+    inline auto Mesh_base<D, Config>::get_cell(std::size_t level, value_t i, const xt::xexpression<E>& index) const -> cell_t
+    {
+        return m_cells[mesh_id_t::reference].get_cell(level, i, index);
+    }
+
+    template <class D, class Config>
+    template <class E>
+    inline auto Mesh_base<D, Config>::get_cell(std::size_t level, const xt::xexpression<E>& coord) const -> cell_t
+    {
+        return m_cells[mesh_id_t::reference].get_cell(level, coord);
+    }
+
+    template <class D, class Config>
+    inline bool Mesh_base<D, Config>::is_periodic(std::size_t d) const
+    {
+        return m_periodic[d];
+    }
+
+    template <class D, class Config>
+    inline auto Mesh_base<D, Config>::periodicity() const -> const std::array<bool, dim>&
+    {
+        return m_periodic;
+    }
+
+    template <class D, class Config>
+    inline auto Mesh_base<D, Config>::mpi_neighbourhood() -> std::vector<mpi_subdomain_t>&
+    {
+        return m_mpi_neighbourhood;
+    }
+
+    template <class D, class Config>
+    inline void Mesh_base<D, Config>::swap(Mesh_base<D, Config>& mesh) noexcept
+    {
+        using std::swap;
+        swap(m_cells, mesh.m_cells);
+        swap(m_domain, mesh.m_domain);
+        swap(m_subdomain, mesh.m_subdomain);
+        swap(m_mpi_neighbourhood, mesh.m_mpi_neighbourhood);
+        swap(m_union, mesh.m_union);
+        swap(m_max_level, mesh.m_max_level);
+        swap(m_min_level, mesh.m_min_level);
+    }
+
+    template <class D, class Config>
+    inline void Mesh_base<D, Config>::update_sub_mesh()
+    {
+        this->derived_cast().update_sub_mesh_impl();
+    }
+
+    template <class D, class Config>
+    inline void Mesh_base<D, Config>::renumbering()
+    {
+        m_cells[mesh_id_t::reference].update_index();
+
+        for (std::size_t id = 0; id < static_cast<std::size_t>(mesh_id_t::count); ++id)
+        {
+            auto mt = static_cast<mesh_id_t>(id);
+
+            if (mt != mesh_id_t::reference)
+            {
+                for_each_interval(m_cells[mt],
+                                  [&](std::size_t level, auto& i, auto& index)
+                                  {
+                                      i.index = m_cells[mesh_id_t::reference][level].get_interval(i, index).index;
+                                  });
+            }
+        }
+    }
+
+    template <class D, class Config>
+    inline void Mesh_base<D, Config>::update_mesh_neighbour()
+    {
+#ifdef SAMURAI_WITH_MPI
+        // send/recv the meshes of the neighbouring subdomains
+        mpi::communicator world;
+        std::vector<mpi::request> req;
+
+        std::transform(m_mpi_neighbourhood.cbegin(),
+                       m_mpi_neighbourhood.cend(),
+                       std::back_inserter(req),
+                       [&](const auto& neighbour)
+                       {
+                           return world.isend(neighbour.rank, neighbour.rank, derived_cast());
+                       });
+
+        for (auto& neighbour : m_mpi_neighbourhood)
+        {
+            world.recv(neighbour.rank, world.rank(), neighbour.mesh);
+        }
+
+        mpi::wait_all(req.begin(), req.end());
+#endif
+    }
+
+    template <class D, class Config>
+    inline void Mesh_base<D, Config>::construct_subdomain()
+    {
+        // lcl_type lcl = {m_cells[mesh_id_t::cells].max_level()};
+        lcl_type lcl = {m_max_level};
+
+        for_each_interval(m_cells[mesh_id_t::cells],
+                          [&](std::size_t level, const auto& i, const auto& index)
+                          {
+                              std::size_t shift = m_max_level - level;
+                              interval_t to_add = i << shift;
+                              auto shift_index  = index << shift;
+                              static_nested_loop<dim - 1>(0,
+                                                          1 << shift,
+                                                          1,
+                                                          [&](auto stencil)
+                                                          {
+                                                              auto new_index = shift_index + stencil;
+                                                              lcl[new_index].add_interval(to_add);
+                                                          });
+                          });
+        m_subdomain = {lcl};
+    }
+
+    template <class D, class Config>
+    inline void Mesh_base<D, Config>::construct_union()
+    {
+        std::size_t min_lvl = m_min_level;
+        std::size_t max_lvl = m_max_level;
+
+        // Construction of union cells
+        // ===========================
+        //
+        // level 2                 |-|-|-|-|                   |-| cells
+        //                                                     |.| union_cells
+        // level 1         |---|---|       |---|---|
+        //                         |...|...|
+        // level 0 |-------|                       |-------|
+        //                 |.......|.......|.......|
+        //
+
+        // FIX: cppcheck false positive ?
+        // cppcheck-suppress redundantAssignment
+        m_union[max_lvl] = {max_lvl};
+        for (std::size_t level = max_lvl; level >= ((min_lvl == 0) ? 1 : min_lvl); --level)
+        {
+            lcl_type lcl{level - 1};
+            auto expr = union_(this->m_cells[mesh_id_t::cells][level], m_union[level]).on(level - 1);
+
+            expr(
+                [&](const auto& interval, const auto& index_yz)
+                {
+                    lcl[index_yz].add_interval(interval);
+                });
+
+            // for (auto& neighbour : m_mpi_neighbourhood)
+            // {
+            //     auto neigh_expr = intersection(m_subdomain, union_(neighbour.mesh.m_cells[mesh_id_t::cells][level], m_union[level]))
+            //                           .on(level - 1);
+
+            //     neigh_expr(
+            //         [&](const auto& interval, const auto& index_yz)
+            //         {
+            //             lcl[index_yz].add_interval(interval);
+            //         });
+            // }
+            m_union[level - 1] = {lcl};
+        }
+    }
+
+    template <class D, class Config>
+    void Mesh_base<D, Config>::partition_mesh([[maybe_unused]] std::size_t start_level, [[maybe_unused]] const Box<double, dim>& global_box)
+    {
+#ifdef SAMURAI_WITH_MPI
+        mpi::communicator world;
+        auto rank = world.rank();
+        auto size = world.size();
+
+        /*
+        using box_t   = Box<value_t, dim>;
+        using point_t = typename box_t::point_t;
+
+        double h = cell_length(start_level);
+
+        // Computes the number of subdomains in each Cartesian direction
+        std::array<int, dim> sizes;
+        auto product_of_length   = xt::prod(global_box.length())[0];
+        auto length_harmonic_avg = pow(product_of_length, 1. / dim);
+        int product_of_sizes     = 1;
+        for (std::size_t d = 0; d < dim - 1; ++d)
+        {
+            sizes[d] = static_cast<int>(floor(pow(size, 1. / dim) * global_box.length()[d] / length_harmonic_avg));
+            product_of_sizes *= sizes[d];
+        }
+        sizes[dim - 1] = size / product_of_sizes;
+        if (sizes[dim - 1] * product_of_sizes != size)
+        {
+            if (rank == 0)
+            {
+                std::cerr << "Impossible to perform a Cartesian partition of the domain in " << size << " subdomains." << std::endl;
+                std::cerr << "Suggested number: " << (sizes[dim - 1] * product_of_sizes) << "." << std::endl;
+            }
+            exit(1);
+        }
+
+        // Compute the Cartesian coordinates of the subdomain in the topology
+        int a = rank;
+        xt::xtensor_fixed<int, xt::xshape<dim>> coords;
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            coords[d] = a % sizes[d];
+            a         = a / sizes[d];
+        }
+
+        // Directional lengths of a standard subdomain
+        point_t start_pt = global_box.min_corner() / h;
+        point_t end_pt   = global_box.max_corner() / h;
+        xt::xtensor_fixed<double, xt::xshape<dim>> lengths;
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            lengths[d] = ceil((end_pt[d] - start_pt[d]) / static_cast<double>(sizes[d]));
+        }
+
+        // Create the box corresponding to the local subdomain
+        point_t min_corner, max_corner;
+        min_corner = start_pt + coords * lengths;
+        max_corner = min_corner + lengths;
+
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            if (coords[d] == sizes[d] - 1)
+            {
+                max_corner[d] = end_pt[d];
+            }
+        }
+        box_t subdomain_box                          = {min_corner, max_corner};
+        this->m_cells[mesh_id_t::cells][start_level] = {start_level, subdomain_box};
+        */
+
+        lcl_type subdomain_cells(start_level, m_domain.origin_point(), m_domain.scaling_factor());
+        auto subdomain_nb_intervals = m_domain.nb_intervals() / static_cast<std::size_t>(size);
+        auto subdomain_start        = static_cast<std::size_t>(rank) * subdomain_nb_intervals;
+        auto subdomain_end          = (static_cast<std::size_t>(rank) + 1) * subdomain_nb_intervals;
+
+        std::size_t k = 0;
+        for_each_meshinterval(m_domain,
+                              [&](auto mi)
+                              {
+                                  if (k >= subdomain_start && k < subdomain_end)
+                                  {
+                                      subdomain_cells[mi.index].add_interval(mi.i);
+                                  }
+                                  ++k;
+                              });
+
+        this->m_cells[mesh_id_t::cells][start_level] = subdomain_cells;
+
+        m_mpi_neighbourhood.reserve(static_cast<std::size_t>(size) - 1);
+        for (int ir = 0; ir < size; ++ir)
+        {
+            if (ir != rank)
+            {
+                m_mpi_neighbourhood.push_back(ir);
+            }
+        }
+
+        // // Neighbours
+        // m_mpi_neighbourhood.reserve(static_cast<std::size_t>(pow(3, dim) - 1));
+        // auto neighbour = [&](xt::xtensor_fixed<int, xt::xshape<dim>> shift)
+        // {
+        //     auto neighbour_rank            = rank;
+        //     int product_of_preceding_sizes = 1;
+        //     for (std::size_t d = 0; d < dim; ++d)
+        //     {
+        //         neighbour_rank += product_of_preceding_sizes * shift[d];
+        //         product_of_preceding_sizes *= sizes[d];
+        //     }
+        //     return neighbour_rank;
+        // };
+
+        // static_nested_loop<dim, -1, 2>(
+        //     [&](auto& shift)
+        //     {
+        //         if (xt::any(shift))
+        //         {
+        //             for (std::size_t d = 0; d < dim; ++d)
+        //             {
+        //                 if (coords[d] + shift[d] < 0 || coords[d] + shift[d] >= sizes[d])
+        //                 {
+        //                     return;
+        //                 }
+        //             }
+        //             m_mpi_neighbourhood.push_back(neighbour(shift));
+        //         }
+        //     });
+
+#endif
+    }
+
+    template <class D, class Config>
+    void Mesh_base<D, Config>::load_balancing()
+    {
+#ifdef SAMURAI_WITH_MPI
+        mpi::communicator world;
+        auto rank = world.rank();
+
+        std::size_t load = nb_cells(mesh_id_t::cells);
+        std::vector<std::size_t> loads;
+
+        std::vector<double> load_fluxes(m_mpi_neighbourhood.size(), 0);
+
+        const std::size_t n_iterations = 1;
+
+        for (std::size_t k = 0; k < n_iterations; ++k)
+        {
+            world.barrier();
+            if (rank == 0)
+            {
+                std::cout << "---------------- k = " << k << " ----------------" << std::endl;
+            }
+            mpi::all_gather(world, load, loads);
+
+            std::vector<std::size_t> nb_neighbours;
+            mpi::all_gather(world, m_mpi_neighbourhood.size(), nb_neighbours);
+
+            double load_np1 = static_cast<double>(load);
+            for (std::size_t i_rank = 0; i_rank < m_mpi_neighbourhood.size(); ++i_rank)
+            {
+                auto neighbour = m_mpi_neighbourhood[i_rank];
+
+                auto neighbour_load = loads[static_cast<std::size_t>(neighbour.rank)];
+                int neighbour_load_minus_my_load;
+                if (load < neighbour_load)
+                {
+                    neighbour_load_minus_my_load = static_cast<int>(neighbour_load - load);
+                }
+                else
+                {
+                    neighbour_load_minus_my_load = -static_cast<int>(load - neighbour_load);
+                }
+                double weight       = 1. / std::max(m_mpi_neighbourhood.size(), nb_neighbours[neighbour.rank]);
+                load_fluxes[i_rank] = weight * neighbour_load_minus_my_load;
+                load_np1 += load_fluxes[i_rank];
+            }
+            load_np1 = floor(load_np1);
+
+            load_transfer(load_fluxes);
+
+            std::cout << rank << ": load = " << load << ", load_np1 = " << load_np1 << std::endl;
+
+            load = static_cast<std::size_t>(load_np1);
+        }
+#endif
+    }
+
+    template <class D, class Config>
+    void Mesh_base<D, Config>::load_transfer([[maybe_unused]] const std::vector<double>& load_fluxes)
+    {
+#ifdef SAMURAI_WITH_MPI
+        mpi::communicator world;
+        std::cout << world.rank() << ": ";
+        for (std::size_t i_rank = 0; i_rank < m_mpi_neighbourhood.size(); ++i_rank)
+        {
+            auto neighbour = m_mpi_neighbourhood[i_rank];
+            if (load_fluxes[i_rank] < 0) // must tranfer load to the neighbour
+            {
+            }
+            else if (load_fluxes[i_rank] > 0) // must receive load from the neighbour
+            {
+            }
+            std::cout << "--> " << neighbour.rank << ": " << load_fluxes[i_rank] << ", ";
+        }
+        std::cout << std::endl;
+#endif
+    }
+
+    template <class D, class Config>
+    inline void Mesh_base<D, Config>::to_stream(std::ostream& os) const
+    {
+        for (std::size_t id = 0; id < static_cast<std::size_t>(mesh_id_t::count); ++id)
+        {
+            auto mt = static_cast<mesh_id_t>(id);
+
+            os << fmt::format(disable_color ? fmt::text_style() : fmt::emphasis::bold, "{}\n{:─^50}", mt, "") << std::endl;
+            os << m_cells[id];
+        }
+    }
+
+    template <class D, class Config>
+    inline bool operator==(const Mesh_base<D, Config>& mesh1, const Mesh_base<D, Config>& mesh2)
+    {
+        using mesh_id_t = typename Mesh_base<D, Config>::mesh_id_t;
+
+        if (mesh1.max_level() != mesh2.max_level() || mesh1.min_level() != mesh2.min_level())
+        {
+            return false;
+        }
+
+        for (std::size_t level = mesh1.min_level(); level <= mesh1.max_level(); ++level)
+        {
+            if (!(mesh1[mesh_id_t::cells][level] == mesh2[mesh_id_t::cells][level]))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    template <class D, class Config>
+    inline bool operator!=(const Mesh_base<D, Config>& mesh1, const Mesh_base<D, Config>& mesh2)
+    {
+        return !(mesh1 == mesh2);
+    }
+
+    template <class D, class Config>
+    inline std::ostream& operator<<(std::ostream& out, const Mesh_base<D, Config>& mesh)
+    {
+        mesh.to_stream(out);
+        return out;
+    }
+} // namespace samurai
+// Copyright 2018-2025 the samurai's authors
+// SPDX-License-Identifier:  BSD-3-Clause
+
+#pragma once
+
+#include <array>
+#include <iterator>
+#include <limits>
+#include <vector>
+
+#ifdef SAMURAI_WITH_MPI
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/vector.hpp>
+#endif
+
+#include <fmt/color.h>
+#include <fmt/format.h>
+
+#include "algorithm.hpp"
+#include "box.hpp"
+#include "interval.hpp"
+#include "level_cell_list.hpp"
+#include "mesh_interval.hpp"
+#include "samurai_config.hpp"
+#include "subset/node.hpp"
+#include "utils.hpp"
+
+using namespace xt::placeholders;
+
+namespace samurai
+{
+
+    template <class LCA, bool is_const>
+    class LevelCellArray_iterator;
+
+    template <class iterator>
+    class LevelCellArray_reverse_iterator : public std::reverse_iterator<iterator>
+    {
+      public:
+
+        using base_type  = std::reverse_iterator<iterator>;
+        using coord_type = typename iterator::coord_type;
+
+        explicit LevelCellArray_reverse_iterator(iterator&& it)
+            : base_type(std::move(it))
+        {
+        }
+
+        const coord_type index() const
+        {
+            iterator it = this->base();
+            return (--it).index();
+        }
+
+        std::size_t level() const
+        {
+            iterator it = this->base();
+            return (--it).level();
+        }
+    };
+
+    ///////////////////////////////
+    // LevelCellArray definition //
+    ///////////////////////////////
+    template <std::size_t Dim, class TInterval = default_config::interval_t>
+    class LevelCellArray
+    {
+      public:
+
+        static constexpr auto dim = Dim;
+        using interval_t          = TInterval;
+        using cell_t              = Cell<dim, interval_t>;
+        using index_t             = typename interval_t::index_t;
+        using value_t             = typename interval_t::value_t;
+        using mesh_interval_t     = MeshInterval<Dim, TInterval>;
+        using coords_t            = typename cell_t::coords_t;
+
+        using iterator               = LevelCellArray_iterator<LevelCellArray<Dim, TInterval>, false>;
+        using reverse_iterator       = LevelCellArray_reverse_iterator<iterator>;
+        using const_iterator         = LevelCellArray_iterator<const LevelCellArray<Dim, TInterval>, true>;
+        using const_reverse_iterator = LevelCellArray_reverse_iterator<const_iterator>;
+
+        using coord_type     = typename iterator::coord_type;
+        using all_coord_type = typename iterator::all_coord_type;
+        using index_type     = std::array<value_t, dim>;
+
+        static constexpr double default_approx_box_tol = 0.05;
+
+        LevelCellArray() = default;
+        LevelCellArray(const LevelCellList<Dim, TInterval>& lcl);
+
+        template <class Op, class StartEndOp, class... S>
+        LevelCellArray(Subset<Op, StartEndOp, S...> set);
+
+        LevelCellArray(std::size_t level, const Box<value_t, dim>& box);
+        LevelCellArray(std::size_t level,
+                       const Box<double, dim>& box,
+                       double approx_box_tol = default_approx_box_tol,
+                       double scaling_factor = 0);
+        LevelCellArray(std::size_t level);
+        LevelCellArray(std::size_t level, const coords_t& origin_point, double scaling_factor);
+
+        iterator begin();
+        iterator end();
+
+        const_iterator begin() const;
+        const_iterator end() const;
+        const_iterator cbegin() const;
+        const_iterator cend() const;
+
+        reverse_iterator rbegin();
+        reverse_iterator rend();
+
+        const_reverse_iterator rbegin() const;
+        const_reverse_iterator rend() const;
+        const_reverse_iterator rcbegin() const;
+        const_reverse_iterator rcend() const;
+
+        /// Display to the given stream
+        void to_stream(std::ostream& os) const;
+
+        // get_interval
+        template <typename... T, typename = std::enable_if_t<std::conjunction_v<std::is_convertible<T, value_t>...>, void>>
+        const interval_t& get_interval(const interval_t& interval, T... index) const;
+        const interval_t& get_interval(const interval_t& interval, const coord_type& index) const;
+        const interval_t& get_interval(const all_coord_type& coord) const;
+
+        // get_index
+        template <typename... T, typename = std::enable_if_t<std::conjunction_v<std::is_convertible<T, value_t>...>, void>>
+        index_t get_index(value_t i, T... index) const;
+        template <class E>
+        index_t get_index(value_t i, const xt::xexpression<E>& others) const;
+        index_t get_index(const all_coord_type& coord) const;
+
+        // get_cell
+        template <typename... T, typename = std::enable_if_t<std::conjunction_v<std::is_convertible<T, value_t>...>, void>>
+        cell_t get_cell(value_t i, T... index) const;
+        template <class E>
+        cell_t get_cell(value_t i, const xt::xexpression<E>& others) const;
+        template <class E>
+        cell_t get_cell(const xt::xexpression<E>& coord) const;
+
+        void update_index();
+
+        //// checks whether the container is empty
+        bool empty() const;
+
+        //// Gives the number of intervals in each dimension
+        auto shape() const;
+
+        //// Gives the total number of intervals
+        auto nb_intervals() const;
+
+        //// Gives the number of cells
+        std::size_t nb_cells() const;
+
+        double cell_length() const;
+
+        const std::vector<interval_t>& operator[](std::size_t d) const;
+        std::vector<interval_t>& operator[](std::size_t d);
+
+        const std::vector<std::size_t>& offsets(std::size_t d) const;
+        std::vector<std::size_t>& offsets(std::size_t d);
+
+        std::size_t level() const;
+
+        void clear();
+
+        auto min_indices() const;
+        auto max_indices() const;
+        auto minmax_indices() const;
+
+        auto& origin_point() const;
+        void set_origin_point(const coords_t& origin_point);
+
+        auto scaling_factor() const;
+        void set_scaling_factor(double scaling_factor);
+
+      private:
+
+#ifdef SAMURAI_WITH_MPI
+        friend class boost::serialization::access;
+
+        template <class Archive>
+        void serialize(Archive& ar, const unsigned long)
+        {
+            for (std::size_t d = 0; d < dim; ++d)
+            {
+                ar& m_cells[d];
+            }
+            for (std::size_t d = 0; d < dim - 1; ++d)
+            {
+                ar& m_offsets[d];
+            }
+            ar & m_level;
+        }
+#endif
+
+        /// Recursive construction from a level cell list along dimension > 0
+        template <typename TGrid, std::size_t N>
+        void init_from_level_cell_list(const TGrid& grid, std::array<value_t, dim - 1> index, std::integral_constant<std::size_t, N>);
+
+        /// Recursive construction from a level cell list for the dimension 0
+        template <typename TIntervalList>
+        void init_from_level_cell_list(const TIntervalList& interval_list,
+                                       const std::array<value_t, dim - 1>& index,
+                                       std::integral_constant<std::size_t, 0>);
+
+        void init_from_box(const Box<value_t, dim>& box);
+
+        std::array<std::vector<interval_t>, dim> m_cells;        ///< All intervals in every direction
+        std::array<std::vector<std::size_t>, dim - 1> m_offsets; ///< Offsets in interval list for each dim >
+                                                                 ///< 1
+        std::size_t m_level = 0;
+        coords_t m_origin_point;
+        double m_scaling_factor = 1;
+    };
+
+    ////////////////////////////////////////
+    // LevelCellArray_iterator definition //
+    ////////////////////////////////////////
+    namespace detail
+    {
+        template <class LCA, bool is_const>
+        struct LevelCellArray_iterator_types
+        {
+            using value_type          = typename LCA::interval_t;
+            using index_type          = std::vector<value_type>;
+            using index_type_iterator = std::conditional_t<is_const, typename index_type::const_iterator, typename index_type::iterator>;
+            using const_index_type_iterator = typename index_type::const_iterator;
+            using reference                 = typename index_type_iterator::reference;
+            using pointer                   = typename index_type_iterator::pointer;
+            using difference_type           = typename index_type_iterator::difference_type;
+        };
+    } // namespace detail
+
+    template <class LCA, bool is_const>
+    class LevelCellArray_iterator
+        : public xtl::xrandom_access_iterator_base3<LevelCellArray_iterator<LCA, is_const>, detail::LevelCellArray_iterator_types<LCA, is_const>>
+    {
+      public:
+
+        static constexpr std::size_t dim = LCA::dim;
+        using self_type                  = LevelCellArray_iterator<LCA, is_const>;
+        using iterator_type              = detail::LevelCellArray_iterator_types<LCA, is_const>;
+        using value_type                 = typename iterator_type::value_type;
+        using index_type                 = typename iterator_type::index_type;
+        using index_type_iterator        = typename iterator_type::index_type_iterator;
+        using const_index_type_iterator  = typename iterator_type::const_index_type_iterator;
+        using iterator_container         = std::array<index_type_iterator, dim>;
+        using reference                  = typename iterator_type::reference;
+        using pointer                    = typename iterator_type::pointer;
+        using difference_type            = typename iterator_type::difference_type;
+        using iterator_category          = std::random_access_iterator_tag;
+
+        using offset_type          = std::vector<std::size_t>;
+        using offset_type_iterator = std::array<typename offset_type::const_iterator, dim - 1>;
+
+        using coord_type     = xt::xtensor_fixed<typename value_type::value_t, xt::xshape<dim - 1>>;
+        using all_coord_type = xt::xtensor_fixed<typename value_type::value_t, xt::xshape<dim>>;
+
+        LevelCellArray_iterator(LCA* lca, offset_type_iterator&& offset_index, iterator_container&& current_index, coord_type&& index);
+
+        self_type& operator++();
+        self_type& operator--();
+
+        self_type& operator+=(difference_type n);
+        self_type& operator-=(difference_type n);
+
+        difference_type operator-(const self_type& rhs) const;
+
+        reference operator*() const;
+        pointer operator->() const;
+        const coord_type& index() const;
+        std::size_t level() const;
+
+        bool equal(const self_type& rhs) const;
+        bool less_than(const self_type& rhs) const;
+
+      private:
+
+        LCA* p_lca;
+        offset_type_iterator m_offset_index;
+        iterator_container m_current_index;
+        mutable coord_type m_index;
+    };
+
+    ///////////////////////////////////
+    // LevelCellArray implementation //
+    ///////////////////////////////////
+    template <std::size_t Dim, class TInterval>
+    inline LevelCellArray<Dim, TInterval>::LevelCellArray(const LevelCellList<Dim, TInterval>& lcl)
+        : m_level(lcl.level())
+        , m_origin_point(lcl.origin_point())
+        , m_scaling_factor(lcl.scaling_factor())
+    {
+        /* Estimating reservation size
+         *
+         * NOTE: the estimation takes time, more than the time needed for
+         * reallocating the vectors... Maybe 2 other solutions:
+         * - (highly) overestimating the needed size since the memory will be
+         * actually allocated only when touched (at least under Linux)
+         * - cnt_x and cnt_yz updated in LevelCellList during the filling
+         * process
+         *
+         * NOTE2: in fact, hard setting the optimal values for cnt_x and cnt_yz
+         * doesn't speedup things, strang...
+         */
+        if (!lcl.empty())
+        {
+            // Filling cells and offsets from the level cell list
+            init_from_level_cell_list(lcl.grid_yz(), {}, std::integral_constant<std::size_t, dim - 1>{});
+            // Additionnal offset so that [m_offset[i], m_offset[i+1][ is always
+            // valid.
+            for (std::size_t d = 0; d < dim - 1; ++d)
+            {
+                m_offsets[d].emplace_back(m_cells[d].size());
+            }
+        }
+    }
+
+    template <std::size_t Dim, class TInterval>
+    template <class Op, class StartEndOp, class... S>
+    inline LevelCellArray<Dim, TInterval>::LevelCellArray(Subset<Op, StartEndOp, S...> set)
+    {
+        LevelCellList<Dim, TInterval> lcl{static_cast<std::size_t>(set.level())};
+
+        set(
+            [&lcl](const auto& i, const auto& index)
+            {
+                lcl[index].add_interval(i);
+            });
+        *this = {lcl};
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline LevelCellArray<Dim, TInterval>::LevelCellArray(std::size_t level, const Box<value_t, dim>& box)
+        : m_level{level}
+    {
+        m_scaling_factor = box.min_length();
+        m_origin_point   = box.min_corner();
+        init_from_box(box);
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline LevelCellArray<Dim, TInterval>::LevelCellArray(std::size_t level,
+                                                          const Box<double, dim>& box,
+                                                          double approx_box_tol,
+                                                          double scaling_factor)
+        : m_level(level)
+    {
+        using box_t   = Box<value_t, dim>;
+        using point_t = typename box_t::point_t;
+
+        assert(approx_box_tol > 0 || scaling_factor > 0);
+
+        // The computational domain is an approximation of the desired box.
+        // If `scaling_factor` is given (i.e. > 0), we take it;
+        // otherwise we choose the scaling factor dynamically in order to approximate the desired box
+        // up to the tolerance `approx_box_tol`.
+
+        m_origin_point   = box.min_corner();
+        auto approx_box  = approximate_box(box, approx_box_tol, scaling_factor);
+        m_scaling_factor = scaling_factor;
+
+        point_t start_pt;
+        start_pt.fill(0);
+        point_t end_pt = approx_box.length() / cell_length();
+        init_from_box(box_t{start_pt, end_pt});
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline LevelCellArray<Dim, TInterval>::LevelCellArray(std::size_t level)
+        : m_level{level}
+    {
+        m_origin_point.fill(0);
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline LevelCellArray<Dim, TInterval>::LevelCellArray(std::size_t level, const coords_t& origin_point, double scaling_factor)
+        : m_level{level}
+        , m_origin_point(origin_point)
+        , m_scaling_factor(scaling_factor)
+    {
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::begin() -> iterator
+    {
+        typename iterator::offset_type_iterator offset_index;
+        typename iterator::iterator_container current_index;
+        typename iterator::coord_type index;
+
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            current_index[d] = m_cells[d].begin();
+        }
+
+        for (std::size_t d = 0; d < dim - 1; ++d)
+        {
+            offset_index[d] = m_offsets[d].cbegin();
+            index[d]        = current_index[d + 1]->start;
+        }
+        return iterator(this, std::move(offset_index), std::move(current_index), std::move(index));
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::end() -> iterator
+    {
+        typename iterator::offset_type_iterator offset_index;
+        typename iterator::iterator_container current_index;
+        typename iterator::coord_type index;
+
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            current_index[d] = m_cells[d].end() - 1;
+        }
+        ++current_index[0];
+
+        for (std::size_t d = 0; d < dim - 1; ++d)
+        {
+            offset_index[d] = m_offsets[d].cend() - 2;
+            index[d]        = current_index[d + 1]->end - 1;
+        }
+
+        return iterator(this, std::move(offset_index), std::move(current_index), std::move(index));
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::cbegin() const -> const_iterator
+    {
+        typename const_iterator::offset_type_iterator offset_index;
+        typename const_iterator::iterator_container current_index;
+        typename const_iterator::coord_type index;
+
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            current_index[d] = m_cells[d].cbegin();
+        }
+
+        for (std::size_t d = 0; d < dim - 1; ++d)
+        {
+            offset_index[d] = m_offsets[d].cbegin();
+            index[d]        = current_index[d + 1]->start;
+        }
+        return const_iterator(this, std::move(offset_index), std::move(current_index), std::move(index));
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::cend() const -> const_iterator
+    {
+        typename const_iterator::offset_type_iterator offset_index;
+        typename const_iterator::iterator_container current_index;
+        typename const_iterator::coord_type index;
+
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            current_index[d] = m_cells[d].cend() - 1;
+        }
+        ++current_index[0];
+
+        for (std::size_t d = 0; d < dim - 1; ++d)
+        {
+            offset_index[d] = m_offsets[d].cend() - 2;
+            index[d]        = current_index[d + 1]->end - 1;
+        }
+
+        return const_iterator(this, std::move(offset_index), std::move(current_index), std::move(index));
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::begin() const -> const_iterator
+    {
+        return cbegin();
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::end() const -> const_iterator
+    {
+        return cend();
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::rbegin() -> reverse_iterator
+    {
+        return reverse_iterator(end());
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::rend() -> reverse_iterator
+    {
+        return reverse_iterator(begin());
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::rbegin() const -> const_reverse_iterator
+    {
+        return rcbegin();
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::rend() const -> const_reverse_iterator
+    {
+        return rcend();
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::rcbegin() const -> const_reverse_iterator
+    {
+        return const_reverse_iterator(cend());
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::rcend() const -> const_reverse_iterator
+    {
+        return const_reverse_iterator(cbegin());
+    }
+
+    /**
+     * Return the x-interval satisfying the input parameters
+     *
+     * @param interval The desired x-interval.
+     * @param index The desired indices for the other dimensions.
+     */
+    template <std::size_t Dim, class TInterval>
+    template <typename... T, typename D>
+    inline auto LevelCellArray<Dim, TInterval>::get_interval(const interval_t& interval, T... index) const -> const interval_t&
+    {
+        auto offset = find(*this, {interval.start, index...});
+        assert(offset >= 0 && "Interval not found");
+        return m_cells[0][static_cast<std::size_t>(offset)];
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::get_interval(const interval_t& interval, const coord_type& index) const -> const interval_t&
+    {
+        all_coord_type point;
+        point[0] = interval.start;
+        for (std::size_t d = 1; d < dim; ++d)
+        {
+            point[d] = index[d - 1];
+        }
+        auto offset = find(*this, point);
+        assert(offset >= 0 && "Interval not found");
+        return m_cells[0][static_cast<std::size_t>(offset)];
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::get_interval(const all_coord_type& coord) const -> const interval_t&
+    {
+        auto offset = find(*this, coord);
+        assert(offset >= 0 && "Interval not found");
+        return m_cells[0][static_cast<std::size_t>(offset)];
+    }
+
+    template <std::size_t Dim, class TInterval>
+    template <typename... T, typename D>
+    inline auto LevelCellArray<Dim, TInterval>::get_index(value_t i, T... index) const -> index_t
+    {
+        return get_interval({i, i + 1}, index...).index + i;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    template <class E>
+    inline auto LevelCellArray<Dim, TInterval>::get_index(value_t i, const xt::xexpression<E>& others) const -> index_t
+    {
+        return get_interval({i, i + 1}, others).index + i;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::get_index(const all_coord_type& coord) const -> index_t
+    {
+        return get_interval(coord).index + coord(0);
+    }
+
+    template <std::size_t Dim, class TInterval>
+    template <typename... T, typename D>
+    inline auto LevelCellArray<Dim, TInterval>::get_cell(value_t i, T... index) const -> cell_t
+    {
+        return {m_origin_point, m_scaling_factor, m_level, i, xt::xtensor_fixed<value_t, xt::xshape<dim - 1>>{index...}, get_index(i, index...)};
+    }
+
+    template <std::size_t Dim, class TInterval>
+    template <class E>
+    inline auto LevelCellArray<Dim, TInterval>::get_cell(value_t i, const xt::xexpression<E>& others) const -> cell_t
+    {
+        return {m_origin_point, m_scaling_factor, m_level, i, others, get_index(i, others)};
+    }
+
+    template <std::size_t Dim, class TInterval>
+    template <class E>
+    inline auto LevelCellArray<Dim, TInterval>::get_cell(const xt::xexpression<E>& coord) const -> cell_t
+    {
+        xt::xtensor_fixed<value_t, xt::xshape<dim>> coord_array = coord;
+
+        auto i      = coord_array[0];
+        auto others = xt::view(coord_array, xt::range(1, _));
+        return {m_origin_point, m_scaling_factor, m_level, i, others, get_index(i, others)};
+    }
+
+    /**
+     * Update the index in the x-intervals allowing to navigate in the
+     * Field data structure.
+     */
+    template <std::size_t Dim, class TInterval>
+    inline void LevelCellArray<Dim, TInterval>::update_index()
+    {
+        std::size_t acc_size = 0;
+        for_each_interval(*this,
+                          [&](auto, auto& interval, auto)
+                          {
+                              interval.index = safe_subs<index_t>(acc_size, interval.start);
+                              acc_size += interval.size();
+                          });
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline bool LevelCellArray<Dim, TInterval>::empty() const
+    {
+        return m_cells[0].empty();
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::shape() const
+    {
+        std::array<std::size_t, dim> output;
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            output[d] = m_cells[d].size();
+        }
+        return output;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::nb_intervals() const
+    {
+        std::size_t s = 0;
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            s += m_cells[d].size();
+        }
+        return s;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline std::size_t LevelCellArray<Dim, TInterval>::nb_cells() const
+    {
+        auto op = [](std::size_t i, const auto& interval)
+        {
+            return i + interval.size();
+        };
+
+        return std::accumulate(m_cells[0].cbegin(), m_cells[0].cend(), std::size_t(0), op);
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline std::size_t LevelCellArray<Dim, TInterval>::level() const
+    {
+        return m_level;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline void LevelCellArray<Dim, TInterval>::clear()
+    {
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            m_cells[d].clear();
+        }
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline double LevelCellArray<Dim, TInterval>::cell_length() const
+    {
+        return samurai::cell_length(m_scaling_factor, m_level);
+    }
+
+    /**
+     * Return the maximum value that can take the end of an interval for each
+     * direction.
+     */
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::max_indices() const
+    {
+        std::array<value_t, dim> max;
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            max[d] = std::max_element(m_cells[d].begin(),
+                                      m_cells[d].end(),
+                                      [](const auto& a, const auto& b)
+                                      {
+                                          return (a.end < b.end);
+                                      })
+                         ->end;
+        }
+        return max;
+    }
+
+    /**
+     * Return the minimum value that can take the start of an interval for each
+     * direction.
+     */
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::min_indices() const
+    {
+        std::array<value_t, dim> min;
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            min[d] = std::min_element(m_cells[d].begin(),
+                                      m_cells[d].end(),
+                                      [](const auto& a, const auto& b)
+                                      {
+                                          return (a.start < b.start);
+                                      })
+                         ->start;
+        }
+        return min;
+    }
+
+    /**
+     * Return the minimum value that can take the start and
+     * the maximum value that can take the end of an interval
+     * for each direction.
+     */
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::minmax_indices() const
+    {
+        std::array<std::pair<value_t, value_t>, dim> minmax;
+        auto min = min_indices();
+        auto max = max_indices();
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            minmax[d].first  = min[d];
+            minmax[d].second = max[d];
+        }
+        return minmax;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto& LevelCellArray<Dim, TInterval>::origin_point() const
+    {
+        return m_origin_point;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline void LevelCellArray<Dim, TInterval>::set_origin_point(const coords_t& origin_point)
+    {
+        m_origin_point = origin_point;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::scaling_factor() const
+    {
+        return m_scaling_factor;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline void LevelCellArray<Dim, TInterval>::set_scaling_factor(double scaling_factor)
+    {
+        m_scaling_factor = scaling_factor;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::operator[](std::size_t d) const -> const std::vector<interval_t>&
+    {
+        return m_cells[d];
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline auto LevelCellArray<Dim, TInterval>::operator[](std::size_t d) -> std::vector<interval_t>&
+    {
+        return m_cells[d];
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline const std::vector<std::size_t>& LevelCellArray<Dim, TInterval>::offsets(std::size_t d) const
+    {
+        assert(d > 0);
+        return m_offsets[d - 1];
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline std::vector<std::size_t>& LevelCellArray<Dim, TInterval>::offsets(std::size_t d)
+    {
+        assert(d > 0);
+        return m_offsets[d - 1];
+    }
+
+    template <std::size_t Dim, class TInterval>
+    template <typename TGrid, std::size_t N>
+    inline void LevelCellArray<Dim, TInterval>::init_from_level_cell_list(const TGrid& grid,
+                                                                          std::array<value_t, dim - 1> index,
+                                                                          std::integral_constant<std::size_t, N>)
+    {
+        // Working interval
+        interval_t curr_interval(0, 0, 0);
+
+        // For each position along the Nth dimension
+        for (const auto& point : grid)
+        {
+            // Coordinate along the Nth dimension
+            const auto i = point.first;
+
+            // Recursive call on the current position for the (N-1)th dimension
+            index[N - 1]                      = i;
+            const std::size_t previous_offset = m_cells[N - 1].size();
+            init_from_level_cell_list(point.second, index, std::integral_constant<std::size_t, N - 1>{});
+
+            /* Since we move on a sparse storage, each coordinate have non-empty
+             * co-dimensions So the question is, are we continuing an existing
+             * interval or have we jump to another one.
+             *
+             * WARNING: we are supposing that the sparse array of dimension
+             * dim-1 has no empty entry. Otherwise, we should check that the
+             * recursive call has do something by comparing previous_offset
+             * with the size of m_cells[N-1].
+             */
+            if (curr_interval.is_valid())
+            {
+                // If the coordinate has jump out of the current interval
+                if (i > curr_interval.end)
+                {
+                    // Adding the previous interval...
+                    m_cells[N].emplace_back(curr_interval);
+
+                    // ... and creating a new one.
+                    curr_interval = interval_t(i, i + 1, static_cast<index_t>(m_offsets[N - 1].size()) - i);
+                }
+                else
+                {
+                    // Otherwise, we are just continuing the current interval
+                    ++curr_interval.end;
+                }
+            }
+            else
+            {
+                // If there is no current interval (at the beginning of the
+                // loop) we create a new one.
+                curr_interval = interval_t(i, i + 1, static_cast<index_t>(m_offsets[N - 1].size()) - i);
+            }
+
+            // Updating m_offsets (at each iteration since we are always
+            // updating an interval)
+            m_offsets[N - 1].emplace_back(previous_offset);
+        }
+
+        // Adding the working interval if valid
+        if (curr_interval.is_valid())
+        {
+            m_cells[N].emplace_back(curr_interval);
+        }
+    }
+
+    template <std::size_t Dim, class TInterval>
+    template <typename TIntervalList>
+    inline void LevelCellArray<Dim, TInterval>::init_from_level_cell_list(const TIntervalList& interval_list,
+                                                                          const std::array<value_t, dim - 1>& /* index */,
+                                                                          std::integral_constant<std::size_t, 0>)
+    {
+        // Along the X axis, simply copy the intervals in cells[0]
+        std::copy(interval_list.begin(), interval_list.end(), std::back_inserter(m_cells[0]));
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline void LevelCellArray<Dim, TInterval>::init_from_box(const Box<value_t, dim>& box)
+    {
+        auto dimensions = xt::cast<std::size_t>(box.length());
+        auto start_pt   = box.min_corner();
+        auto end_pt     = box.max_corner();
+
+        std::size_t size = 1;
+        for (std::size_t d = dim - 1; d > 0; --d)
+        {
+            m_offsets[d - 1].resize((dimensions[d] * size) + 1);
+            for (std::size_t i = 0; i < (dimensions[d] * size) + 1; ++i)
+            {
+                m_offsets[d - 1][i] = i;
+            }
+            m_cells[d].resize(size);
+            for (std::size_t i = 0; i < size; ++i)
+            {
+                m_cells[d][i] = {start_pt[d], end_pt[d], static_cast<index_t>(m_offsets[d - 1][i * dimensions[d]]) - start_pt[d]};
+            }
+            size *= dimensions[d];
+        }
+
+        m_cells[0].resize(size);
+        for (std::size_t i = 0; i < size; ++i)
+        {
+            m_cells[0][i] = {start_pt[0], end_pt[0], static_cast<index_t>(i * dimensions[0]) - start_pt[0]};
+        }
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline void LevelCellArray<Dim, TInterval>::to_stream(std::ostream& os) const
+    {
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            os << fmt::format(disable_color ? fmt::text_style() : fmt::emphasis::bold, "{:>10}", fmt::format("dim {}", d)) << std::endl;
+
+            os << fmt::format("{:>20}", "cells = ");
+            for (std::size_t ic = 0; ic < m_cells[d].size(); ++ic)
+            {
+                os << fmt::format(disable_color ? fmt::text_style() : fmt::emphasis::bold, "{}->", ic);
+                os << m_cells[d][ic] << " ";
+            }
+            os << "\n" << std::endl;
+
+            if (d > 0)
+            {
+                os << fmt::format("{:>20}", "offsets = ");
+                for (std::size_t io = 0; io < m_offsets[d - 1].size(); ++io)
+                {
+                    os << fmt::format("({}: {}) ", io, m_offsets[d - 1][io]);
+                }
+                os << std::endl << std::endl;
+            }
+        }
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline bool operator==(const LevelCellArray<Dim, TInterval>& lca_1, const LevelCellArray<Dim, TInterval>& lca_2)
+    {
+        if (lca_1.level() != lca_2.level())
+        {
+            return false;
+        }
+
+        if (lca_1.shape() != lca_2.shape())
+        {
+            return false;
+        }
+
+        for (std::size_t i = 0; i < Dim; ++i)
+        {
+            if (lca_1[i] != lca_2[i])
+            {
+                return false;
+            }
+        }
+
+        for (std::size_t i = 1; i < Dim; ++i)
+        {
+            if (lca_1.offsets(i) != lca_2.offsets(i))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline std::ostream& operator<<(std::ostream& out, const LevelCellArray<Dim, TInterval>& level_cell_array)
+    {
+        level_cell_array.to_stream(out);
+        return out;
+    }
+
+    ////////////////////////////////////////////
+    // LevelCellArray_iterator implementation //
+    ////////////////////////////////////////////
+
+    template <class LCA, bool is_const>
+    inline LevelCellArray_iterator<LCA, is_const>::LevelCellArray_iterator(LCA* lca,
+                                                                           offset_type_iterator&& offset_index,
+                                                                           iterator_container&& current_index,
+                                                                           coord_type&& index)
+        : p_lca(lca)
+        , m_offset_index(std::move(offset_index))
+        , m_current_index(std::move(current_index))
+        , m_index(std::move(index))
+    {
+    }
+
+    template <class LCA, bool is_const>
+    inline auto LevelCellArray_iterator<LCA, is_const>::operator++() -> self_type&
+    {
+        if (m_current_index[0] == (*p_lca)[0].end())
+        {
+            return *this;
+        }
+        ++m_current_index[0];
+
+        for (std::size_t d = 0; d < m_current_index.size() - 1; ++d)
+        {
+            auto dst = static_cast<std::size_t>(
+                std::distance((*p_lca)[d].cbegin(), static_cast<const_index_type_iterator>(m_current_index[d])));
+            if (dst == *(m_offset_index[d] + 1))
+            {
+                ++m_offset_index[d];
+                ++m_index[d];
+                if (m_index[d] == m_current_index[d + 1]->end)
+                {
+                    ++m_current_index[d + 1];
+                    if (m_current_index[d + 1] != (*p_lca)[d + 1].end())
+                    {
+                        m_index[d] = m_current_index[d + 1]->start;
+                    }
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+        return *this;
+    }
+
+    template <class LCA, bool is_const>
+    inline auto LevelCellArray_iterator<LCA, is_const>::operator--() -> self_type&
+    {
+        if (m_current_index[0] == (*p_lca)[0].begin())
+        {
+            --m_current_index[0];
+            return *this;
+        }
+        --m_current_index[0];
+
+        for (std::size_t d = 0; d < m_current_index.size() - 1; ++d)
+        {
+            auto dst = static_cast<std::size_t>(
+                std::distance((*p_lca)[d].cbegin(), static_cast<const_index_type_iterator>(m_current_index[d])));
+            if (dst == *m_offset_index[d] - 1)
+            {
+                --m_offset_index[d];
+                if (m_index[d] == m_current_index[d + 1]->start)
+                {
+                    if (m_current_index[d + 1] != (*p_lca)[d + 1].begin())
+                    {
+                        --m_current_index[d + 1];
+                        m_index[d] = m_current_index[d + 1]->end - 1;
+                    }
+                }
+                else
+                {
+                    --m_index[d];
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+        return *this;
+    }
+
+    template <class LCA, bool is_const>
+    inline auto LevelCellArray_iterator<LCA, is_const>::operator+=(difference_type n) -> self_type&
+    {
+        for (difference_type i = 0; i < n; ++i)
+        {
+            ++(*this);
+        }
+        return *this;
+    }
+
+    template <class LCA, bool is_const>
+    inline auto LevelCellArray_iterator<LCA, is_const>::operator-=(difference_type n) -> self_type&
+    {
+        for (difference_type i = 0; i < n; ++i)
+        {
+            --(*this);
+        }
+        return *this;
+    }
+
+    template <class LCA, bool is_const>
+    inline auto LevelCellArray_iterator<LCA, is_const>::operator-(const self_type& rhs) const -> difference_type
+    {
+        return m_current_index[0] - rhs.m_current_index[0];
+    }
+
+    template <class LCA, bool is_const>
+    inline auto LevelCellArray_iterator<LCA, is_const>::operator*() const -> reference
+    {
+        return *(m_current_index[0]);
+    }
+
+    template <class LCA, bool is_const>
+    inline auto LevelCellArray_iterator<LCA, is_const>::operator->() const -> pointer
+    {
+        return std::addressof(this->operator*());
+    }
+
+    template <class LCA, bool is_const>
+    inline auto LevelCellArray_iterator<LCA, is_const>::index() const -> const coord_type&
+    {
+        return m_index;
+    }
+
+    template <class LCA, bool is_const>
+    inline std::size_t LevelCellArray_iterator<LCA, is_const>::level() const
+    {
+        return p_lca->level();
+    }
+
+    template <class LCA, bool is_const>
+    inline bool LevelCellArray_iterator<LCA, is_const>::equal(const self_type& rhs) const
+    {
+        return p_lca == rhs.p_lca && m_current_index[0] == rhs.m_current_index[0];
+    }
+
+    template <class LCA, bool is_const>
+    inline bool LevelCellArray_iterator<LCA, is_const>::less_than(const self_type& rhs) const
+    {
+        return p_lca == rhs.p_lca && m_current_index[0] < rhs.m_current_index[0];
+    }
+
+    template <class LCA, bool is_const>
+    inline bool operator==(const LevelCellArray_iterator<LCA, is_const>& it1, const LevelCellArray_iterator<LCA, is_const>& it2)
+    {
+        return it1.equal(it2);
+    }
+
+    template <class LCA, bool is_const>
+    inline bool operator<(const LevelCellArray_iterator<LCA, is_const>& it1, const LevelCellArray_iterator<LCA, is_const>& it2)
+    {
+        return it1.less_than(it2);
+    }
+
+    template <class LCA, bool is_const>
+    inline bool operator==(const std::reverse_iterator<LevelCellArray_iterator<LCA, is_const>>& it1,
+                           const std::reverse_iterator<LevelCellArray_iterator<LCA, is_const>>& it2)
+    {
+        return it1.base().equal(it2.base());
+    }
+} // namespace samurai
+// Copyright 2018-2025 the samurai's authors
+// SPDX-License-Identifier:  BSD-3-Clause
+
+#pragma once
+
+#include <array>
+
+#include <fmt/color.h>
+#include <fmt/format.h>
+
+#include "algorithm.hpp"
+#include "cell_list.hpp"
+#include "level_cell_array.hpp"
+#include "samurai_config.hpp"
+#include "utils.hpp"
+
+#ifdef SAMURAI_WITH_MPI
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/vector.hpp>
+#endif
+
+namespace samurai
+{
+
+    template <class CA, bool is_const>
+    class CellArray_iterator;
+
+    template <class iterator>
+    class CellArray_reverse_iterator : public std::reverse_iterator<iterator>
+    {
+      public:
+
+        using base_type  = std::reverse_iterator<iterator>;
+        using coord_type = typename iterator::coord_type;
+
+        explicit CellArray_reverse_iterator(iterator&& it)
+            : base_type(std::move(it))
+        {
+        }
+
+        auto index() const
+        {
+            iterator it = this->base();
+            return (--it).index();
+        }
+
+        auto level() const
+        {
+            iterator it = this->base();
+            return (--it).level();
+        }
+    };
+
+    //////////////////////////
+    // CellArray definition //
+    //////////////////////////
+
+    /** @class CellArray
+     *  @brief Array of LevelCellArray.
+     *
+     *  A box is defined by its minimum and maximum corners.
+     *
+     *  @tparam dim_ The dimension
+     *  @tparam TInterval The type of the intervals (default type is
+     * default_config::interval_t).
+     *  @tparam max_size_ The size of the array and the maximum levels (default
+     * size is default_config::max_level).
+     */
+    template <std::size_t dim_, class TInterval = default_config::interval_t, std::size_t max_size_ = default_config::max_level>
+    class CellArray
+    {
+      public:
+
+        static constexpr auto dim      = dim_;
+        static constexpr auto max_size = max_size_;
+
+        using self_type  = CellArray<dim_, TInterval, max_size_>;
+        using interval_t = TInterval;
+        using cell_t     = Cell<dim, interval_t>;
+        using value_t    = typename interval_t::value_t;
+        using index_t    = typename interval_t::index_t;
+        using lca_type   = LevelCellArray<dim, TInterval>;
+        using cl_type    = CellList<dim, TInterval, max_size>;
+        using coords_t   = typename lca_type::coords_t;
+
+        using iterator               = CellArray_iterator<self_type, false>;
+        using reverse_iterator       = CellArray_reverse_iterator<iterator>;
+        using const_iterator         = CellArray_iterator<const self_type, true>;
+        using const_reverse_iterator = CellArray_reverse_iterator<const_iterator>;
+
+        CellArray();
+        CellArray(const cl_type& cl, bool with_update_index = true);
+
+        const lca_type& operator[](std::size_t i) const;
+        lca_type& operator[](std::size_t i);
+
+        template <typename... T, typename = std::enable_if_t<std::conjunction_v<std::is_convertible<T, value_t>...>, void>>
+        const interval_t& get_interval(std::size_t level, const interval_t& interval, T... index) const;
+
+        template <class E>
+        const interval_t& get_interval(std::size_t level, const interval_t& interval, const xt::xexpression<E>& index) const;
+
+        template <class E>
+        const interval_t& get_interval(std::size_t level, const xt::xexpression<E>& coord) const;
+
+        template <typename... T, typename = std::enable_if_t<std::conjunction_v<std::is_convertible<T, value_t>...>, void>>
+        index_t get_index(std::size_t level, value_t i, T... index) const;
+        template <class E>
+        index_t get_index(std::size_t level, value_t i, const xt::xexpression<E>& others) const;
+        template <class E>
+        index_t get_index(std::size_t level, const xt::xexpression<E>& coord) const;
+
+        template <typename... T, typename = std::enable_if_t<std::conjunction_v<std::is_convertible<T, value_t>...>, void>>
+        cell_t get_cell(std::size_t level, value_t i, T... index) const;
+        template <class E>
+        cell_t get_cell(std::size_t level, value_t i, const xt::xexpression<E>& others) const;
+        template <class E>
+        cell_t get_cell(std::size_t level, const xt::xexpression<E>& coord) const;
+
+        std::size_t nb_cells() const;
+        std::size_t nb_cells(std::size_t level) const;
+
+        std::size_t max_level() const;
+        std::size_t min_level() const;
+
+        void clear();
+
+        auto& origin_point() const;
+        void set_origin_point(const coords_t& origin_point);
+        double scaling_factor() const;
+        void set_scaling_factor(double scaling_factor);
+        double cell_length(std::size_t level) const;
+
+        void update_index();
+
+        void to_stream(std::ostream& os) const;
+
+        iterator begin();
+        iterator end();
+
+        reverse_iterator rbegin();
+        reverse_iterator rend();
+
+        const_iterator begin() const;
+        const_iterator end() const;
+        const_iterator cbegin() const;
+        const_iterator cend() const;
+
+        const_reverse_iterator rend() const;
+        const_reverse_iterator rbegin() const;
+        const_reverse_iterator rcend() const;
+        const_reverse_iterator rcbegin() const;
+
+      private:
+
+        std::array<lca_type, max_size + 1> m_cells;
+
+#ifdef SAMURAI_WITH_MPI
+        friend class boost::serialization::access;
+
+        template <class Archive>
+        void serialize(Archive& ar, const unsigned long)
+        {
+            ar & m_cells;
+        }
+#endif
+    };
+
+    ////////////////////////////////////
+    // CellArray_iterator definition //
+    ///////////////////////////////////
+
+    namespace detail
+    {
+        template <class CA, bool is_const>
+        struct get_lca_iterator_type;
+
+        template <class CA>
+        struct get_lca_iterator_type<CA, true>
+        {
+            using type = LevelCellArray_iterator<const typename CA::lca_type, true>;
+        };
+
+        template <class CA>
+        struct get_lca_iterator_type<CA, false>
+        {
+            using type = LevelCellArray_iterator<typename CA::lca_type, false>;
+        };
+    }
+
+    template <class CA, bool is_const>
+    class CellArray_iterator
+        : public xtl::xrandom_access_iterator_base3<CellArray_iterator<CA, is_const>, LevelCellArray_iterator<typename CA::lca_type, is_const>>
+    {
+      public:
+
+        static constexpr std::size_t dim = CA::dim;
+        using self_type                  = CellArray_iterator<CA, is_const>;
+        using iterator_type              = typename detail::get_lca_iterator_type<CA, is_const>::type;
+        using value_type                 = typename iterator_type::value_type;
+        using index_type                 = typename iterator_type::index_type;
+        using index_type_iterator        = typename iterator_type::index_type_iterator;
+        using const_index_type_iterator  = typename iterator_type::const_index_type_iterator;
+        using reference                  = typename iterator_type::reference;
+        using pointer                    = typename iterator_type::pointer;
+        using difference_type            = typename iterator_type::difference_type;
+        using iterator_category          = typename iterator_type::iterator_category;
+
+        using coord_type = typename iterator_type::coord_type;
+
+        explicit CellArray_iterator(CA* ca, const iterator_type& lca_it);
+
+        self_type& operator++();
+        self_type& operator--();
+
+        self_type& operator+=(difference_type n);
+        self_type& operator-=(difference_type n);
+
+        difference_type operator-(const self_type& rhs) const;
+
+        reference operator*() const;
+        pointer operator->() const;
+        const coord_type& index() const;
+        std::size_t level() const;
+
+        bool equal(const self_type& rhs) const;
+        bool less_than(const self_type& rhs) const;
+
+      private:
+
+        CA* p_ca;
+        iterator_type m_lca_it;
+    };
+
+    //////////////////////////////
+    // CellArray implementation //
+    //////////////////////////////
+
+    /**
+     * Default contructor which sets the level for each LevelCellArray.
+     */
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline CellArray<dim_, TInterval, max_size_>::CellArray()
+    {
+        for (std::size_t level = 0; level <= max_size; ++level)
+        {
+            m_cells[level] = {level};
+        }
+    }
+
+    /**
+     * Construction of a CellArray from a CellList
+     *
+     * @param cl The cell list.
+     * @parma with_update_index A boolean indicating if the index of the
+     * x-intervals must be computed.
+     */
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline CellArray<dim_, TInterval, max_size_>::CellArray(const cl_type& cl, bool with_update_index)
+    {
+        for (std::size_t level = 0; level <= max_size; ++level)
+        {
+            m_cells[level] = cl[level];
+            m_cells[level].set_origin_point(cl.origin_point());
+            m_cells[level].set_scaling_factor(cl.scaling_factor());
+        }
+
+        if (with_update_index)
+        {
+            update_index();
+        }
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::operator[](std::size_t i) const -> const lca_type&
+    {
+        return m_cells[i];
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::operator[](std::size_t i) -> lca_type&
+    {
+        return m_cells[i];
+    }
+
+    /**
+     * Return the x-interval satisfying the input parameters
+     *
+     * @param level The desired level.
+     * @param interval The desired x-interval.
+     * @param index The desired indices for the other dimensions.
+     */
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    template <typename... T, typename D>
+    inline auto
+    CellArray<dim_, TInterval, max_size_>::get_interval(std::size_t level, const interval_t& interval, T... index) const -> const interval_t&
+    {
+        return m_cells[level].get_interval(interval, index...);
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    template <class E>
+    inline auto CellArray<dim_, TInterval, max_size_>::get_interval(std::size_t level,
+                                                                    const interval_t& interval,
+                                                                    const xt::xexpression<E>& index) const -> const interval_t&
+    {
+        return m_cells[level].get_interval(interval, index);
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    template <class E>
+    inline auto
+    CellArray<dim_, TInterval, max_size_>::get_interval(std::size_t level, const xt::xexpression<E>& coord) const -> const interval_t&
+    {
+        return m_cells[level].get_interval(coord);
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    template <typename... T, typename D>
+    inline auto CellArray<dim_, TInterval, max_size_>::get_index(std::size_t level, value_t i, T... index) const -> index_t
+    {
+        return m_cells[level].get_index(i, index...);
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    template <class E>
+    inline auto
+    CellArray<dim_, TInterval, max_size_>::get_index(std::size_t level, value_t i, const xt::xexpression<E>& others) const -> index_t
+    {
+        return m_cells[level].get_index(i, others);
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    template <class E>
+    inline auto CellArray<dim_, TInterval, max_size_>::get_index(std::size_t level, const xt::xexpression<E>& coord) const -> index_t
+    {
+        return m_cells[level].get_index(coord);
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    template <typename... T, typename D>
+    inline auto CellArray<dim_, TInterval, max_size_>::get_cell(std::size_t level, value_t i, T... index) const -> cell_t
+    {
+        return m_cells[level].get_cell(i, index...);
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    template <class E>
+    inline auto CellArray<dim_, TInterval, max_size_>::get_cell(std::size_t level, value_t i, const xt::xexpression<E>& others) const -> cell_t
+    {
+        return m_cells[level].get_cell(i, others);
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    template <class E>
+    inline auto CellArray<dim_, TInterval, max_size_>::get_cell(std::size_t level, const xt::xexpression<E>& coord) const -> cell_t
+    {
+        return m_cells[level].get_cell(coord);
+    }
+
+    /**
+     * Return the number of cells which is the sum of each x-interval size
+     * over the levels.
+     */
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline std::size_t CellArray<dim_, TInterval, max_size_>::nb_cells() const
+    {
+        std::size_t size = 0;
+        for (std::size_t level = 0; level <= max_size; ++level)
+        {
+            size += m_cells[level].nb_cells();
+        }
+        return size;
+    }
+
+    /**
+     * Return the number of cells which is the sum of each x-interval size
+     * for a given level.
+     *
+     * @param level The level where to compute the number of cells
+     */
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline std::size_t CellArray<dim_, TInterval, max_size_>::nb_cells(std::size_t level) const
+    {
+        return m_cells[level].nb_cells();
+    }
+
+    /**
+     * Return the maximum level where the array entry is not empty.
+     */
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline std::size_t CellArray<dim_, TInterval, max_size_>::max_level() const
+    {
+        for (std::size_t level = max_size; level != std::size_t(-1); --level)
+        {
+            if (!m_cells[level].empty())
+            {
+                return level;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Return the minimum level where the array entry is not empty.
+     */
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline std::size_t CellArray<dim_, TInterval, max_size_>::min_level() const
+    {
+        for (std::size_t level = 0; level <= max_size; ++level)
+        {
+            if (!m_cells[level].empty())
+            {
+                return level;
+            }
+        }
+        return max_size + 1;
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline void CellArray<dim_, TInterval, max_size_>::clear()
+    {
+        for (std::size_t level = 0; level <= max_size; ++level)
+        {
+            m_cells[level].clear();
+        }
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto& CellArray<dim_, TInterval, max_size_>::origin_point() const
+    {
+        return m_cells[0].origin_point();
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline void CellArray<dim_, TInterval, max_size_>::set_origin_point(const coords_t& origin_point)
+    {
+        for (std::size_t level = 0; level <= max_size; ++level)
+        {
+            m_cells[level].set_origin_point(origin_point);
+        }
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline double CellArray<dim_, TInterval, max_size_>::scaling_factor() const
+    {
+        return m_cells[0].scaling_factor();
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline void CellArray<dim_, TInterval, max_size_>::set_scaling_factor(double scaling_factor)
+    {
+        for (std::size_t level = 0; level <= max_size; ++level)
+        {
+            m_cells[level].set_scaling_factor(scaling_factor);
+        }
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline double CellArray<dim_, TInterval, max_size_>::cell_length(std::size_t level) const
+    {
+        return samurai::cell_length(scaling_factor(), level);
+    }
+
+    /**
+     * Update the index in the x-intervals allowing to navigate in the
+     * Field data structure.
+     */
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline void CellArray<dim_, TInterval, max_size_>::update_index()
+    {
+        std::size_t acc_size = 0;
+        for_each_interval(*this,
+                          [&](auto, auto& interval, auto)
+                          {
+                              interval.index = safe_subs<index_t>(acc_size, interval.start);
+                              acc_size += interval.size();
+                          });
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline void CellArray<dim_, TInterval, max_size_>::to_stream(std::ostream& os) const
+    {
+        for (std::size_t level = 0; level <= max_size; ++level)
+        {
+            if (!m_cells[level].empty())
+            {
+                os << fmt::format(disable_color ? fmt::text_style() : fg(fmt::color::steel_blue) | fmt::emphasis::bold,
+                                  "┌{0:─^{2}}┐\n"
+                                  "│{1: ^{2}}│\n"
+                                  "└{0:─^{2}}┘\n",
+                                  "",
+                                  fmt::format("Level {}", level),
+                                  20);
+                m_cells[level].to_stream(os);
+                os << std::endl;
+            }
+        }
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::begin() -> iterator
+    {
+        return iterator(this, m_cells[min_level()].begin());
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::end() -> iterator
+    {
+        return iterator(this, m_cells[max_level()].end());
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::begin() const -> const_iterator
+    {
+        return cbegin();
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::end() const -> const_iterator
+    {
+        return cend();
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::cbegin() const -> const_iterator
+    {
+        return const_iterator(this, m_cells[min_level()].cbegin());
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::cend() const -> const_iterator
+    {
+        return const_iterator(this, m_cells[max_level()].cend());
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::rbegin() -> reverse_iterator
+    {
+        return reverse_iterator(end());
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::rend() -> reverse_iterator
+    {
+        return reverse_iterator(begin());
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::rbegin() const -> const_reverse_iterator
+    {
+        return rcbegin();
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::rend() const -> const_reverse_iterator
+    {
+        return rcend();
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::rcbegin() const -> const_reverse_iterator
+    {
+        return const_reverse_iterator(cend());
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline auto CellArray<dim_, TInterval, max_size_>::rcend() const -> const_reverse_iterator
+    {
+        return const_reverse_iterator(cbegin());
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline std::ostream& operator<<(std::ostream& out, const CellArray<dim_, TInterval, max_size_>& cell_array)
+    {
+        cell_array.to_stream(out);
+        return out;
+    }
+
+    template <std::size_t dim_, class TInterval, std::size_t max_size_>
+    inline bool operator==(const CellArray<dim_, TInterval, max_size_>& ca1, const CellArray<dim_, TInterval, max_size_>& ca2)
+    {
+        if (ca1.max_level() != ca2.max_level() || ca1.min_level() != ca2.min_level())
+        {
+            return false;
+        }
+
+        for (std::size_t level = ca1.min_level(); level <= ca1.max_level(); ++level)
+        {
+            if (!(ca1[level] == ca2[level]))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    ///////////////////////////////////////
+    // CellArray_iterator implementation //
+    ///////////////////////////////////////
+
+    template <class CA, bool is_const>
+    inline CellArray_iterator<CA, is_const>::CellArray_iterator(CA* ca, const iterator_type& lca_it)
+        : p_ca(ca)
+        , m_lca_it(lca_it)
+    {
+    }
+
+    template <class CA, bool is_const>
+    inline auto CellArray_iterator<CA, is_const>::operator++() -> self_type&
+    {
+        if (m_lca_it == (*p_ca)[p_ca->max_level()].end())
+        {
+            return *this;
+        }
+
+        ++m_lca_it;
+        if (m_lca_it.level() < p_ca->max_level() && m_lca_it == (*p_ca)[m_lca_it.level()].end())
+        {
+            m_lca_it = (*p_ca)[m_lca_it.level() + 1].begin();
+        }
+        return *this;
+    }
+
+    template <class CA, bool is_const>
+    inline auto CellArray_iterator<CA, is_const>::operator--() -> self_type&
+    {
+        if (m_lca_it == (*p_ca)[p_ca->min_level()].begin())
+        {
+            return *this;
+        }
+
+        if (m_lca_it.level() > p_ca->min_level() && m_lca_it == (*p_ca)[m_lca_it.level()].begin())
+        {
+            m_lca_it = (*p_ca)[m_lca_it.level() - 1].end();
+        }
+        --m_lca_it;
+        return *this;
+    }
+
+    template <class CA, bool is_const>
+    inline auto CellArray_iterator<CA, is_const>::operator+=(difference_type n) -> self_type&
+    {
+        for (difference_type i = 0; i < n; ++i)
+        {
+            ++(*this);
+        }
+        return *this;
+    }
+
+    template <class CA, bool is_const>
+    inline auto CellArray_iterator<CA, is_const>::operator-=(difference_type n) -> self_type&
+    {
+        for (difference_type i = 0; i < n; ++i)
+        {
+            --(*this);
+        }
+        return *this;
+    }
+
+    template <class CA, bool is_const>
+    inline auto CellArray_iterator<CA, is_const>::operator-(const self_type& rhs) const -> difference_type
+    {
+        return m_lca_it.operator-(rhs.m_lca_it);
+        // return m_current_index[0] - rhs.m_current_index[0];
+    }
+
+    template <class CA, bool is_const>
+    inline auto CellArray_iterator<CA, is_const>::operator*() const -> reference
+    {
+        return m_lca_it.operator*();
+    }
+
+    template <class CA, bool is_const>
+    inline auto CellArray_iterator<CA, is_const>::operator->() const -> pointer
+    {
+        return m_lca_it.operator->();
+    }
+
+    template <class CA, bool is_const>
+    inline auto CellArray_iterator<CA, is_const>::index() const -> const coord_type&
+    {
+        return m_lca_it.index();
+    }
+
+    template <class CA, bool is_const>
+    inline std::size_t CellArray_iterator<CA, is_const>::level() const
+    {
+        return m_lca_it.level();
+    }
+
+    template <class CA, bool is_const>
+    inline bool CellArray_iterator<CA, is_const>::equal(const self_type& rhs) const
+    {
+        return p_ca == rhs.p_ca && m_lca_it.level() == rhs.m_lca_it.level() && m_lca_it.equal(rhs.m_lca_it);
+    }
+
+    template <class CA, bool is_const>
+    inline bool CellArray_iterator<CA, is_const>::less_than(const self_type& rhs) const
+    {
+        return p_ca == rhs.p_ca
+            && (m_lca_it.level() < rhs.m_lca_it.level() || (m_lca_it.level() == rhs.m_lca_it.level() && m_lca_it.less_than(rhs.m_lca_it)));
+    }
+
+    template <class CA, bool is_const>
+    inline bool operator==(const CellArray_iterator<CA, is_const>& it1, const CellArray_iterator<CA, is_const>& it2)
+    {
+        return it1.equal(it2);
+    }
+
+    template <class CA, bool is_const>
+    inline bool operator<(const CellArray_iterator<CA, is_const>& it1, const CellArray_iterator<CA, is_const>& it2)
+    {
+        return it1.less_than(it2);
+    }
+
+    template <class CA, bool is_const>
+    inline bool operator==(const std::reverse_iterator<CellArray_iterator<CA, is_const>>& it1,
+                           const std::reverse_iterator<CellArray_iterator<CA, is_const>>& it2)
+    {
+        return it1.base().equal(it2.base());
+    }
+
+} // namespace samurai

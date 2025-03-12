@@ -11,6 +11,7 @@
 #ifdef SAMURAI_WITH_MPI
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/vector.hpp>
+#include <mpi.h>
 #endif
 
 #include <fmt/color.h>
@@ -176,6 +177,11 @@ namespace samurai
         auto scaling_factor() const;
         void set_scaling_factor(double scaling_factor);
 
+#ifdef SAMURAI_WITH_MPI
+        void send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca, int dest, int tag, MPI_Comm comm);
+        void recv_level_cell_array(LevelCellArray<Dim, TInterval>& lca, int source, int tag, MPI_Comm comm);
+#endif
+
       private:
 
 #ifdef SAMURAI_WITH_MPI
@@ -284,6 +290,91 @@ namespace samurai
         iterator_container m_current_index;
         mutable coord_type m_index;
     };
+
+    template <std::size_t Dim, class TInterval>
+    void LevelCellArray<Dim, TInterval>::send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca, int dest, int tag, MPI_Comm comm)
+    {
+        // Envoyer m_level
+        // UNSIGNED_LONG --> prevoir d'utiliser un datatype ?
+        MPI_Send(&lca.m_level, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+
+        // Envoyer m_origin_point
+        MPI_Send(lca.m_origin_point.data(), Dim, MPI_DOUBLE, dest, tag, comm);
+
+        // Envoyer m_scaling_factor
+        MPI_Send(&lca.m_scaling_factor, 1, MPI_DOUBLE, dest, tag, comm);
+
+        // Pour chaque dimension d de 0 à Dim-1
+        for (std::size_t d = 0; d < Dim; ++d)
+        {
+            // Envoyer le nombre d'intervalles
+            std::size_t nb_intervals = lca[d].size();
+            MPI_Send(&nb_intervals, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+
+            // Envoyer les intervalles (start, end, index)
+            for (const auto& interval : lca[d])
+            {
+                MPI_Send(&interval.start, 1, MPI_INT, dest, tag, comm);
+                MPI_Send(&interval.end, 1, MPI_INT, dest, tag, comm);
+                MPI_Send(&interval.step, 1, MPI_INT, dest, tag, comm);
+                MPI_Send(&interval.index, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+            }
+        }
+
+        // Pour les dimensions d de 1 à Dim-1
+        for (std::size_t d = 1; d < Dim; ++d)
+        {
+            // Envoyer le nombre d'offsets
+            std::size_t nb_offsets = lca.offsets(d).size();
+            MPI_Send(&nb_offsets, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+
+            // Envoyer les offsets
+            MPI_Send(lca.offsets(d).data(), nb_offsets, MPI_UNSIGNED_LONG, dest, tag, comm);
+        }
+    }
+
+    template <std::size_t Dim, class TInterval>
+    void LevelCellArray<Dim, TInterval>::recv_level_cell_array(LevelCellArray<Dim, TInterval>& lca, int source, int tag, MPI_Comm comm)
+    {
+        // Recevoir m_level
+        MPI_Recv(&lca.m_level, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+
+        // Recevoir m_origin_point
+        MPI_Recv(lca.m_origin_point.data(), Dim, MPI_DOUBLE, source, tag, comm, MPI_STATUS_IGNORE);
+
+        // Recevoir m_scaling_factor
+        MPI_Recv(&lca.m_scaling_factor, 1, MPI_DOUBLE, source, tag, comm, MPI_STATUS_IGNORE);
+
+        // Pour chaque dimension d de 0 à Dim-1
+        for (std::size_t d = 0; d < Dim; ++d)
+        {
+            // Recevoir le nombre d'intervalles
+            std::size_t nb_intervals;
+            MPI_Recv(&nb_intervals, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+            lca[d].resize(nb_intervals);
+
+            // Recevoir les intervalles
+            for (auto& interval : lca[d])
+            {
+                MPI_Recv(&interval.start, 1, MPI_INT, source, tag, comm, MPI_STATUS_IGNORE);
+                MPI_Recv(&interval.end, 1, MPI_INT, source, tag, comm, MPI_STATUS_IGNORE);
+                MPI_Recv(&interval.step, 1, MPI_INT, source, tag, comm, MPI_STATUS_IGNORE);
+                MPI_Recv(&interval.index, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+            }
+        }
+
+        // Pour les dimensions d de 1 à Dim-1
+        for (std::size_t d = 1; d < Dim; ++d)
+        {
+            // Recevoir le nombre d'offsets
+            std::size_t nb_offsets;
+            MPI_Recv(&nb_offsets, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+            lca.offsets(d).resize(nb_offsets);
+
+            // Recevoir les offsets
+            MPI_Recv(lca.offsets(d).data(), nb_offsets, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+        }
+    }
 
     ///////////////////////////////////
     // LevelCellArray implementation //

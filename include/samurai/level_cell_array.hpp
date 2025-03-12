@@ -163,6 +163,7 @@ namespace samurai
         std::vector<std::size_t>& offsets(std::size_t d);
 
         std::size_t level() const;
+        void level(std::size_t);
 
         void clear();
 
@@ -273,7 +274,7 @@ namespace samurai
         pointer operator->() const;
         const coord_type& index() const;
         std::size_t level() const;
-
+        void level(std::size_t);
         bool equal(const self_type& rhs) const;
         bool less_than(const self_type& rhs) const;
 
@@ -657,6 +658,12 @@ namespace samurai
     inline std::size_t LevelCellArray<Dim, TInterval>::level() const
     {
         return m_level;
+    }
+
+    template <std::size_t Dim, class TInterval>
+    inline void LevelCellArray<Dim, TInterval>::level(std::size_t level_)
+    {
+        m_level = level_;
     }
 
     template <std::size_t Dim, class TInterval>

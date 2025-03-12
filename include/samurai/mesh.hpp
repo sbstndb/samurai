@@ -195,7 +195,6 @@ namespace samurai
         {
             for (std::size_t id = 0; id < mesh_t::size; ++id)
             {
-                ar& m_cells[id];
             }
             ar & m_domain;
             ar & m_subdomain;
@@ -634,7 +633,7 @@ namespace samurai
             // Pour chaque voisin
             for (std::size_t i = 0; i < max_size + 1; ++i)
             {
-                const auto& lca = neighbour.mesh.m_cells[mesh_id_t::cells][i];
+                const auto& lca = derived_cast().m_cells[mesh_id_t::cells][i];
                 ; // Référence à un levelcellarray
                 MPI_Request r;
 

@@ -167,6 +167,23 @@ namespace samurai
         }
 #endif
     };
+}
+
+#ifdef SAMURAI_WITH_MPI
+namespace boost
+{
+    namespace mpi
+    {
+        template <std::size_t dim_, class TInterval, std::size_t max_size_>
+        struct is_mpi_datatype<samurai::CellArray<dim_, TInterval, max_size_>> : public mpl::true_
+        {
+        };
+    }
+}
+#endif
+
+namespace samurai
+{
 
     ////////////////////////////////////
     // CellArray_iterator definition //

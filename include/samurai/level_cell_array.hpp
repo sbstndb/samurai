@@ -178,8 +178,9 @@ namespace samurai
         void set_scaling_factor(double scaling_factor);
 
 #ifdef SAMURAI_WITH_MPI
-        void send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca, int dest, int tag, MPI_Comm comm) const;
-        void recv_level_cell_array(LevelCellArray<Dim, TInterval>& lca, int source, int tag, MPI_Comm comm);
+        void
+        send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca, int dest, int& tag, std::vector<MPI_Request>& req, MPI_Comm comm) const;
+        void recv_level_cell_array(LevelCellArray<Dim, TInterval>& lca, int source, int& tag, std::vector<MPI_Request>& req, MPI_Comm comm);
 #endif
 
       private:
@@ -292,55 +293,78 @@ namespace samurai
     };
 
 #ifdef SAMURAI_WITH_MPI
+
     template <std::size_t Dim, class TInterval>
-    void
-    LevelCellArray<Dim, TInterval>::send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca, int dest, int tag, MPI_Comm comm) const
+    void LevelCellArray<Dim, TInterval>::send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca,
+                                                               int dest,
+                                                               int& tag,
+                                                               std::vector<MPI_Request>& requests,
+                                                               MPI_Comm comm) const
     {
-        // Envoyer m_level
-        // UNSIGNED_LONG --> prevoir d'utiliser un datatype ?
-        MPI_Send(&lca.m_level, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+        // Asynchronously send m_level
+        MPI_Request req_level;
+        MPI_Isend(&lca.m_level, 1, MPI_UNSIGNED_LONG, dest, tag++, comm, &req_level);
+        requests.push_back(req_level);
 
-        // Envoyer m_origin_point
-        MPI_Send(lca.m_origin_point.data(), Dim, MPI_DOUBLE, dest, tag, comm);
+        // Asynchronously send m_origin_point
+        MPI_Request req_origin;
+        MPI_Isend(lca.m_origin_point.data(), Dim, MPI_DOUBLE, dest, tag++, comm, &req_origin);
+        requests.push_back(req_origin);
 
-        // Envoyer m_scaling_factor
-        MPI_Send(&lca.m_scaling_factor, 1, MPI_DOUBLE, dest, tag, comm);
+        // Asynchronously send m_scaling_factor
+        MPI_Request req_scaling;
+        MPI_Isend(&lca.m_scaling_factor, 1, MPI_DOUBLE, dest, tag++, comm, &req_scaling);
+        requests.push_back(req_scaling);
 
-        // Pour chaque dimension d de 0 à Dim-1
+        // For each dimension d from 0 to Dim-1 (intervals)
         for (std::size_t d = 0; d < Dim; ++d)
         {
-            // Envoyer le nombre d'intervalles
+            // Calculate the total size of intervals in bytes
             std::size_t nb_intervals = lca[d].size();
-            //            MPI_Send(&nb_intervals, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+            std::size_t total_size   = nb_intervals * sizeof(TInterval);
 
-            // Envoyer les intervalles (start, end, index)
-            std::size_t total_size = nb_intervals * sizeof(TInterval);
-            MPI_Send(lca[d].data(), total_size, MPI_BYTE, dest, tag, comm);
+            // Asynchronously send the intervals
+            MPI_Request req_intervals;
+            MPI_Isend(lca[d].data(), total_size, MPI_BYTE, dest, tag++, comm, &req_intervals);
+            requests.push_back(req_intervals);
         }
 
-        // Pour les dimensions d de 1 à Dim-1
+        // For dimensions d from 1 to Dim-1 (offsets)
         for (std::size_t d = 1; d < Dim; ++d)
         {
-            // Envoyer les offsets
-            MPI_Send(lca.offsets(d).data(), lca.offsets(d).size(), MPI_UNSIGNED_LONG, dest, tag, comm);
+            // Asynchronously send the offsets
+            MPI_Request req_offsets;
+            MPI_Isend(lca.offsets(d).data(), lca.offsets(d).size(), MPI_UNSIGNED_LONG, dest, tag++, comm, &req_offsets);
+            requests.push_back(req_offsets);
         }
     }
 
     template <std::size_t Dim, class TInterval>
-    void LevelCellArray<Dim, TInterval>::recv_level_cell_array(LevelCellArray<Dim, TInterval>& lca, int source, int tag, MPI_Comm comm)
+    void LevelCellArray<Dim, TInterval>::recv_level_cell_array(LevelCellArray<Dim, TInterval>& lca,
+                                                               int source,
+                                                               int& tag,
+                                                               std::vector<MPI_Request>& requests,
+                                                               MPI_Comm comm)
     {
-        // Recevoir m_level
-        MPI_Recv(&lca.m_level, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+        // Réception asynchrone de m_level
+        MPI_Request req_level;
+        MPI_Irecv(&lca.m_level, 1, MPI_UNSIGNED_LONG, source, tag++, comm, &req_level);
+        requests.push_back(req_level);
 
-        // Recevoir m_origin_point
-        MPI_Recv(lca.m_origin_point.data(), Dim, MPI_DOUBLE, source, tag, comm, MPI_STATUS_IGNORE);
+        // Réception asynchrone de m_origin_point
+        MPI_Request req_origin;
+        MPI_Irecv(lca.m_origin_point.data(), Dim, MPI_DOUBLE, source, tag++, comm, &req_origin);
+        requests.push_back(req_origin);
 
-        // Recevoir m_scaling_factor
-        MPI_Recv(&lca.m_scaling_factor, 1, MPI_DOUBLE, source, tag, comm, MPI_STATUS_IGNORE);
+        // Réception asynchrone de m_scaling_factor
+        MPI_Request req_scaling;
+        MPI_Irecv(&lca.m_scaling_factor, 1, MPI_DOUBLE, source, tag++, comm, &req_scaling);
+        requests.push_back(req_scaling);
 
-        // Pour chaque dimension d de 0 à Dim-1
+        // Pour chaque dimension d de 0 à Dim-1 (intervalles)
         for (std::size_t d = 0; d < Dim; ++d)
         {
+            // Sonder le message pour connaître la taille (bloquant)
             MPI_Status status;
             MPI_Probe(source, tag, comm, &status);
             int count;
@@ -348,20 +372,29 @@ namespace samurai
             std::size_t nb_intervals = count / sizeof(TInterval);
             lca[d].resize(nb_intervals);
 
-            MPI_Recv(lca[d].data(), count, MPI_BYTE, source, tag, comm, MPI_STATUS_IGNORE);
+            // Réception asynchrone des données
+            MPI_Request req_intervals;
+            MPI_Irecv(lca[d].data(), count, MPI_BYTE, source, tag++, comm, &req_intervals);
+            requests.push_back(req_intervals);
         }
 
-        // Pour les dimensions d de 1 à Dim-1
+        // Pour les dimensions d de 1 à Dim-1 (offsets)
         for (std::size_t d = 1; d < Dim; ++d)
         {
+            // Sonder le message pour connaître la taille (bloquant)
             MPI_Status status;
             MPI_Probe(source, tag, comm, &status);
             int count;
             MPI_Get_count(&status, MPI_UNSIGNED_LONG, &count);
             lca.offsets(d).resize(count);
-            MPI_Recv(lca.offsets(d).data(), count, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+
+            // Réception asynchrone des données
+            MPI_Request req_offsets;
+            MPI_Irecv(lca.offsets(d).data(), count, MPI_UNSIGNED_LONG, source, tag++, comm, &req_offsets);
+            requests.push_back(req_offsets);
         }
     }
+
 #endif
 
     ///////////////////////////////////

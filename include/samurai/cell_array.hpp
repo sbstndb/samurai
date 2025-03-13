@@ -153,8 +153,13 @@ namespace samurai
         const_reverse_iterator rcbegin() const;
 
 #ifdef SAMURAI_WITH_MPI
-        void send_cell_array(const CellArray<dim_, TInterval, max_size_>& ca, int dest, int tag, MPI_Comm comm) const;
-        void recv_cell_array(CellArray<dim_, TInterval, max_size_>& ca, int source, int tag, MPI_Comm comm);
+        void send_cell_array(const CellArray<dim_, TInterval, max_size_>& ca,
+                             int dest,
+                             int& tag,
+                             std::vector<MPI_Request>& requests,
+                             MPI_Comm comm) const;
+        void
+        recv_cell_array(CellArray<dim_, TInterval, max_size_>& ca, int source, int& tag, std::vector<MPI_Request>& requests, MPI_Comm comm);
 #endif
 
       private:
@@ -244,8 +249,11 @@ namespace samurai
 
 #ifdef SAMURAI_WITH_MPI
     template <std::size_t dim_, class TInterval, std::size_t max_size_>
-    void
-    CellArray<dim_, TInterval, max_size_>::send_cell_array(const CellArray<dim_, TInterval, max_size_>& ca, int dest, int tag, MPI_Comm comm) const
+    void CellArray<dim_, TInterval, max_size_>::send_cell_array(const CellArray<dim_, TInterval, max_size_>& ca,
+                                                                int dest,
+                                                                int& tag,
+                                                                std::vector<MPI_Request>& requests,
+                                                                MPI_Comm comm) const
     {
         // Compter les niveaux non vides
         std::vector<std::size_t> non_empty_levels;
@@ -259,22 +267,26 @@ namespace samurai
 
         // Envoyer le nombre de niveaux non vides
         std::size_t nb_levels = non_empty_levels.size();
-        MPI_Send(&nb_levels, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+        MPI_Send(&nb_levels, 1, MPI_UNSIGNED_LONG, dest, tag++, comm);
 
         // Envoyer chaque niveau non vide
         for (std::size_t level : non_empty_levels)
         {
-            MPI_Send(&level, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
-            ca[level].send_level_cell_array(ca[level], dest, tag, comm);
+            MPI_Send(&level, 1, MPI_UNSIGNED_LONG, dest, tag++, comm);
+            ca[level].send_level_cell_array(ca[level], dest, tag, requests, comm);
         }
     }
 
     template <std::size_t dim_, class TInterval, std::size_t max_size_>
-    void CellArray<dim_, TInterval, max_size_>::recv_cell_array(CellArray<dim_, TInterval, max_size_>& ca, int source, int tag, MPI_Comm comm)
+    void CellArray<dim_, TInterval, max_size_>::recv_cell_array(CellArray<dim_, TInterval, max_size_>& ca,
+                                                                int source,
+                                                                int& tag,
+                                                                std::vector<MPI_Request>& requests,
+                                                                MPI_Comm comm)
     {
         // Recevoir le nombre de niveaux non vides
         std::size_t nb_levels;
-        MPI_Recv(&nb_levels, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+        MPI_Recv(&nb_levels, 1, MPI_UNSIGNED_LONG, source, tag++, comm, MPI_STATUS_IGNORE);
 
         // Initialiser tous les niveaux comme vides
         for (std::size_t level = 0; level <= max_size; ++level)
@@ -285,9 +297,10 @@ namespace samurai
         // Recevoir chaque niveau non vide
         for (std::size_t i = 0; i < nb_levels; ++i)
         {
+            MPI_Request req_level;
             std::size_t level;
-            MPI_Recv(&level, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
-            ca[level].recv_level_cell_array(ca[level], source, tag, comm);
+            MPI_Recv(&level, 1, MPI_UNSIGNED_LONG, source, tag++, comm, MPI_STATUS_IGNORE);
+            ca[level].recv_level_cell_array(ca[level], source, tag, requests, comm);
         }
     }
 #endif

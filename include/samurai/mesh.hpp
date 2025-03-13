@@ -164,8 +164,8 @@ namespace samurai
         mesh_t& cells();
 
 #ifdef SAMURAI_WITH_MPI
-        void send_mesh(const Mesh_base<D, Config>& mesh, int dest, int tag, MPI_Comm comm);
-        void recv_mesh(Mesh_base<D, Config>& mesh, int source, int tag, MPI_Comm comm);
+        void send_mesh(const Mesh_base<D, Config>& mesh, int dest, int& tag, MPI_Comm comm);
+        void recv_mesh(Mesh_base<D, Config>& mesh, int source, int& tag, MPI_Comm comm);
 #endif
 
       private:
@@ -210,63 +210,69 @@ namespace samurai
 
 #ifdef SAMURAI_WITH_MPI
     template <class D, class Config>
-    void Mesh_base<D, Config>::send_mesh(const Mesh_base<D, Config>& mesh, int dest, int tag, MPI_Comm comm)
+    void Mesh_base<D, Config>::send_mesh(const Mesh_base<D, Config>& mesh, int dest, int& tag, MPI_Comm comm)
     {
         //    using mesh_t = typename Mesh_base<D, Config>::mesh_t;
+
+        std::vector<MPI_Request> requests;
 
         // Envoyer m_cells (chaque CellArray)
         for (std::size_t id = 0; id < mesh_t::size; ++id)
         {
-            mesh.m_cells[id].send_cell_array(mesh.m_cells[id], dest, tag, comm);
+            mesh.m_cells[id].send_cell_array(mesh.m_cells[id], dest, tag, requests, comm);
         }
 
         // Envoyer m_domain
-        mesh.m_domain.send_level_cell_array(mesh.m_domain, dest, tag, comm);
+        mesh.m_domain.send_level_cell_array(mesh.m_domain, dest, tag, requests, comm);
 
         // Envoyer m_subdomain
-        mesh.m_subdomain.send_level_cell_array(mesh.m_subdomain, dest, tag, comm);
+        mesh.m_subdomain.send_level_cell_array(mesh.m_subdomain, dest, tag, requests, comm);
 
         // Envoyer m_union
-        mesh.m_union.send_cell_array(mesh.m_union, dest, tag, comm);
+        mesh.m_union.send_cell_array(mesh.m_union, dest, tag, requests, comm);
 
         // Envoyer m_min_level
-        MPI_Send(&mesh.m_min_level, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+        MPI_Send(&mesh.m_min_level, 1, MPI_UNSIGNED_LONG, dest, tag++, comm);
 
         // Envoyer m_max_level
-        MPI_Send(&mesh.m_max_level, 1, MPI_UNSIGNED_LONG, dest, tag, comm);
+        MPI_Send(&mesh.m_max_level, 1, MPI_UNSIGNED_LONG, dest, tag++, comm);
 
         // Envoyer m_periodic
-        MPI_Send(mesh.m_periodic.data(), Config::dim, MPI_C_BOOL, dest, tag, comm);
+        MPI_Send(mesh.m_periodic.data(), Config::dim, MPI_C_BOOL, dest, tag++, comm);
+        MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
     }
 
     template <class D, class Config>
-    void Mesh_base<D, Config>::recv_mesh(Mesh_base<D, Config>& mesh, int source, int tag, MPI_Comm comm)
+    void Mesh_base<D, Config>::recv_mesh(Mesh_base<D, Config>& mesh, int source, int& tag, MPI_Comm comm)
     {
         //    using mesh_t = typename Mesh_base<D, Config>::mesh_t;
+
+        std::vector<MPI_Request> requests;
 
         // Recevoir m_cells
         for (std::size_t id = 0; id < mesh_t::size; ++id)
         {
-            mesh.m_cells[id].recv_cell_array(mesh.m_cells[id], source, tag, comm);
+            mesh.m_cells[id].recv_cell_array(mesh.m_cells[id], source, tag, requests, comm);
         }
 
         // Recevoir m_domain
-        mesh.m_domain.recv_level_cell_array(mesh.m_domain, source, tag, comm);
+        mesh.m_domain.recv_level_cell_array(mesh.m_domain, source, tag, requests, comm);
 
         // Recevoir m_subdomain
-        mesh.m_subdomain.recv_level_cell_array(mesh.m_subdomain, source, tag, comm);
+        mesh.m_subdomain.recv_level_cell_array(mesh.m_subdomain, source, tag, requests, comm);
 
         // Recevoir m_union
-        mesh.m_union.recv_cell_array(mesh.m_union, source, tag, comm);
+        mesh.m_union.recv_cell_array(mesh.m_union, source, tag, requests, comm);
 
         // Recevoir m_min_level
-        MPI_Recv(&mesh.m_min_level, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+        MPI_Recv(&mesh.m_min_level, 1, MPI_UNSIGNED_LONG, source, tag++, comm, MPI_STATUS_IGNORE);
 
         // Recevoir m_max_level
-        MPI_Recv(&mesh.m_max_level, 1, MPI_UNSIGNED_LONG, source, tag, comm, MPI_STATUS_IGNORE);
+        MPI_Recv(&mesh.m_max_level, 1, MPI_UNSIGNED_LONG, source, tag++, comm, MPI_STATUS_IGNORE);
 
         // Recevoir m_periodic
-        MPI_Recv(mesh.m_periodic.data(), Config::dim, MPI_C_BOOL, source, tag, comm, MPI_STATUS_IGNORE);
+        MPI_Recv(mesh.m_periodic.data(), Config::dim, MPI_C_BOOL, source, tag++, comm, MPI_STATUS_IGNORE);
+        MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
     }
 
 #endif
@@ -695,15 +701,17 @@ namespace samurai
         mpi::communicator world;
 
         // Envoyer le maillage à chaque voisin
+
+        int tag_send = 0, tag_recv = 0;
         for (const auto& neighbour : m_mpi_neighbourhood)
         {
-            send_mesh(derived_cast(), neighbour.rank, neighbour.rank, world);
+            send_mesh(derived_cast(), neighbour.rank, tag_send, world);
         }
 
         // Recevoir le maillage de chaque voisin
         for (auto& neighbour : m_mpi_neighbourhood)
         {
-            recv_mesh(neighbour.mesh, neighbour.rank, world.rank(), world);
+            recv_mesh(neighbour.mesh, neighbour.rank, tag_recv, world);
         }
 #endif
     }

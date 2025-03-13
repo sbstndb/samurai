@@ -10,6 +10,7 @@
 #include <vector>
 
 #ifdef SAMURAI_WITH_MPI
+#include <boost/mpi.hpp>
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/vector.hpp>
 #endif
@@ -227,6 +228,23 @@ namespace samurai
         coords_t m_origin_point;
         double m_scaling_factor = 1;
     };
+}
+
+#ifdef SAMURAI_WITH_MPI
+namespace boost
+{
+    namespace mpi
+    {
+        template <std::size_t Dim, class TInterval>
+        struct is_mpi_datatype<samurai::LevelCellArray<Dim, TInterval>> : public mpl::true_
+        {
+        };
+    }
+}
+#endif
+
+namespace samurai
+{
 
     ////////////////////////////////////////
     // LevelCellArray_iterator definition //

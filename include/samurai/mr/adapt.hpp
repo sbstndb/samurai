@@ -239,6 +239,7 @@ namespace samurai
                           m_tag[cell] = static_cast<int>(CellFlag::keep);
                       });
 
+        //  update_tag_subdomains_multilevel(min_level, max_level, m_tag, true) ;
         for (std::size_t level = min_level; level <= max_level; ++level)
         {
             update_tag_subdomains(level, m_tag, true);

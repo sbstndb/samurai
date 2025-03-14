@@ -448,6 +448,133 @@ namespace samurai
 #endif
     }
 
+    template <bool out = true, class Field>
+    void update_tag_subdomains_multilevel(std::size_t min_level,
+                                          std::size_t max_level,
+                                          [[maybe_unused]] Field& tag,
+                                          [[maybe_unused]] bool erase      = false,
+                                          [[maybe_unused]] bool in_and_out = false)
+    {
+#ifdef SAMURAI_WITH_MPI
+        //  constexpr std::size_t dim = Field::dim;
+        using mesh_t    = typename Field::mesh_t;
+        using value_t   = typename Field::value_type;
+        using mesh_id_t = typename mesh_t::mesh_id_t;
+        std::vector<mpi::request> req;
+
+        auto& mesh = tag.mesh();
+        mpi::communicator world;
+
+        std::vector<std::vector<std::vector<value_t>>> to_send{mesh.mpi_neighbourhood().size(),
+                                                               std::vector<std::vector<value_t>>(max_level - min_level + 1)};
+
+        std::size_t i_neigh = 0;
+        for (auto& neighbour : mesh.mpi_neighbourhood())
+        {
+            for (std::size_t level = min_level; level <= max_level; level++)
+            {
+                if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
+                {
+                    if constexpr (out)
+                    {
+                        auto out_interface = intersection(mesh[mesh_id_t::reference][level],
+                                                          neighbour.mesh[mesh_id_t::reference][level],
+                                                          mesh.subdomain())
+                                                 .on(level);
+                        out_interface(
+                            [&](const auto& i, const auto& index)
+                            {
+                                std::copy(tag(level, i, index).begin(),
+                                          tag(level, i, index).end(),
+                                          std::back_inserter(to_send[i_neigh][level - min_level]));
+                            });
+                    }
+                    else
+                    {
+                        auto out_interface = intersection(mesh[mesh_id_t::reference][level],
+                                                          neighbour.mesh[mesh_id_t::reference][level],
+                                                          neighbour.mesh.subdomain())
+                                                 .on(level);
+                        out_interface(
+                            [&](const auto& i, const auto& index)
+                            {
+                                std::copy(tag(level, i, index).begin(),
+                                          tag(level, i, index).end(),
+                                          std::back_inserter(to_send[i_neigh][level - min_level]));
+                            });
+                    }
+                }
+            }
+            req.push_back(world.isend(neighbour.rank, neighbour.rank, to_send[i_neigh++]));
+        }
+        i_neigh = 0;
+        for (auto& neighbour : mesh.mpi_neighbourhood())
+        {
+            std::vector<std::vector<value_t>> to_recv(max_level - min_level + 1);
+            world.recv(neighbour.rank, world.rank(), to_recv);
+
+            for (std::size_t level = min_level; level <= max_level; level++)
+            {
+                if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
+                {
+                    std::ptrdiff_t count = 0;
+
+                    if (out)
+                    {
+                        auto in_interface = intersection(mesh[mesh_id_t::reference][level],
+                                                         neighbour.mesh[mesh_id_t::reference][level],
+                                                         neighbour.mesh.subdomain())
+                                                .on(level);
+                        in_interface(
+                            [&](const auto& i, const auto& index)
+                            {
+                                xt::xtensor<value_t, 1> neigh_tag = xt::empty_like(tag(level, i, index));
+                                std::copy(to_recv[level - min_level].begin() + count,
+                                          to_recv[level - min_level].begin() + count + static_cast<std::ptrdiff_t>(i.size()),
+                                          neigh_tag.begin());
+                                if (erase)
+                                {
+                                    tag(level, i, index) = neigh_tag;
+                                }
+                                else
+                                {
+                                    tag(level, i, index) |= neigh_tag;
+                                }
+                                count += static_cast<std::ptrdiff_t>(i.size());
+                            });
+                    }
+                    else
+                    {
+                        auto in_interface = intersection(mesh[mesh_id_t::reference][level],
+                                                         neighbour.mesh[mesh_id_t::reference][level],
+                                                         mesh.subdomain())
+                                                .on(level);
+                        in_interface(
+                            [&](const auto& i, const auto& index)
+                            {
+                                xt::xtensor<value_t, 1> neigh_tag = xt::empty_like(tag(level, i, index));
+                                std::copy(to_recv[level - min_level].begin() + count,
+                                          to_recv[level - min_level].begin() + count + static_cast<std::ptrdiff_t>(i.size()),
+                                          neigh_tag.begin());
+                                if (erase)
+                                {
+                                    tag(level, i, index) = neigh_tag;
+                                }
+                                else
+                                {
+                                    tag(level, i, index) |= neigh_tag;
+                                }
+                                count += static_cast<std::ptrdiff_t>(i.size());
+                            });
+                    }
+                }
+            }
+        }
+        mpi::wait_all(req.begin(), req.end());
+
+#endif
+    }
+
     template <class Field>
     void check_duplicate_cells([[maybe_unused]] Field& field)
     {

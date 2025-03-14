@@ -294,6 +294,54 @@ namespace samurai
 
 #ifdef SAMURAI_WITH_MPI
 
+    /**
+
+        template <std::size_t Dim, class TInterval>
+        void LevelCellArray<Dim, TInterval>::send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca,
+                                                                   int dest,
+                                                                   int& tag,
+                                                                   std::vector<MPI_Request>& requests,
+                                                                   MPI_Comm comm) const
+        {
+            // Asynchronously send m_level
+            MPI_Request req_level;
+            MPI_Isend(&lca.m_level, 1, MPI_UNSIGNED_LONG, dest, tag++, comm, &req_level);
+            requests.push_back(req_level);
+
+            // Asynchronously send m_origin_point
+            MPI_Request req_origin;
+            MPI_Isend(lca.m_origin_point.data(), Dim, MPI_DOUBLE, dest, tag++, comm, &req_origin);
+            requests.push_back(req_origin);
+
+            // Asynchronously send m_scaling_factor
+            MPI_Request req_scaling;
+            MPI_Isend(&lca.m_scaling_factor, 1, MPI_DOUBLE, dest, tag++, comm, &req_scaling);
+            requests.push_back(req_scaling);
+
+            // For each dimension d from 0 to Dim-1 (intervals)
+            for (std::size_t d = 0; d < Dim; ++d)
+            {
+                // Calculate the total size of intervals in bytes
+                std::size_t nb_intervals = lca[d].size();
+                std::size_t total_size   = nb_intervals * sizeof(TInterval);
+
+                // Asynchronously send the intervals
+                MPI_Request req_intervals;
+                MPI_Isend(lca[d].data(), total_size, MPI_BYTE, dest, tag++, comm, &req_intervals);
+                requests.push_back(req_intervals);
+            }
+
+            // For dimensions d from 1 to Dim-1 (offsets)
+            for (std::size_t d = 1; d < Dim; ++d)
+            {
+                // Asynchronously send the offsets
+                MPI_Request req_offsets;
+                MPI_Isend(lca.offsets(d).data(), lca.offsets(d).size(), MPI_UNSIGNED_LONG, dest, tag++, comm, &req_offsets);
+                requests.push_back(req_offsets);
+            }
+        }
+    **/
+
     template <std::size_t Dim, class TInterval>
     void LevelCellArray<Dim, TInterval>::send_level_cell_array(const LevelCellArray<Dim, TInterval>& lca,
                                                                int dest,
@@ -301,44 +349,124 @@ namespace samurai
                                                                std::vector<MPI_Request>& requests,
                                                                MPI_Comm comm) const
     {
-        // Asynchronously send m_level
-        MPI_Request req_level;
-        MPI_Isend(&lca.m_level, 1, MPI_UNSIGNED_LONG, dest, tag++, comm, &req_level);
-        requests.push_back(req_level);
-
-        // Asynchronously send m_origin_point
-        MPI_Request req_origin;
-        MPI_Isend(lca.m_origin_point.data(), Dim, MPI_DOUBLE, dest, tag++, comm, &req_origin);
-        requests.push_back(req_origin);
-
-        // Asynchronously send m_scaling_factor
-        MPI_Request req_scaling;
-        MPI_Isend(&lca.m_scaling_factor, 1, MPI_DOUBLE, dest, tag++, comm, &req_scaling);
-        requests.push_back(req_scaling);
-
-        // For each dimension d from 0 to Dim-1 (intervals)
+        // Calculer la taille totale du tampon
+        std::size_t total_size = 0;
+        total_size += sizeof(unsigned long); // m_level
+        total_size += Dim * sizeof(double);  // m_origin_point
+        total_size += sizeof(double);        // m_scaling_factor
         for (std::size_t d = 0; d < Dim; ++d)
         {
-            // Calculate the total size of intervals in bytes
-            std::size_t nb_intervals = lca[d].size();
-            std::size_t total_size   = nb_intervals * sizeof(TInterval);
-
-            // Asynchronously send the intervals
-            MPI_Request req_intervals;
-            MPI_Isend(lca[d].data(), total_size, MPI_BYTE, dest, tag++, comm, &req_intervals);
-            requests.push_back(req_intervals);
+            total_size += sizeof(std::size_t);               // nb_intervals
+            total_size += lca[d].size() * sizeof(TInterval); // intervalles
         }
-
-        // For dimensions d from 1 to Dim-1 (offsets)
         for (std::size_t d = 1; d < Dim; ++d)
         {
-            // Asynchronously send the offsets
-            MPI_Request req_offsets;
-            MPI_Isend(lca.offsets(d).data(), lca.offsets(d).size(), MPI_UNSIGNED_LONG, dest, tag++, comm, &req_offsets);
-            requests.push_back(req_offsets);
+            total_size += sizeof(unsigned long);                         // count des offsets
+            total_size += lca.offsets(d).size() * sizeof(unsigned long); // offsets
+        }
+
+        // Allouer le tampon
+        std::vector<char> buffer(total_size);
+        char* ptr = buffer.data();
+
+        // Packer les données
+        memcpy(ptr, &lca.m_level, sizeof(unsigned long));
+        ptr += sizeof(unsigned long);
+        memcpy(ptr, lca.m_origin_point.data(), Dim * sizeof(double));
+        ptr += Dim * sizeof(double);
+        memcpy(ptr, &lca.m_scaling_factor, sizeof(double));
+        ptr += sizeof(double);
+
+        for (std::size_t d = 0; d < Dim; ++d)
+        {
+            std::size_t nb_intervals = lca[d].size();
+            memcpy(ptr, &nb_intervals, sizeof(std::size_t));
+            ptr += sizeof(std::size_t);
+            memcpy(ptr, lca[d].data(), nb_intervals * sizeof(TInterval));
+            ptr += nb_intervals * sizeof(TInterval);
+        }
+
+        for (std::size_t d = 1; d < Dim; ++d)
+        {
+            unsigned long count = lca.offsets(d).size();
+            memcpy(ptr, &count, sizeof(unsigned long));
+            ptr += sizeof(unsigned long);
+            if (count > 0)
+            {
+                memcpy(ptr, lca.offsets(d).data(), count * sizeof(unsigned long));
+                ptr += count * sizeof(unsigned long);
+            }
+        }
+
+        // Envoyer le tampon
+        MPI_Request req;
+        MPI_Isend(buffer.data(), total_size, MPI_BYTE, dest, tag++, comm, &req);
+        MPI_Wait(&req, MPI_STATUS_IGNORE);
+        requests.push_back(req);
+    }
+
+    template <std::size_t Dim, class TInterval>
+    void LevelCellArray<Dim, TInterval>::recv_level_cell_array(LevelCellArray<Dim, TInterval>& lca,
+                                                               int source,
+                                                               int& tag,
+                                                               std::vector<MPI_Request>& requests,
+                                                               MPI_Comm comm)
+    {
+        // Sonder le message pour obtenir la taille totale du tampon
+        MPI_Status status;
+        MPI_Probe(source, tag, comm, &status);
+        int total_size;
+        MPI_Get_count(&status, MPI_BYTE, &total_size);
+
+        std::vector<char> buffer(total_size);
+
+        // Lancer la réception asynchrone du tampon
+        MPI_Request req;
+        MPI_Irecv(buffer.data(), total_size, MPI_BYTE, source, tag++, comm, &req);
+        MPI_Wait(&req, MPI_STATUS_IGNORE);
+        requests.push_back(req);
+
+        const char* ptr = buffer.data(); // Pointeur pour parcourir le tampon
+
+        // Dépacker m_level
+        memcpy(&m_level, ptr, sizeof(unsigned long));
+        ptr += sizeof(unsigned long);
+
+        // Dépacker m_origin_point
+        memcpy(m_origin_point.data(), ptr, Dim * sizeof(double));
+        ptr += Dim * sizeof(double);
+
+        // Dépacker m_scaling_factor
+        memcpy(&m_scaling_factor, ptr, sizeof(double));
+        ptr += sizeof(double);
+
+        // Dépacker les intervalles pour chaque dimension (0 à Dim-1)
+        for (std::size_t d = 0; d < Dim; ++d)
+        {
+            std::size_t nb_intervals;
+            memcpy(&nb_intervals, ptr, sizeof(std::size_t));
+            ptr += sizeof(std::size_t);
+            lca[d].resize(nb_intervals); // Redimensionner le conteneur des intervalles
+            memcpy(lca[d].data(), ptr, nb_intervals * sizeof(TInterval));
+            ptr += nb_intervals * sizeof(TInterval);
+        }
+
+        // Dépacker les offsets pour les dimensions 1 à Dim-1
+        for (std::size_t d = 1; d < Dim; ++d)
+        {
+            unsigned long count;
+            memcpy(&count, ptr, sizeof(unsigned long));
+            ptr += sizeof(unsigned long);
+            lca.offsets(d).resize(count); // Redimensionner le conteneur des offsets
+            if (count > 0)
+            {
+                memcpy(lca.offsets(d).data(), ptr, count * sizeof(unsigned long));
+                ptr += count * sizeof(unsigned long);
+            }
         }
     }
 
+/**
     template <std::size_t Dim, class TInterval>
     void LevelCellArray<Dim, TInterval>::recv_level_cell_array(LevelCellArray<Dim, TInterval>& lca,
                                                                int source,
@@ -394,7 +522,7 @@ namespace samurai
             requests.push_back(req_offsets);
         }
     }
-
+**/
 #endif
 
     ///////////////////////////////////

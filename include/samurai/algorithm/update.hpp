@@ -166,6 +166,87 @@ namespace samurai
     }
 
     template <class Field>
+    void update_ghost_subdomains([[maybe_unused]] Field& field)
+    {
+#ifdef SAMURAI_WITH_MPI
+        // if you are here, then you **can** send all the field levels in the same time
+        // Then i purpose an optimisation : send all the fields in the same mpi::send.
+        using mesh_t    = typename Field::mesh_t;
+        using value_t   = typename Field::value_type;
+        using mesh_id_t = typename mesh_t::mesh_id_t;
+
+        mpi::communicator world;
+        std::vector<mpi::request> req;
+
+        auto& mesh     = field.mesh();
+        auto min_level = mpi::all_reduce(world, mesh[mesh_id_t::reference].min_level(), mpi::minimum<std::size_t>());
+        auto max_level = mpi::all_reduce(world, mesh[mesh_id_t::reference].max_level(), mpi::maximum<std::size_t>());
+
+        std::size_t i_neigh = 0;
+        // send part
+        std::vector<std::vector<std::vector<value_t>>> to_send{mesh.mpi_neighbourhood().size(),
+                                                               std::vector<std::vector<value_t>>(max_level - min_level)};
+        //  std::cout << "before neighbour send " << std::endl ;
+        for (auto& neighbour : mesh.mpi_neighbourhood())
+        {
+            //              std::cout << "nouveau voisin " << std::endl ;
+            for (std::size_t level = min_level; level < max_level; level++)
+            {
+                //                  std::cout << "nouveau level  " << std::endl ;
+
+                auto out_interface = intersection(mesh[mesh_id_t::reference][level],
+                                                  neighbour.mesh[mesh_id_t::reference][level],
+                                                  mesh.subdomain())
+                                         .on(level);
+                out_interface(
+                    [&](const auto& i, const auto& index)
+                    {
+                        std::copy(field(level, i, index).begin(),
+                                  field(level, i, index).end(),
+                                  std::back_inserter(to_send[i_neigh][level - min_level]));
+                    });
+            }
+            req.push_back(world.isend(neighbour.rank, neighbour.rank, to_send[i_neigh++]));
+        }
+        //  std::cout << "after neighbout send " << std::endl ;
+        // recv part
+        i_neigh = 0;
+        for (auto& neighbour : mesh.mpi_neighbourhood())
+        {
+            std::vector<std::vector<value_t>> to_recv(max_level - min_level);
+
+            // previously; there is a if empty, we can push it in the for level loop if needed but the serializer is perfromant so maybe
+            // useless
+            world.recv(neighbour.rank, world.rank(), to_recv);
+            for (std::size_t level = min_level; level < max_level; level++)
+            {
+                std::ptrdiff_t count = 0;
+                auto in_interface    = intersection(neighbour.mesh[mesh_id_t::reference][level],
+                                                 mesh[mesh_id_t::reference][level],
+                                                 neighbour.mesh.subdomain())
+                                        .on(level);
+
+                in_interface(
+                    [&](const auto& i, const auto& index)
+                    {
+                        std::copy(to_recv[level - min_level].begin() + count,
+                                  to_recv[level - min_level].begin() + count + static_cast<ptrdiff_t>(i.size() * Field::size),
+                                  field(level, i, index).begin());
+                        count += static_cast<ptrdiff_t>(i.size() * Field::size);
+                    });
+            }
+        }
+        //        std::cout << "after neighbout recv" << std::endl ;
+        mpi::wait_all(req.begin(), req.end());
+
+//        for (std::size_t level = min_level; level <= max_level; ++level)
+//        {
+//            update_ghost_subdomains(level, field);
+//        }
+#endif
+    }
+
+    template <class Field>
     void update_ghost_subdomains([[maybe_unused]] std::size_t level, [[maybe_unused]] Field& field)
     {
 #ifdef SAMURAI_WITH_MPI
@@ -231,24 +312,26 @@ namespace samurai
         update_ghost_subdomains(level, other_fields...);
     }
 
-    template <class Field>
-    void update_ghost_subdomains([[maybe_unused]] Field& field)
-    {
-#ifdef SAMURAI_WITH_MPI
-        using mesh_t    = typename Field::mesh_t;
-        using mesh_id_t = typename mesh_t::mesh_id_t;
-        mpi::communicator world;
-
-        auto& mesh     = field.mesh();
-        auto min_level = mpi::all_reduce(world, mesh[mesh_id_t::reference].min_level(), mpi::minimum<std::size_t>());
-        auto max_level = mpi::all_reduce(world, mesh[mesh_id_t::reference].max_level(), mpi::maximum<std::size_t>());
-
-        for (std::size_t level = min_level; level <= max_level; ++level)
+    /**
+        template <class Field>
+        void update_ghost_subdomains([[maybe_unused]] Field& field)
         {
-            update_ghost_subdomains(level, field);
+    #ifdef SAMURAI_WITH_MPI
+            using mesh_t    = typename Field::mesh_t;
+            using mesh_id_t = typename mesh_t::mesh_id_t;
+            mpi::communicator world;
+
+            auto& mesh     = field.mesh();
+            auto min_level = mpi::all_reduce(world, mesh[mesh_id_t::reference].min_level(), mpi::minimum<std::size_t>());
+            auto max_level = mpi::all_reduce(world, mesh[mesh_id_t::reference].max_level(), mpi::maximum<std::size_t>());
+
+            for (std::size_t level = min_level; level <= max_level; ++level)
+            {
+                update_ghost_subdomains(level, field);
+            }
+    #endif
         }
-#endif
-    }
+        **/
 
     template <bool out = true, class Field>
     void update_tag_subdomains([[maybe_unused]] std::size_t level,

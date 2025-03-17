@@ -199,7 +199,7 @@ namespace samurai
             ar & m_subdomain;
             ar & m_union;
             ar & m_min_level;
-            ar & m_min_level;
+            ar & m_max_level;
         }
 #endif
     };
@@ -801,14 +801,34 @@ namespace samurai
 
         this->m_cells[mesh_id_t::cells][start_level] = subdomain_cells;
 
-        m_mpi_neighbourhood.reserve(static_cast<std::size_t>(size) - 1);
-        for (int ir = 0; ir < size; ++ir)
+        //        m_mpi_neighbourhood.reserve(static_cast<std::size_t>(size) - 1);
+        if (rank == 0)
         {
-            if (ir != rank)
-            {
-                m_mpi_neighbourhood.push_back(ir);
-            }
+            m_mpi_neighbourhood.push_back(1);
         }
+        if (rank == 1)
+        {
+            m_mpi_neighbourhood.push_back(0);
+            m_mpi_neighbourhood.push_back(2);
+        }
+        if (rank == 2)
+        {
+            m_mpi_neighbourhood.push_back(1);
+            m_mpi_neighbourhood.push_back(3);
+        }
+        if (rank == 3)
+        {
+            m_mpi_neighbourhood.push_back(2);
+        }
+
+        //        for (int ir = 0; ir < size; ++ir)
+        //        {
+        //            if (ir != rank)
+        //            {
+        //
+        //                m_mpi_neighbourhood.push_back(ir);
+        //            }
+        //        }
 
         // // Neighbours
         // m_mpi_neighbourhood.reserve(static_cast<std::size_t>(pow(3, dim) - 1));

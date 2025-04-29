@@ -16,6 +16,8 @@
 #include <samurai/stencil_field.hpp>
 #include <samurai/subset/node.hpp>
 
+#include <samurai/load_balancing.hpp>
+
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -253,6 +255,9 @@ int main(int argc, char* argv[])
 
     while (t != Tf)
     {
+        printLocalLoad(mesh);
+        printInbalance(mesh);
+        send_10_cells(mesh);
         MRadaptation(mr_epsilon, mr_regularity);
 
         t += dt;

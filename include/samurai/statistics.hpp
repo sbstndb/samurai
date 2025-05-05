@@ -14,15 +14,15 @@ namespace samurai
 #if defined(WITH_STATS)
     struct Statistics
     {
-        Statistics(const std::string& filename, int save_all = 10)
-            : filename(filename)
-            , save_all(save_all)
+        Statistics(const std::string& filename, std::size_t save_all = 10)
+            : _outfile(filename)
             , icurrent(0)
+            , save_all(save_all)
         {
         }
 
         template <class Mesh>
-        void operator()(std::string test_case, const Mesh& mesh)
+        void operator()(std::string test_case, Mesh& mesh)
         {
             icurrent++;
             using mesh_id_t = typename Mesh::mesh_id_t;
@@ -31,6 +31,10 @@ namespace samurai
 
             std::size_t min_level = ca.min_level();
             std::size_t max_level = ca.max_level();
+
+            size_t n_neighbours = mesh.mpi_neighbourhood().size();
+            size_t n_cells_l    = mesh.nb_cells(Mesh::mesh_id_t::cells);
+            size_t n_cells_g    = mesh.nb_cells(Mesh::mesh_id_t::reference) - mesh.nb_cells(Mesh::mesh_id_t::cells);
 
             auto comp = [](const auto& a, const auto& b)
             {
@@ -70,25 +74,31 @@ namespace samurai
             if (stats.contains(test_case))
             {
                 stats[test_case].push_back({
-                    {"min_level", min_level},
-                    {"max_level", max_level},
-                    {"by_level",  by_level }
+                    {"min_level",    min_level   },
+                    {"max_level",    max_level   },
+                    {"n_neighbours", n_neighbours},
+                    {"n_cells_g",    n_cells_g   }, // ghost ?
+                    {"n_cells_l",    n_cells_l   }, // leaves
+                    {"by_level",     by_level    }
                 });
             }
             else
             {
                 json out = json::array();
                 out.push_back({
-                    {"min_level", min_level},
-                    {"max_level", max_level},
-                    {"by_level",  by_level }
+                    {"min_level",    min_level   },
+                    {"max_level",    max_level   },
+                    {"n_neighbours", n_neighbours},
+                    {"n_cells_g",    n_cells_g   }, // ghost ?
+                    {"n_cells_l",    n_cells_l   }, // leaves
+                    {"by_level",     by_level    }
                 });
                 stats[test_case] = out;
             }
 
             if (icurrent == save_all)
             {
-                std::ofstream ofile(filename);
+                std::ofstream ofile(_outfile);
                 ofile << std::setw(4) << stats << std::endl;
                 icurrent = 0;
             }
@@ -96,17 +106,16 @@ namespace samurai
 
         ~Statistics()
         {
-            std::ofstream file(filename);
+            std::ofstream file(_outfile);
             file << std::setw(4) << stats;
         }
 
-        std::string filename;
+        std::string _outfile;
         json stats;
         std::size_t icurrent;
-        int save_all;
+        std::size_t save_all;
     };
 
-    auto statistics = Statistics("stats.json");
 #else
     template <class Mesh>
     void statistics(const std::string& test_case, const Mesh& mesh) {};

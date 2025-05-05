@@ -106,7 +106,9 @@ namespace samurai
         std::size_t id    = 0;
         std::size_t index = 0;
         for_each_cell(mesh,
+
                       [&](auto cell)
+
                       {
                           std::array<double, dim> a;
                           auto start_corner = cell.corner();

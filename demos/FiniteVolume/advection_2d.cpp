@@ -146,6 +146,48 @@ void flux_correction(double dt, const std::array<double, 2>& a, const Field& u, 
     }
 }
 
+// Fonction de sauvegarde de l'ensemble des sous-maillages : cells, cells_and_ghosts et subdomain
+template <class Field>
+void save_all(const fs::path& path, const std::string& filename, const Field& u, const std::string& suffix = "")
+{
+    using mesh_t    = typename Field::mesh_t;
+    using mesh_id_t = typename mesh_t::mesh_id_t;
+
+    // Récupérer le maillage complet attaché au champ u
+    auto mesh = u.mesh();
+
+    // Créer un champ "level" pour sauvegarder le niveau de raffinement
+    auto level = samurai::make_scalar_field<std::size_t>("level", mesh);
+    samurai::for_each_cell(mesh,
+                           [&](const auto& cell)
+                           {
+                               level[cell] = cell.level;
+                           });
+
+#ifdef SAMURAI_WITH_MPI
+    mpi::communicator world;
+    int rank = world.rank();
+    int size = world.size();
+
+    // Sauvegarde des cellules physiques
+    samurai::save(path, fmt::format("{}_cells_size_{}{}", filename, size, suffix), mesh[mesh_id_t::cells], u, level);
+
+    // Sauvegarde des cellules avec fantômes
+    samurai::save(path, fmt::format("{}_cells_and_ghosts_size_{}{}", filename, size, suffix), mesh[mesh_id_t::cells_and_ghosts], u, level);
+
+    // Sauvegarde du sous-domaine (les cellules réellement possédées par ce rang)
+    // Il faut que votre maillage ait été partitionné et que le sous-maillage soit accessible via mesh[mesh_id_t::subdomain]
+    //   samurai::save(path, fmt::format("{}_subdomain_size_{}{}", filename, size, suffix),
+//                  mesh[mesh_id_t::subdomain], u, level);
+#else
+    // Version séquentielle : on sauvegarde directement en ajoutant des suffixes
+    samurai::save(path, fmt::format("{}_cells{}", filename, suffix), mesh[mesh_id_t::cells], u, level);
+    samurai::save(path, fmt::format("{}_cells_and_ghosts{}", filename, suffix), mesh[mesh_id_t::cells_and_ghosts], u, level);
+//    samurai::save(path, fmt::format("{}_subdomain{}", filename, suffix),
+//                  mesh[mesh_id_t::subdomain], u, level);
+#endif
+}
+
 template <class Field>
 void save(const fs::path& path, const std::string& filename, const Field& u, const std::string& suffix = "")
 {
@@ -299,7 +341,8 @@ int main(int argc, char* argv[])
         if (t >= static_cast<double>(nsave + 1) * dt_save || t == Tf)
         {
             const std::string suffix = (nfiles != 1) ? fmt::format("_ite_{}", nsave++) : "";
-            save(path, filename, u, suffix);
+            //            save(path, filename, u, suffix);
+            save_all(path, filename, u, suffix);
         }
     }
     samurai::finalize();

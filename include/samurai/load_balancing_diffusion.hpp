@@ -88,6 +88,7 @@ namespace Load_balancing
                                        cells.push_back(cell);
                                    });
 
+            // TODO : here is only 2D implmeentation
             std::sort(cells.begin(),
                       cells.end(),
                       [&](const cell_t& a, const cell_t& b)

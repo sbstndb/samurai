@@ -32,7 +32,54 @@ void save(const fs::path& path, const std::string& filename, const Field& u, con
                            });
 
     samurai::save(path, fmt::format("{}{}", filename, suffix), mesh, u, level_);
-    samurai::dump(path, fmt::format("{}_restart{}", filename, suffix), mesh, u);
+    //    samurai::dump(path, fmt::format("{}_restart{}", filename, suffix), mesh, u);
+}
+
+// Fonction de sauvegarde de l'ensemble des sous-maillages : cells, cells_and_ghosts et subdomain
+template <class Field>
+void save_all(const fs::path& path, const std::string& filename, const Field& u, const std::string& suffix = "")
+{
+    using mesh_t    = typename Field::mesh_t;
+    using mesh_id_t = typename mesh_t::mesh_id_t;
+
+    // Récupérer le maillage complet attaché au champ u
+    auto mesh = u.mesh();
+
+    // Créer un champ "level" pour sauvegarder le niveau de raffinement
+    auto level = samurai::make_scalar_field<std::size_t>("level", mesh);
+    samurai::for_each_cell(mesh,
+                           [&](const auto& cell)
+                           {
+                               level[cell] = cell.level;
+                           });
+
+#ifdef SAMURAI_WITH_MPI
+    mpi::communicator world;
+    int rank = world.rank();
+    int size = world.size();
+
+    // Sauvegarde des cellules physiques
+    samurai::save(path, fmt::format("{}_cells_size_{}{}", filename, size, suffix), {true, true}, mesh[mesh_id_t::cells], u, level);
+
+    // Sauvegarde des cellules avec fantômes
+    samurai::save(path,
+                  fmt::format("{}_cells_and_ghosts_size_{}{}", filename, size, suffix),
+                  {true, true},
+                  mesh[mesh_id_t::cells_and_ghosts],
+                  u,
+                  level);
+
+    // Sauvegarde du sous-domaine (les cellules réellement possédées par ce rang)
+    // Il faut que votre maillage ait été partitionné et que le sous-maillage soit accessible via mesh[mesh_id_t::subdomain]
+    //   samurai::save(path, fmt::format("{}_subdomain_size_{}{}", filename, size, suffix),
+//                  mesh[mesh_id_t::subdomain], u, level);
+#else
+    // Version séquentielle : on sauvegarde directement en ajoutant des suffixes
+    samurai::save(path, fmt::format("{}_cells{}", filename, suffix), mesh[mesh_id_t::cells], u, level);
+    samurai::save(path, fmt::format("{}_cells_and_ghosts{}", filename, suffix), mesh[mesh_id_t::cells_and_ghosts], u, level);
+//    samurai::save(path, fmt::format("{}_subdomain{}", filename, suffix),
+//                  mesh[mesh_id_t::subdomain], u, level);
+#endif
 }
 
 int main(int argc, char* argv[])
@@ -107,9 +154,11 @@ int main(int argc, char* argv[])
     box_corner2.fill(right_box);
     Box box(box_corner1, box_corner2);
     std::array<bool, dim> periodic;
-    periodic.fill(true);
+    periodic.fill(false);
     samurai::MRMesh<Config> mesh;
     auto u = samurai::make_scalar_field<double>("u", mesh);
+
+    samurai::make_bc<samurai::Neumann<1>>(u, 0.);
 
     if (restart_file.empty())
     {
@@ -179,7 +228,7 @@ int main(int argc, char* argv[])
     if (nfiles != 1)
     {
         std::string suffix = (nfiles != 1) ? fmt::format("_ite_{}", nsave++) : "";
-        save(path, filename, u, suffix);
+        save_all(path, filename, u, suffix);
     }
     while (t != Tf)
     {
@@ -218,17 +267,18 @@ int main(int argc, char* argv[])
         // u <-- unp1
         std::swap(u.array(), unp1.array());
 
+        samurai::update_ghost_mr(u);
         // Save the result
         if (nfiles == 0 || t >= static_cast<double>(nsave + 1) * dt_save || t == Tf)
         {
             if (nfiles != 1)
             {
                 std::string suffix = (nfiles != 1) ? fmt::format("_ite_{}", nsave++) : "";
-                save(path, filename, u, suffix);
+                save_all(path, filename, u, suffix);
             }
             else
             {
-                save(path, filename, u);
+                save_all(path, filename, u);
             }
         }
 

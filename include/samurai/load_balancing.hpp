@@ -185,7 +185,7 @@ namespace samurai
                     if (!new_mesh[mesh_id_t::cells][level].empty() && !all_old_meshes[ni][mesh_id_t::cells][level].empty())
                     {
                         std::vector<value_t> to_recv;
-
+                        // right order of intersection ???? probablement pas grave car juste pour verifier si ca intersect
                         auto in_interface = intersection(all_old_meshes[ni][mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
 
                         in_interface(
@@ -211,6 +211,8 @@ namespace samurai
                     {
                         if (!new_mesh[mesh_id_t::cells][level].empty() && !all_old_meshes[ni][mesh_id_t::cells][level].empty())
                         {
+                            // on a deja calculé cet intersectiob c'est dommage de la recalculer ...
+                            // right order of intersection ??
                             auto in_interface = intersection(all_old_meshes[ni][mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
 
                             in_interface(
@@ -220,8 +222,6 @@ namespace samurai
                                               to_recv.begin() + count + static_cast<ptrdiff_t>(i.size() * field.n_comp),
                                               new_field(level, i, index).begin());
                                     count += static_cast<ptrdiff_t>(i.size() * field.n_comp);
-
-                                    //    logs << fmt::format("Process {}, recv interval {}", world.rank(), i) << std::endl;
                                 });
                         }
                     }
@@ -360,6 +360,8 @@ namespace samurai
             auto new_mesh = update_mesh(mesh, flags);
 
             // update each physical field on the new load balanced mesh
+            // here we need to factgorise some intersections... update_fields call multiple time update_field that call the exact same
+            // intersection.
             update_fields(new_mesh, field, kw...);
             // swap mesh reference to new load balanced mesh. FIX: this is not clean
             field.mesh().swap(new_mesh);

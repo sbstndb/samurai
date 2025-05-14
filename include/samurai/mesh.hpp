@@ -916,6 +916,15 @@ namespace samurai
             auto subdomain_nb_intervals = m_domain.nb_intervals() / static_cast<std::size_t>(size);
             subdomain_start             = static_cast<std::size_t>(rank) * subdomain_nb_intervals;
             subdomain_end               = (static_cast<std::size_t>(rank) + 1) * subdomain_nb_intervals;
+            int more                    = 101;
+            if (rank == 0)
+            {
+                subdomain_end += more;
+            }
+            if (rank == 1)
+            {
+                subdomain_start += more;
+            }
             if (rank == size - 1)
             {
                 subdomain_end = m_domain.nb_intervals();

@@ -566,10 +566,10 @@ namespace samurai
         const auto& mesh = tag.mesh();
 
         size_t start_level = old_ca.min_level();
-        if (start_level == max_size + 1)
-        {
-            return old_ca;
-        }
+        // if (start_level == max_size + 1)
+        //{
+        //     return old_ca;
+        // }
         size_t end_level = old_ca.max_level() + 1;
 
         // create the ensemble of cells to coarsen

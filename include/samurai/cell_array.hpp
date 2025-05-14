@@ -419,8 +419,7 @@ namespace samurai
                 return level;
             }
         }
-        //        return 0;
-        return max_size;
+        return 0;
     }
 
     /**

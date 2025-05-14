@@ -87,7 +87,7 @@ int main(int argc, char* argv[])
     auto& app = samurai::initialize("Finite volume example for the linear convection equation", argc, argv);
 
     static constexpr std::size_t dim = 2;
-    using Config                     = samurai::MRConfig<dim, 3>;
+    using Config                     = samurai::MRConfig<dim, 1>;
     using Box                        = samurai::Box<double, dim>;
     using point_t                    = typename Box::point_t;
 
@@ -158,7 +158,7 @@ int main(int argc, char* argv[])
     samurai::MRMesh<Config> mesh;
     auto u = samurai::make_scalar_field<double>("u", mesh);
 
-    samurai::make_bc<samurai::Neumann<1>>(u, 0.);
+    samurai::make_bc<samurai::Dirichlet<1>>(u, 0.);
 
     if (restart_file.empty())
     {
@@ -202,7 +202,7 @@ int main(int argc, char* argv[])
     {
         velocity(1) = -1;
     }
-    auto conv = samurai::make_convection_weno5<decltype(u)>(velocity);
+    auto conv = samurai::make_convection_upwind<decltype(u)>(velocity);
 
 #ifdef SAMURAI_WITH_MPI
     Load_balancing::Diffusion balancer;
@@ -235,7 +235,13 @@ int main(int argc, char* argv[])
 #ifdef SAMURAI_WITH_MPI
         if (nt % nt_loadbalance == 0 && nt > 1)
         {
+            MRadaptation(mr_epsilon, mr_regularity);
+            samurai::update_ghost_mr(u);
             balancer.load_balance(mesh, u);
+            std::string suffix = (nfiles != 1) ? fmt::format("_iteinternal_{}", nsave++) : "";
+            save_all(path, filename, u, suffix);
+            MRadaptation(mr_epsilon, mr_regularity);
+            samurai::update_ghost_mr(u);
         }
 #endif
         // Move to next timestep
@@ -254,15 +260,15 @@ int main(int argc, char* argv[])
         u2.resize();
         u1.fill(0);
         u2.fill(0);
-
-        // unp1 = u - dt * conv(u);
+        samurai::update_ghost_mr(unp1);
+        unp1 = u - dt * conv(u);
 
         // TVD-RK3 (SSPRK3)
-        u1 = u - dt * conv(u);
-        samurai::update_ghost_mr(u1);
-        u2 = 3. / 4 * u + 1. / 4 * (u1 - dt * conv(u1));
-        samurai::update_ghost_mr(u2);
-        unp1 = 1. / 3 * u + 2. / 3 * (u2 - dt * conv(u2));
+        // u1 = u - dt * conv(u);
+        // samurai::update_ghost_mr(u1);
+        // u2 = 3. / 4 * u + 1. / 4 * (u1 - dt * conv(u1));
+        // samurai::update_ghost_mr(u2);
+        // unp1 = 1. / 3 * u + 2. / 3 * (u2 - dt * conv(u2));
 
         // u <-- unp1
         std::swap(u.array(), unp1.array());

@@ -302,6 +302,89 @@ void SUBSET_translate(benchmark::State& state)
     }
 }
 
+template <unsigned int dim>
+void SUBSET_self_operations(benchmark::State& state)
+{
+    samurai::CellList<dim> cl;
+    for (int64_t i = 0; i < state.range(0); i++)
+    {
+        int index = static_cast<int>(i);
+        cl[0][{}].add_interval({index, index + 1});
+    }
+    samurai::CellArray<dim> ca(cl);
+
+    for (auto _ : state)
+    {
+        auto total_cells = 0;
+        auto subset      = samurai::self(ca[0]);
+        subset(
+            [&total_cells](const auto&, const auto&)
+            {
+                total_cells = 1;
+            });
+        benchmark::DoNotOptimize(total_cells);
+        benchmark::DoNotOptimize(subset);
+    }
+}
+
+template <unsigned int dim>
+void SUBSET_translate_and_intersect(benchmark::State& state)
+{
+    samurai::CellList<dim> cl1, cl2;
+    for (int64_t i = 0; i < state.range(0); i++)
+    {
+        int index = static_cast<int>(i);
+        if constexpr (std::decay_t<decltype(cl1)>::dim == 1)
+        {
+            cl1[0][{}].add_interval({2 * index, 2 * index + 1});
+            cl2[0][{}].add_interval({2 * index, 2 * index + 1});
+        }
+        else if constexpr (std::decay_t<decltype(cl1)>::dim == 2)
+        {
+            for (int y = 0; y <= index; ++y)
+            {
+                xt::xtensor_fixed<int, xt::xshape<1>> coord{y};
+                cl1[0][coord].add_interval({2 * index, 2 * index + 1});
+                cl2[0][coord].add_interval({2 * index, 2 * index + 1});
+            }
+        }
+    }
+    samurai::CellArray<dim> ca1(cl1);
+    samurai::CellArray<dim> ca2(cl2);
+
+    // Créer le stencil de translation
+    xt::xtensor_fixed<int, xt::xshape<dim>> stencil;
+    if constexpr (dim == 1)
+    {
+        stencil = xt::xtensor_fixed<int, xt::xshape<1>>({1});
+    }
+    else if constexpr (dim == 2)
+    {
+        stencil = xt::xtensor_fixed<int, xt::xshape<2>>({1, 1});
+    }
+    else if constexpr (dim == 3)
+    {
+        stencil = xt::xtensor_fixed<int, xt::xshape<3>>({1, 1, 1});
+    }
+
+    // Ajouter les statistiques
+    state.counters["Total_intervalles"] = ca1[0].nb_intervals() + ca2[0].nb_intervals();
+
+    for (auto _ : state)
+    {
+        auto total_cells = 0;
+        auto translated  = samurai::translate(ca1[0], stencil);
+        auto subset      = samurai::intersection(translated, ca2[0]);
+        subset(
+            [&total_cells](const auto&, const auto&)
+            {
+                total_cells = 1;
+            });
+        benchmark::DoNotOptimize(total_cells);
+        benchmark::DoNotOptimize(subset);
+    }
+}
+
 ///////////////////////////////////////////////////////////////////
 // Enregistrement des benchmarks
 ///////////////////////////////////////////////////////////////////
@@ -352,4 +435,11 @@ BENCHMARK_TEMPLATE(SUBSET_translate, 1)->RangeMultiplier(8)->Range(1 << 0, 1 << 
 BENCHMARK_TEMPLATE(SUBSET_translate, 2)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
 BENCHMARK_TEMPLATE(SUBSET_translate, 3)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
 
+BENCHMARK_TEMPLATE(SUBSET_self_operations, 1)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+
 // Benchmarks pour les opérations ensemblistes en 2D avec générateur 2D
+
+// Ajouter les benchmarks pour la translation + intersection
+BENCHMARK_TEMPLATE(SUBSET_translate_and_intersect, 1)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_translate_and_intersect, 2)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_translate_and_intersect, 3)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);

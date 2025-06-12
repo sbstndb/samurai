@@ -244,6 +244,39 @@ void SUBSET_unified_nested_benchmark(benchmark::State& state, Operation&& operat
 }
 
 ///////////////////////////////////////////////////////////////////
+// Fonction de benchmark unifiée pour les opérations combinées
+///////////////////////////////////////////////////////////////////
+
+template <unsigned int dim, unsigned int delta_level, typename... Ops>
+void SUBSET_combined_benchmark(benchmark::State& state, Ops&&... ops)
+{
+    samurai::CellList<dim> cl1, cl2;
+    for (int64_t i = 0; i < state.range(0); i++)
+    {
+        int index = static_cast<int>(i);
+        gen_same_intervals<delta_level>(cl1, cl2, index, delta_level);
+    }
+    samurai::CellArray<dim> ca1(cl1);
+    samurai::CellArray<dim> ca2(cl2);
+
+    // Ajouter les statistiques
+    state.counters["Total_intervalles"] = ca1[0].nb_intervals() + ca2[0].nb_intervals();
+
+    for (auto _ : state)
+    {
+        auto total_cells = 0;
+        auto result      = (ops(ca1[0], ca2[0]), ...); // Fold expression pour appliquer tous les opérateurs
+        result(
+            [&total_cells](const auto&, const auto&)
+            {
+                total_cells = 1;
+            });
+        benchmark::DoNotOptimize(total_cells);
+        benchmark::DoNotOptimize(result);
+    }
+}
+
+///////////////////////////////////////////////////////////////////
 // Benchmarks pour les opérations ensemblistes
 ///////////////////////////////////////////////////////////////////
 
@@ -354,62 +387,39 @@ void SUBSET_translate(benchmark::State& state)
     }
 }
 
-template <unsigned int dim>
-void SUBSET_self_operations(benchmark::State& state)
-{
-    samurai::CellList<dim> cl;
-    for (int64_t i = 0; i < state.range(0); i++)
-    {
-        int index = static_cast<int>(i);
-        cl[0][{}].add_interval({index, index + 1});
-    }
-    samurai::CellArray<dim> ca(cl);
-
-    for (auto _ : state)
-    {
-        auto total_cells = 0;
-        auto subset      = samurai::self(ca[0]);
-        subset(
-            [&total_cells](const auto&, const auto&)
-            {
-                total_cells = 1;
-            });
-        benchmark::DoNotOptimize(total_cells);
-        benchmark::DoNotOptimize(subset);
-    }
-}
-
 template <unsigned int dim, unsigned int delta_level>
 void SUBSET_translate_and_intersect(benchmark::State& state)
 {
-    samurai::CellList<dim> cl1, cl2;
-    for (int64_t i = 0; i < state.range(0); i++)
+    auto stencil      = create_translation_stencil<dim>();
+    auto translate_op = [stencil](const auto& ca1, const auto&)
     {
-        int index = static_cast<int>(i);
-        gen_same_intervals<delta_level>(cl1, cl2, index, delta_level);
-    }
-    samurai::CellArray<dim> ca1(cl1);
-    samurai::CellArray<dim> ca2(cl2);
-
-    // Créer le stencil de translation
-    auto stencil = create_translation_stencil<dim>();
-
-    // Ajouter les statistiques
-    state.counters["Total_intervalles"] = ca1[0].nb_intervals() + ca2[0].nb_intervals();
-
-    for (auto _ : state)
+        return samurai::translate(ca1, stencil);
+    };
+    auto intersect_op = [](const auto& ca1, const auto& ca2)
     {
-        auto total_cells = 0;
-        auto translated  = samurai::translate(ca1[0], stencil);
-        auto subset      = samurai::intersection(translated, ca2[0]);
-        subset(
-            [&total_cells](const auto&, const auto&)
-            {
-                total_cells = 1;
-            });
-        benchmark::DoNotOptimize(total_cells);
-        benchmark::DoNotOptimize(subset);
-    }
+        return samurai::intersection(ca1, ca2);
+    };
+    SUBSET_combined_benchmark<dim, delta_level>(state, translate_op, intersect_op);
+}
+
+// Exemple d'utilisation avec plus d'opérateurs
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_translate_intersect_diff(benchmark::State& state)
+{
+    auto stencil      = create_translation_stencil<dim>();
+    auto translate_op = [stencil](const auto& ca1, const auto&)
+    {
+        return samurai::translate(ca1, stencil);
+    };
+    auto intersect_op = [](const auto& ca1, const auto& ca2)
+    {
+        return samurai::intersection(ca1, ca2);
+    };
+    auto diff_op = [](const auto& ca1, const auto& ca2)
+    {
+        return samurai::difference(ca1, ca2);
+    };
+    SUBSET_combined_benchmark<dim, delta_level>(state, translate_op, intersect_op, diff_op);
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -465,8 +475,10 @@ BENCHMARK_TEMPLATE(SUBSET_translate, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 
 BENCHMARK_TEMPLATE(SUBSET_translate, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
 BENCHMARK_TEMPLATE(SUBSET_translate, 3, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 5);
 
-BENCHMARK_TEMPLATE(SUBSET_self_operations, 1)->RangeMultiplier(8)->Range(1 << 0, 1 << 12);
-
 BENCHMARK_TEMPLATE(SUBSET_translate_and_intersect, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 11);
 BENCHMARK_TEMPLATE(SUBSET_translate_and_intersect, 2, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 6);
 BENCHMARK_TEMPLATE(SUBSET_translate_and_intersect, 3, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 4);
+
+BENCHMARK_TEMPLATE(SUBSET_translate_intersect_diff, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 11);
+BENCHMARK_TEMPLATE(SUBSET_translate_intersect_diff, 2, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 6);
+BENCHMARK_TEMPLATE(SUBSET_translate_intersect_diff, 3, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 4);

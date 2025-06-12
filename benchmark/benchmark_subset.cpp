@@ -1,4 +1,3 @@
-
 #include <array>
 #include <benchmark/benchmark.h>
 #include <experimental/random>
@@ -225,12 +224,19 @@ void SUBSET_translate(benchmark::State& state)
     {
         stencil = xt::xtensor_fixed<int, xt::xshape<3>>({1, 1, 1});
     }
+    int64_t total_cells = 0;
     for (auto _ : state)
     {
         auto subset = samurai::translate(ca[0], stencil);
-        subset([](const auto&, const auto&) {}); // evaluation avec lambda vide
+        subset(
+            [&total_cells](const auto&, const auto&)
+            {
+                total_cells += 1;
+            }); // Compte le nombre total de cellules
+        benchmark::DoNotOptimize(total_cells);
         benchmark::DoNotOptimize(subset);
     }
+    state.SetItemsProcessed(total_cells);
 }
 
 /**
@@ -345,9 +351,9 @@ BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,2, 10)->RangeMulti
 BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,3, 10)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 **/
 
-// BENCHMARK_TEMPLATE(SUBSET_translate,1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_translate,2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_translate,3)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_translate, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_translate, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_translate, 3)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 
 /**
 BENCHMARK_TEMPLATE(SUBSET_expand,1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);

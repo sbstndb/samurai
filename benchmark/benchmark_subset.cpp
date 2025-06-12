@@ -25,24 +25,63 @@
 template <unsigned int delta_level>
 auto gen_same_intervals = [](auto& cl1, auto& cl2, int index, unsigned int)
 {
-    cl1[0][{}].add_interval({2 * index, 2 * index + 1});
-    cl2[delta_level][{}].add_interval({pow(2, delta_level + 1) * index, pow(2, delta_level + 1) * index + pow(2, delta_level)});
+    if constexpr (std::decay_t<decltype(cl1)>::dim == 1)
+    {
+        cl1[0][{}].add_interval({2 * index, 2 * index + 1});
+        cl2[0][{}].add_interval({2 * index, 2 * index + 1});
+    }
+    else if constexpr (std::decay_t<decltype(cl1)>::dim == 2)
+    {
+        for (int y = 0; y <= index; ++y)
+        {
+            xt::xtensor_fixed<int, xt::xshape<1>> coord{y};
+            cl1[0][coord].add_interval({2 * index, 2 * index + 1});
+            cl2[0][coord].add_interval({2 * index, 2 * index + 1});
+        }
+    }
 };
 
 template <unsigned int delta_level>
 auto gen_different_intervals = [](auto& cl1, auto& cl2, int index, unsigned int)
 {
-    cl1[0][{}].add_interval({2 * index, 2 * index + 1});
-    cl2[delta_level][{}].add_interval({pow(2, delta_level + 1) * index + pow(2, delta_level), pow(2, delta_level + 2) * index});
+    if constexpr (std::decay_t<decltype(cl1)>::dim == 1)
+    {
+        cl1[0][{}].add_interval({2 * index, 2 * index + 1});
+        cl2[0][{}].add_interval({2 * index + 1, 2 * index + 2});
+    }
+    else if constexpr (std::decay_t<decltype(cl1)>::dim == 2)
+    {
+        for (int y = 0; y <= index; ++y)
+        {
+            xt::xtensor_fixed<int, xt::xshape<1>> coord{y};
+            cl1[0][coord].add_interval({2 * index, 2 * index + 1});
+            cl2[0][coord].add_interval({2 * index + 1, 2 * index + 2});
+        }
+    }
 };
 
 template <unsigned int delta_level>
 auto gen_n1_intervals = [](auto& cl1, auto& cl2, int index, unsigned int)
 {
-    cl1[0][{}].add_interval({2 * index, 2 * index + 1});
-    if (index == 0)
+    if constexpr (std::decay_t<decltype(cl1)>::dim == 1)
     {
-        cl2[delta_level][{}].add_interval({static_cast<int>(0), static_cast<int>(pow(2, delta_level))});
+        cl1[0][{}].add_interval({2 * index, 2 * index + 1});
+        if (index == 0)
+        {
+            cl2[0][{}].add_interval({0, 2});
+        }
+    }
+    else if constexpr (std::decay_t<decltype(cl1)>::dim == 2)
+    {
+        for (int y = 0; y <= index; ++y)
+        {
+            xt::xtensor_fixed<int, xt::xshape<1>> coord{y};
+            cl1[0][coord].add_interval({2 * index, 2 * index + 1});
+            if (index == 0)
+            {
+                cl2[0][coord].add_interval({0, 2});
+            }
+        }
     }
 };
 
@@ -80,6 +119,10 @@ void SUBSET_unified_benchmark(benchmark::State& state, IntervalGenerator&& gen_i
     }
     samurai::CellArray<dim> ca1(cl1);
     samurai::CellArray<dim> ca2(cl2);
+
+    // Ajouter les statistiques
+    state.counters["Total_intervalles"] = ca1[0].nb_intervals() + ca2[0].nb_intervals();
+
     for (auto _ : state)
     {
         auto total_cells = 0;
@@ -93,6 +136,51 @@ void SUBSET_unified_benchmark(benchmark::State& state, IntervalGenerator&& gen_i
                 });
             benchmark::DoNotOptimize(total_cells);
             benchmark::DoNotOptimize(subset);
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////
+// Fonction de benchmark unifiée pour les opérations imbriquées
+///////////////////////////////////////////////////////////////////
+
+template <unsigned int dim, unsigned int delta_level, typename Operation>
+void SUBSET_unified_nested_benchmark(benchmark::State& state, Operation&& operation)
+{
+    samurai::CellList<dim> cl1, cl2;
+    for (int64_t i = 0; i < state.range(0); i++)
+    {
+        int index = static_cast<int>(i);
+        gen_same_intervals<delta_level>(cl1, cl2, index, delta_level);
+    }
+    samurai::CellArray<dim> ca1(cl1);
+    samurai::CellArray<dim> ca2(cl2);
+
+    // Ajouter les statistiques
+    state.counters["Total_intervalles"] = ca1[0].nb_intervals() + ca2[0].nb_intervals();
+
+    for (auto _ : state)
+    {
+        auto total_cells = 0;
+        if constexpr (delta_level == 0)
+        {
+            auto subset1  = operation(ca1[0], ca2[0]);
+            auto subset2  = operation(subset1, ca2[0]);
+            auto subset3  = operation(subset2, ca1[0]);
+            auto subset4  = operation(subset3, ca2[0]);
+            auto subset5  = operation(subset4, ca1[0]);
+            auto subset6  = operation(subset5, ca2[0]);
+            auto subset7  = operation(subset6, ca1[0]);
+            auto subset8  = operation(subset7, ca2[0]);
+            auto subset9  = operation(subset8, ca1[0]);
+            auto subset10 = operation(subset9, ca2[0]);
+            subset10(
+                [&total_cells](const auto&, const auto&)
+                {
+                    total_cells = 1;
+                });
+            benchmark::DoNotOptimize(total_cells);
+            benchmark::DoNotOptimize(subset10);
         }
     }
 }
@@ -155,6 +243,24 @@ void SUBSET_set_union_single(benchmark::State& state)
     SUBSET_unified_benchmark<dim, delta_level>(state, gen_n1_intervals<delta_level>, op_union);
 }
 
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_set_intersect_nested(benchmark::State& state)
+{
+    SUBSET_unified_nested_benchmark<dim, delta_level>(state, op_intersection);
+}
+
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_set_diff_nested(benchmark::State& state)
+{
+    SUBSET_unified_nested_benchmark<dim, delta_level>(state, op_difference);
+}
+
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_set_union_nested(benchmark::State& state)
+{
+    SUBSET_unified_nested_benchmark<dim, delta_level>(state, op_union);
+}
+
 ///////////////////////////////////////////////////////////////////
 // Benchmarks pour les opérations géométriques
 ///////////////////////////////////////////////////////////////////
@@ -201,39 +307,49 @@ void SUBSET_translate(benchmark::State& state)
 ///////////////////////////////////////////////////////////////////
 
 // Benchmarks pour les opérations ensemblistes en 1D
-BENCHMARK_TEMPLATE(SUBSET_set_diff_identical, 1, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_diff_disjoint, 1, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_diff_single, 1, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_intersect_identical, 1, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_intersect_disjoint, 1, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_intersect_single, 1, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_union_identical, 1, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_union_disjoint, 1, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_union_single, 1, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_diff_identical, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_diff_disjoint, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_diff_single, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_identical, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_disjoint, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_single, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_union_identical, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_union_disjoint, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_union_single, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_nested, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_diff_nested, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_union_nested, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
 
 // Benchmarks pour les opérations ensemblistes en 2D
-BENCHMARK_TEMPLATE(SUBSET_set_diff_identical, 2, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_diff_disjoint, 2, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_diff_single, 2, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_intersect_identical, 2, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_intersect_disjoint, 2, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_intersect_single, 2, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_union_identical, 2, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_union_disjoint, 2, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_union_single, 2, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_diff_identical, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_diff_disjoint, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_diff_single, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_identical, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_disjoint, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_single, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_union_identical, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_union_disjoint, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_union_single, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_nested, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_diff_nested, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_set_union_nested, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
 
 // Benchmarks pour les opérations ensemblistes en 3D
-BENCHMARK_TEMPLATE(SUBSET_set_diff_identical, 3, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_diff_disjoint, 3, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_diff_single, 3, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_intersect_identical, 3, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_intersect_disjoint, 3, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_intersect_single, 3, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_union_identical, 3, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_union_disjoint, 3, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_set_union_single, 3, 0)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
+/**
+BENCHMARK_TEMPLATE(SUBSET_set_diff_identical, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_diff_disjoint, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_diff_single, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_identical, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_disjoint, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_intersect_single, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_union_identical, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_union_disjoint, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_set_union_single, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+**/
 
 // Benchmarks pour les opérations géométriques
-BENCHMARK_TEMPLATE(SUBSET_translate, 1)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_translate, 2)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_translate, 3)->RangeMultiplier(8)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_translate, 1)->RangeMultiplier(8)->Range(1 << 0, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_translate, 2)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+BENCHMARK_TEMPLATE(SUBSET_translate, 3)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
+
+// Benchmarks pour les opérations ensemblistes en 2D avec générateur 2D

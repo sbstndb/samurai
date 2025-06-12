@@ -19,174 +19,6 @@
 // si on compare 2 intervalles de taillen, cela prendra environ 2n * 10ns
 
 ///////////////////////////////////////////////////////////////////
-// utils
-
-template <unsigned int dim>
-auto cell_list_with_n_intervals(int64_t size)
-{
-    samurai::CellList<dim> cl;
-    for (int64_t i = 0; i < size; i++)
-    {
-        int index = static_cast<int>(i);
-        cl[0][{}].add_interval({2 * index, 2 * index + 1});
-    }
-    return cl;
-}
-
-template <unsigned int dim>
-auto cell_array_with_n_intervals(int64_t size)
-{
-    auto cl = cell_list_with_n_intervals<dim>(size);
-    samurai::CellArray<dim> ca(cl);
-    return ca;
-}
-
-//////////////////////////////////////////////////////////////////
-
-template <unsigned int dim, unsigned int delta_level, typename IntervalGenerator>
-void SUBSET_difference_generic(benchmark::State& state, IntervalGenerator&& gen_intervals)
-{
-    samurai::CellList<dim> cl1, cl2;
-    for (int64_t i = 0; i < state.range(0); i++)
-    {
-        int index = static_cast<int>(i);
-        gen_intervals(cl1, cl2, index, delta_level);
-    }
-    samurai::CellArray<dim> ca1(cl1);
-    samurai::CellArray<dim> ca2(cl2);
-    for (auto _ : state)
-    {
-        auto total_cells = 0;
-        if constexpr (delta_level == 0)
-        {
-            auto subset = samurai::difference(ca1[0], ca2[0]);
-            subset(
-                [&total_cells](const auto&, const auto&)
-                {
-                    total_cells = 1;
-                });
-            benchmark::DoNotOptimize(total_cells);
-            benchmark::DoNotOptimize(subset);
-        }
-    }
-}
-
-template <unsigned int dim, unsigned int delta_level>
-void SUBSET_difference_same_interval_different_level(benchmark::State& state)
-{
-    auto gen_same_intervals = [](auto& cl1, auto& cl2, int index, unsigned int)
-    {
-        cl1[0][{}].add_interval({2 * index, 2 * index + 1});
-        cl2[delta_level][{}].add_interval({pow(2, delta_level + 1) * index, pow(2, delta_level + 1) * index + pow(2, delta_level)});
-    };
-    SUBSET_difference_generic<dim, delta_level>(state, gen_same_intervals);
-}
-
-template <unsigned int dim, unsigned int delta_level>
-void SUBSET_difference_different_interval_different_level(benchmark::State& state)
-{
-    auto gen_different_intervals = [](auto& cl1, auto& cl2, int index, unsigned int)
-    {
-        cl1[0][{}].add_interval({2 * index, 2 * index + 1});
-        cl2[delta_level][{}].add_interval({pow(2, delta_level + 1) * index + pow(2, delta_level), pow(2, delta_level + 2) * index});
-    };
-    SUBSET_difference_generic<dim, delta_level>(state, gen_different_intervals);
-}
-
-template <unsigned int dim, unsigned int delta_level>
-void SUBSET_difference_n1_interval_different_level(benchmark::State& state)
-{
-    auto gen_n1_intervals = [](auto& cl1, auto& cl2, int index, unsigned int)
-    {
-        cl1[0][{}].add_interval({2 * index, 2 * index + 1});
-        if (index == 0)
-        {
-            cl2[delta_level][{}].add_interval({static_cast<int>(0), static_cast<int>(pow(2, delta_level))});
-        }
-    };
-    SUBSET_difference_generic<dim, delta_level>(state, gen_n1_intervals);
-}
-
-template <unsigned int dim, unsigned int delta_level>
-void SUBSET_double_difference_same_interval(benchmark::State& state)
-{
-    auto gen_same_intervals = [](auto& cl1, auto& cl2, int index, unsigned int)
-    {
-        cl1[0][{}].add_interval({2 * index, 2 * index + 1});
-        cl2[delta_level][{}].add_interval({pow(2, delta_level + 1) * index, pow(2, delta_level + 1) * index + pow(2, delta_level)});
-    };
-    SUBSET_difference_generic<dim, delta_level>(state, gen_same_intervals);
-}
-
-// why for <2-3, 1-2-10> it is that fast ? error i think
-template <unsigned int dim, unsigned int delta_level>
-void SUBSET_intersection_same_interval_different_level(benchmark::State& state)
-{
-    samurai::CellList<dim> cl1, cl2;
-    for (int64_t i = 0; i < state.range(0); i++)
-    {
-        int index = static_cast<int>(i);
-        cl1[0][{}].add_interval({2 * index, 2 * index + 1});
-        cl2[delta_level][{}].add_interval({pow(2, delta_level + 1) * index, pow(2, delta_level + 1) * index + pow(2, delta_level)});
-    }
-    samurai::CellArray<dim> ca1(cl1);
-    samurai::CellArray<dim> ca2(cl2);
-    for (auto _ : state)
-    {
-        auto total_cells = 0;
-        if constexpr (delta_level != 0)
-        {
-            //                        auto subset = samurai::intersection(ca1[0], samurai::projection(ca2[delta_level], 0));
-            //                        subset([](const auto&, const auto&) {}); // evaluation avec lambda vide
-            //                        benchmark::DoNotOptimize(subset);
-        }
-        else if constexpr (delta_level == 0)
-        {
-            auto subset = samurai::intersection(ca1[0], ca2[0]);
-            subset(
-                [&total_cells](const auto&, const auto&)
-                {
-                    total_cells = 1;
-                }); // evaluation avec lambda vide
-            benchmark::DoNotOptimize(total_cells);
-            benchmark::DoNotOptimize(subset);
-        }
-    }
-}
-
-template <unsigned int dim, unsigned int delta_level>
-void SUBSET_union_same_interval_different_level(benchmark::State& state)
-{
-    samurai::CellList<dim> cl1, cl2;
-    for (int64_t i = 0; i < state.range(0); i++)
-    {
-        int index = static_cast<int>(i);
-        cl1[0][{}].add_interval({2 * index, 2 * index + 1});
-        cl2[delta_level][{}].add_interval({pow(2, delta_level + 1) * index, pow(2, delta_level + 1) * index + pow(2, delta_level)});
-    }
-    samurai::CellArray<dim> ca1(cl1);
-    samurai::CellArray<dim> ca2(cl2);
-    for (auto _ : state)
-    {
-        auto total_cells = 0;
-        // if constexpr(delta_level != 0){
-        //         auto subset = samurai::union_(ca1[0], samurai::projection(ca2[delta_level], 0));
-        //         subset([](const auto&, const auto&) {}); // evaluation avec lambda vide
-        //         benchmark::DoNotOptimize(subset);
-        //                }
-        if constexpr (delta_level == 0)
-        {
-            auto subset = samurai::union_(ca1[0], ca2[0]);
-            subset(
-                [&total_cells](const auto&, const auto&)
-                {
-                    total_cells = 1;
-                }); // evaluation avec lambda vide
-            benchmark::DoNotOptimize(total_cells);
-            benchmark::DoNotOptimize(subset);
-        }
-    }
-}
 
 template <unsigned int dim>
 void SUBSET_translate(benchmark::State& state)
@@ -273,71 +105,125 @@ void SUBSET_contraction(benchmark::State& state){
 }
 **/
 
-BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+template <unsigned int dim, unsigned int delta_level, typename IntervalGenerator, typename Operation>
+void SUBSET_unified_benchmark(benchmark::State& state, IntervalGenerator&& gen_intervals, Operation&& operation)
+{
+    samurai::CellList<dim> cl1, cl2;
+    for (int64_t i = 0; i < state.range(0); i++)
+    {
+        int index = static_cast<int>(i);
+        gen_intervals(cl1, cl2, index, delta_level);
+    }
+    samurai::CellArray<dim> ca1(cl1);
+    samurai::CellArray<dim> ca2(cl2);
+    for (auto _ : state)
+    {
+        auto total_cells = 0;
+        if constexpr (delta_level == 0)
+        {
+            auto subset = operation(ca1[0], ca2[0]);
+            subset(
+                [&total_cells](const auto&, const auto&)
+                {
+                    total_cells = 1;
+                });
+            benchmark::DoNotOptimize(total_cells);
+            benchmark::DoNotOptimize(subset);
+        }
+    }
+}
 
-// BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level,1, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level,2, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level,3, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+// Générateurs d'intervalles
+template <unsigned int delta_level>
+auto gen_same_intervals = [](auto& cl1, auto& cl2, int index, unsigned int)
+{
+    cl1[0][{}].add_interval({2 * index, 2 * index + 1});
+    cl2[delta_level][{}].add_interval({pow(2, delta_level + 1) * index, pow(2, delta_level + 1) * index + pow(2, delta_level)});
+};
 
-// BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level,1, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level,2, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level,3, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+template <unsigned int delta_level>
+auto gen_different_intervals = [](auto& cl1, auto& cl2, int index, unsigned int)
+{
+    cl1[0][{}].add_interval({2 * index, 2 * index + 1});
+    cl2[delta_level][{}].add_interval({pow(2, delta_level + 1) * index + pow(2, delta_level), pow(2, delta_level + 2) * index});
+};
 
-// BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level,1, 10)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level,2, 10)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_difference_same_interval_different_level,3, 10)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+template <unsigned int delta_level>
+auto gen_n1_intervals = [](auto& cl1, auto& cl2, int index, unsigned int)
+{
+    cl1[0][{}].add_interval({2 * index, 2 * index + 1});
+    if (index == 0)
+    {
+        cl2[delta_level][{}].add_interval({static_cast<int>(0), static_cast<int>(pow(2, delta_level))});
+    }
+};
 
-BENCHMARK_TEMPLATE(SUBSET_difference_n1_interval_different_level, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_difference_n1_interval_different_level, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_difference_n1_interval_different_level, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+// Opérations ensemblistes
+auto op_difference = [](const auto& a, const auto& b)
+{
+    return samurai::difference(a, b);
+};
+auto op_intersection = [](const auto& a, const auto& b)
+{
+    return samurai::intersection(a, b);
+};
+auto op_union = [](const auto& a, const auto& b)
+{
+    return samurai::union_(a, b);
+};
 
-BENCHMARK_TEMPLATE(SUBSET_double_difference_same_interval, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_double_difference_same_interval, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_double_difference_same_interval, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+// Nouveaux benchmarks unifiés
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_unified_difference_same_interval(benchmark::State& state)
+{
+    SUBSET_unified_benchmark<dim, delta_level>(state, gen_same_intervals<delta_level>, op_difference);
+}
 
-BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_unified_difference_different_interval(benchmark::State& state)
+{
+    SUBSET_unified_benchmark<dim, delta_level>(state, gen_different_intervals<delta_level>, op_difference);
+}
 
-// BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level,1, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level,2, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level,3, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_unified_difference_n1_interval(benchmark::State& state)
+{
+    SUBSET_unified_benchmark<dim, delta_level>(state, gen_n1_intervals<delta_level>, op_difference);
+}
 
-// BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level,1, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level,2, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level,3, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_unified_intersection_same_interval(benchmark::State& state)
+{
+    SUBSET_unified_benchmark<dim, delta_level>(state, gen_same_intervals<delta_level>, op_intersection);
+}
 
-// BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level,1, 10)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level,2, 10)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_intersection_same_interval_different_level,3, 10)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_unified_union_same_interval(benchmark::State& state)
+{
+    SUBSET_unified_benchmark<dim, delta_level>(state, gen_same_intervals<delta_level>, op_union);
+}
 
-BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+// Remplacer les anciens benchmarks par les nouveaux
+BENCHMARK_TEMPLATE(SUBSET_unified_difference_same_interval, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_difference_same_interval, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_difference_same_interval, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 
-// BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,1, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,2, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,3, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_difference_different_interval, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_difference_different_interval, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_difference_different_interval, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 
-// BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,1, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,2, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,3, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_difference_n1_interval, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_difference_n1_interval, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_difference_n1_interval, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 
-// BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,1, 10)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,2, 10)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_union_same_interval_different_level,3, 10)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_intersection_same_interval, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_intersection_same_interval, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_intersection_same_interval, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+
+BENCHMARK_TEMPLATE(SUBSET_unified_union_same_interval, 1, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_union_same_interval, 2, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
+BENCHMARK_TEMPLATE(SUBSET_unified_union_same_interval, 3, 0)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 
 BENCHMARK_TEMPLATE(SUBSET_translate, 1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(SUBSET_translate, 2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
 BENCHMARK_TEMPLATE(SUBSET_translate, 3)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-/**
-BENCHMARK_TEMPLATE(SUBSET_expand,1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_expand,2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-BENCHMARK_TEMPLATE(SUBSET_expand,3)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-**/
-
-// BENCHMARK_TEMPLATE(SUBSET_contraction,1)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_contraction,2)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);
-// BENCHMARK_TEMPLATE(SUBSET_contraction,3)->RangeMultiplier(2)->Range(1 << 1, 1 << 10);

@@ -402,7 +402,36 @@ void SUBSET_translate_and_intersect(benchmark::State& state)
     SUBSET_combined_benchmark<dim, delta_level>(state, translate_op, intersect_op);
 }
 
-// Exemple d'utilisation avec plus d'opérateurs
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_translate_and_diff(benchmark::State& state)
+{
+    auto stencil      = create_translation_stencil<dim>();
+    auto translate_op = [stencil](const auto& ca1, const auto&)
+    {
+        return samurai::translate(ca1, stencil);
+    };
+    auto diff_op = [](const auto& ca1, const auto& ca2)
+    {
+        return samurai::difference(ca1, ca2);
+    };
+    SUBSET_combined_benchmark<dim, delta_level>(state, translate_op, diff_op);
+}
+
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_translate_and_union(benchmark::State& state)
+{
+    auto stencil      = create_translation_stencil<dim>();
+    auto translate_op = [stencil](const auto& ca1, const auto&)
+    {
+        return samurai::translate(ca1, stencil);
+    };
+    auto union_op = [](const auto& ca1, const auto& ca2)
+    {
+        return samurai::union_(ca1, ca2);
+    };
+    SUBSET_combined_benchmark<dim, delta_level>(state, translate_op, union_op);
+}
+
 template <unsigned int dim, unsigned int delta_level>
 void SUBSET_translate_intersect_diff(benchmark::State& state)
 {
@@ -420,6 +449,39 @@ void SUBSET_translate_intersect_diff(benchmark::State& state)
         return samurai::difference(ca1, ca2);
     };
     SUBSET_combined_benchmark<dim, delta_level>(state, translate_op, intersect_op, diff_op);
+}
+
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_intersect_union_diff(benchmark::State& state)
+{
+    auto intersect_op = [](const auto& ca1, const auto& ca2)
+    {
+        return samurai::intersection(ca1, ca2);
+    };
+    auto union_op = [](const auto& ca1, const auto& ca2)
+    {
+        return samurai::union_(ca1, ca2);
+    };
+    auto diff_op = [](const auto& ca1, const auto& ca2)
+    {
+        return samurai::difference(ca1, ca2);
+    };
+    SUBSET_combined_benchmark<dim, delta_level>(state, intersect_op, union_op, diff_op);
+}
+
+template <unsigned int dim, unsigned int delta_level>
+void SUBSET_double_translate_intersect(benchmark::State& state)
+{
+    auto stencil      = create_translation_stencil<dim>();
+    auto translate_op = [stencil](const auto& ca1, const auto&)
+    {
+        return samurai::translate(ca1, stencil);
+    };
+    auto intersect_op = [](const auto& ca1, const auto& ca2)
+    {
+        return samurai::intersection(ca1, ca2);
+    };
+    SUBSET_combined_benchmark<dim, delta_level>(state, translate_op, translate_op, intersect_op);
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -475,10 +537,28 @@ BENCHMARK_TEMPLATE(SUBSET_translate, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 
 BENCHMARK_TEMPLATE(SUBSET_translate, 2, 0)->RangeMultiplier(4)->Range(1 << 0, 1 << 5);
 BENCHMARK_TEMPLATE(SUBSET_translate, 3, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 5);
 
+/**
 BENCHMARK_TEMPLATE(SUBSET_translate_and_intersect, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 11);
 BENCHMARK_TEMPLATE(SUBSET_translate_and_intersect, 2, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 6);
 BENCHMARK_TEMPLATE(SUBSET_translate_and_intersect, 3, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 4);
 
+BENCHMARK_TEMPLATE(SUBSET_translate_and_diff, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 11);
+BENCHMARK_TEMPLATE(SUBSET_translate_and_diff, 2, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 6);
+BENCHMARK_TEMPLATE(SUBSET_translate_and_diff, 3, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 4);
+
+BENCHMARK_TEMPLATE(SUBSET_translate_and_union, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 11);
+BENCHMARK_TEMPLATE(SUBSET_translate_and_union, 2, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 6);
+BENCHMARK_TEMPLATE(SUBSET_translate_and_union, 3, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 4);
+
 BENCHMARK_TEMPLATE(SUBSET_translate_intersect_diff, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 11);
 BENCHMARK_TEMPLATE(SUBSET_translate_intersect_diff, 2, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 6);
 BENCHMARK_TEMPLATE(SUBSET_translate_intersect_diff, 3, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 4);
+
+BENCHMARK_TEMPLATE(SUBSET_intersect_union_diff, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 11);
+BENCHMARK_TEMPLATE(SUBSET_intersect_union_diff, 2, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 6);
+BENCHMARK_TEMPLATE(SUBSET_intersect_union_diff, 3, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 4);
+
+BENCHMARK_TEMPLATE(SUBSET_double_translate_intersect, 1, 0)->RangeMultiplier(8)->Range(1 << 0, 1 << 11);
+BENCHMARK_TEMPLATE(SUBSET_double_translate_intersect, 2, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 6);
+BENCHMARK_TEMPLATE(SUBSET_double_translate_intersect, 3, 0)->RangeMultiplier(2)->Range(1 << 0, 1 << 4);
+**/

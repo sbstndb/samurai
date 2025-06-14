@@ -53,7 +53,7 @@ void BC_scalar_homogeneous(benchmark::State& state)
     samurai::Box<double, dim> box = unitary_box<dim>();
     using Config                  = samurai::UniformConfig<dim>;
     auto mesh                     = samurai::UniformMesh<Config>(box, state.range(0));
-    auto u                        = make_field<double, 1>("u", mesh);
+    auto u                        = make_scalar_field<double>("u", mesh);
     for (auto _ : state)
     {
         samurai::make_bc<samurai::Dirichlet<dim>>(u);
@@ -67,7 +67,7 @@ void BC_vec_homogeneous(benchmark::State& state)
     samurai::Box<double, dim> box = unitary_box<dim>();
     using Config                  = samurai::UniformConfig<dim>;
     auto mesh                     = samurai::UniformMesh<Config>(box, state.range(0));
-    auto u                        = make_field<double, 2>("u", mesh);
+    auto u                        = make_vector_field<double, 2>("u", mesh);
     for (auto _ : state)
     {
         samurai::make_bc<samurai::Dirichlet<dim>>(u);
@@ -75,9 +75,5 @@ void BC_vec_homogeneous(benchmark::State& state)
 }
 
 BENCHMARK_TEMPLATE(BC_scalar_homogeneous, 1)->DenseRange(1, 1);
-;
-// BENCHMARK_TEMPLATE(BC_scalar_homogeneous,2)->DenseRange(1, 1);; // not enough ghost cells
-// BENCHMARK_TEMPLATE(BC_scalar_homogeneous,3)->DenseRange(1, 1);;
-
 BENCHMARK_TEMPLATE(BC_vec_homogeneous, 1)->DenseRange(1, 1);
 ;

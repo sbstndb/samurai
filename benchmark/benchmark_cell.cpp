@@ -1,4 +1,3 @@
-
 #include <array>
 #include <benchmark/benchmark.h>
 #include <experimental/random>
@@ -25,24 +24,10 @@ auto make_cell()
 {
     using value_t = samurai::default_config::value_t;
     using point_t = xt::xtensor_fixed<value_t, xt::xshape<dim>>;
-    point_t indice;
-    point_t begin;
 
-    if constexpr (dim == 1)
-    {
-        indice = {1};
-        begin  = {0};
-    }
-    if constexpr (dim == 2)
-    {
-        indice = {1, 1};
-        begin  = {0, 0};
-    }
-    if constexpr (dim == 3)
-    {
-        indice = {1, 1, 1};
-        begin  = {0, 0, 0};
-    }
+    // Initialisation générique des indices et du point de départ
+    point_t indice = xt::ones<value_t>({dim});
+    point_t begin  = xt::zeros<value_t>({dim});
 
     auto indices          = xt::xtensor_fixed<int, xt::xshape<dim>>(indice);
     double scaling_factor = 1.0;

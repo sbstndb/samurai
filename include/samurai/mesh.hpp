@@ -111,7 +111,6 @@ namespace samurai
 
         const std::vector<mpi_subdomain_t>& mpi_neighbourhood() const;
         std::vector<mpi_subdomain_t>& mpi_neighbourhood();
-        const std::vector<mpi_subdomain_t>& mpi_neighbourhood() const;
 
         void swap(Mesh_base& mesh) noexcept;
 
@@ -636,12 +635,6 @@ namespace samurai
 
     template <class D, class Config>
     inline auto Mesh_base<D, Config>::mpi_neighbourhood() -> std::vector<mpi_subdomain_t>&
-    {
-        return m_mpi_neighbourhood;
-    }
-
-    template <class D, class Config>
-    inline auto Mesh_base<D, Config>::mpi_neighbourhood() const -> const std::vector<mpi_subdomain_t>&
     {
         return m_mpi_neighbourhood;
     }

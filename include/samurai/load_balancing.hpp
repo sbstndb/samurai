@@ -88,28 +88,33 @@ namespace samurai
             {
                 std::size_t neighbour_rank = static_cast<std::size_t>(neighbourhood[n_i].rank);
                 int neighbour_load         = loads[neighbour_rank];
-                double diff_load           = static_cast<double>(neighbour_load - my_load_new);
+                double diff_load = static_cast<double>(neighbour_load - my_load_new);
 
                 // if transferLoad < 0 -> need to send data, if transferLoad > 0 need to receive data
-                //int transfertLoad = static_cast<int>(std::trunc(inv_deg_plus_one * diff_load));
-                int transfertLoad = static_cast<int>(std::trunc(0.5 * diff_load));
-                std::cout << "transfert load : " << transfertLoad << std::endl;
+                // Utilise le facteur diffusion 1/(deg+1) pour la stabilité
+                int transfertLoad = static_cast<int>(std::trunc(0.5* diff_load));
+
+
+                // Accumule le flux total sur l'arête courante
                 fluxes[n_i] += transfertLoad;
-                
-                // Vérifier si ce flux n'est pas zéro
+
+                // Marque si un transfert non nul a été effectué
                 if (transfertLoad != 0)
                 {
                     all_fluxes_zero = false;
                 }
-                
-                // my_load_new += transfertLoad;
-                my_load += transfertLoad;
+
+                // Met à jour la charge locale intermédiaire avant de traiter le voisin suivant
+                my_load_new += transfertLoad;
             }
             
+            // Met à jour la charge de référence pour l'itération suivante
+            my_load = my_load_new;
+
             // Vérifier si tous les processus ont atteint la convergence
             bool global_convergence = boost::mpi::all_reduce(world, all_fluxes_zero, std::logical_and<bool>());
-            
-            // Si tous les processus ont tous leurs flux à zéro, l'état ne changera plus
+
+            // Si tous les processus ont leurs flux à zéro, l'état ne changera plus
             if (global_convergence)
             {
                 std::cout << "Processus " << world.rank() << " : Convergence globale atteinte à l'itération " << nt << std::endl;

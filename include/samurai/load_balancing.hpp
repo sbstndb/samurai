@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <sstream>
 
 #include "algorithm.hpp"
 #include "algorithm/utils.hpp"
@@ -138,6 +139,7 @@ namespace samurai
       public:
 
         int nloadbalancing;
+        int nb_passes = 6; // nombre de passes de load balancing (modifiable par l'utilisateur)
 
         template <class Mesh_t, class Field_t>
         void update_field(Mesh_t& new_mesh, Field_t& field)
@@ -400,22 +402,30 @@ namespace samurai
         template <class Mesh_t, class Field_t, class... Fields>
         void load_balance(Mesh_t& mesh, Field_t& field, Fields&... kw)
         {
-            // Démarrer le timer pour le load balancing
-            samurai::times::timers.start("load_balancing");
-            
-            auto flags    = static_cast<Flavor*>(this)->load_balance_impl(field.mesh());
-            auto new_mesh = update_mesh(mesh, flags);
+            for (int pass = 0; pass < nb_passes; ++pass)
+            {
+                // Démarrer le timer pour le load balancing (une entrée par passe)
+                samurai::times::timers.start("load_balancing");
 
-            // update each physical field on the new load balanced mesh
-            update_fields(new_mesh, field, kw...);
-            // swap mesh reference to new load balanced mesh. FIX: this is not clean
-            field.mesh().swap(new_mesh);
-            nloadbalancing += 1;
+                // Calcul des flags pour cette passe
+                auto flags    = static_cast<Flavor*>(this)->load_balance_impl(mesh);
 
-            // Arrêter le timer pour le load balancing
-            samurai::times::timers.stop("load_balancing");
+                // Mise à jour du maillage
+                auto new_mesh = update_mesh(mesh, flags);
 
-            // Affichage du nombre de cellules possédées par ce processus après équilibrage de charge
+                // Mise à jour des champs physiques
+                update_fields(new_mesh, field, kw...);
+
+                // On remplace le maillage de référence pour la passe suivante
+                mesh.swap(new_mesh);
+
+                nloadbalancing += 1;
+
+                // Arrêter le timer pour cette passe
+                samurai::times::timers.stop("load_balancing");
+            }
+
+            // Affichage final du nombre de cellules après la dernière passe
             {
                 boost::mpi::communicator world;
                 std::size_t nb_cells = cmptLoad<BalanceElement_t::CELL>(field.mesh());

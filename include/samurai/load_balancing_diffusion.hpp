@@ -1,5 +1,6 @@
 #include "field.hpp"
 #include "load_balancing.hpp"
+#include "timers.hpp"
 #include <map>
 
 // for std::sort
@@ -33,6 +34,9 @@ namespace Load_balancing
         template <class Mesh_t>
         auto load_balance_impl(Mesh_t& mesh)
         {
+            // Démarrer le timer pour l'algorithme de diffusion
+            samurai::times::timers.start("load_balancing_diffusion_algorithm");
+            
             using mpi_subdomain_t = typename Mesh_t::mpi_subdomain_t;
             using CellList_t      = typename Mesh_t::cl_type;
             using mesh_id_t       = typename Mesh_t::mesh_id_t;
@@ -193,6 +197,9 @@ namespace Load_balancing
                 }
             }
 
+            // Arrêter le timer pour l'algorithme de diffusion
+            samurai::times::timers.stop("load_balancing_diffusion_algorithm");
+            
             return flags;
         }
     };

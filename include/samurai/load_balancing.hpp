@@ -10,6 +10,7 @@
 #include "algorithm/utils.hpp"
 #include "mesh.hpp"
 #include "mr/mesh.hpp"
+#include "timers.hpp"
 
 #ifdef SAMURAI_WITH_MPI
 #include <boost/mpi.hpp>
@@ -56,6 +57,9 @@ namespace samurai
     template <BalanceElement_t elem, class Mesh_t>
     std::vector<int> cmptFluxes(Mesh_t& mesh, int niterations)
     {
+        // Démarrer le timer pour le calcul des flux
+        samurai::times::timers.start("load_balancing_flux_computation");
+        
         using mpi_subdomain_t = typename Mesh_t::mpi_subdomain_t;
         boost::mpi::communicator world;
         // give access to geometricaly neighbour process rank and mesh
@@ -114,6 +118,10 @@ namespace samurai
             
             nt++;
         }
+        
+        // Arrêter le timer pour le calcul des flux
+        samurai::times::timers.stop("load_balancing_flux_computation");
+        
         return fluxes;
     }
 
@@ -284,6 +292,9 @@ namespace samurai
         template <class Mesh_t, class Field_t>
         Mesh_t update_mesh(Mesh_t& mesh, const Field_t& flags)
         {
+            // Démarrer le timer pour la mise à jour du maillage
+            samurai::times::timers.start("load_balancing_mesh_update");
+            
             using CellList_t  = typename Mesh_t::cl_type;
             using CellArray_t = typename Mesh_t::ca_type;
 
@@ -374,12 +385,19 @@ namespace samurai
             }
             boost::mpi::wait_all(req.begin(), req.end());
             Mesh_t new_mesh(new_cl, mesh);
+            
+            // Arrêter le timer pour la mise à jour du maillage
+            samurai::times::timers.stop("load_balancing_mesh_update");
+            
             return new_mesh;
         }
 
         template <class Mesh_t, class Field_t, class... Fields>
         void load_balance(Mesh_t& mesh, Field_t& field, Fields&... kw)
         {
+            // Démarrer le timer pour le load balancing
+            samurai::times::timers.start("load_balancing");
+            
             auto flags    = static_cast<Flavor*>(this)->load_balance_impl(field.mesh());
             auto new_mesh = update_mesh(mesh, flags);
 
@@ -388,6 +406,9 @@ namespace samurai
             // swap mesh reference to new load balanced mesh. FIX: this is not clean
             field.mesh().swap(new_mesh);
             nloadbalancing += 1;
+
+            // Arrêter le timer pour le load balancing
+            samurai::times::timers.stop("load_balancing");
 
             // Affichage du nombre de cellules possédées par ce processus après équilibrage de charge
             {

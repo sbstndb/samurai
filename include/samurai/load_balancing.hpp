@@ -62,6 +62,9 @@ namespace samurai
         std::vector<mpi_subdomain_t>& neighbourhood = mesh.mpi_neighbourhood();
         size_t n_neighbours                         = neighbourhood.size();
 
+        // nombre moyen de voisins + moi-même utilisé pour le partage de charge
+        double inv_deg_plus_one = 1.0 / static_cast<double>(n_neighbours + 1);
+
         // load of current process
         int my_load = static_cast<int>(cmptLoad<elem>(mesh));
         // fluxes between processes
@@ -75,6 +78,7 @@ namespace samurai
 
             // compute updated my_load for current process based on its neighbourhood
             int my_load_new = my_load;
+            bool all_fluxes_zero = true;
             for (std::size_t n_i = 0; n_i < n_neighbours; ++n_i)
             // get "my_load" from other processes
             {
@@ -83,12 +87,31 @@ namespace samurai
                 double diff_load           = static_cast<double>(neighbour_load - my_load_new);
 
                 // if transferLoad < 0 -> need to send data, if transferLoad > 0 need to receive data
+                //int transfertLoad = static_cast<int>(std::trunc(inv_deg_plus_one * diff_load));
                 int transfertLoad = static_cast<int>(std::trunc(0.5 * diff_load));
                 std::cout << "transfert load : " << transfertLoad << std::endl;
                 fluxes[n_i] += transfertLoad;
+                
+                // Vérifier si ce flux n'est pas zéro
+                if (transfertLoad != 0)
+                {
+                    all_fluxes_zero = false;
+                }
+                
                 // my_load_new += transfertLoad;
                 my_load += transfertLoad;
             }
+            
+            // Vérifier si tous les processus ont atteint la convergence
+            bool global_convergence = boost::mpi::all_reduce(world, all_fluxes_zero, std::logical_and<bool>());
+            
+            // Si tous les processus ont tous leurs flux à zéro, l'état ne changera plus
+            if (global_convergence)
+            {
+                std::cout << "Processus " << world.rank() << " : Convergence globale atteinte à l'itération " << nt << std::endl;
+                break;
+            }
+            
             nt++;
         }
         return fluxes;
@@ -365,6 +388,13 @@ namespace samurai
             // swap mesh reference to new load balanced mesh. FIX: this is not clean
             field.mesh().swap(new_mesh);
             nloadbalancing += 1;
+
+            // Affichage du nombre de cellules possédées par ce processus après équilibrage de charge
+            {
+                boost::mpi::communicator world;
+                std::size_t nb_cells = cmptLoad<BalanceElement_t::CELL>(field.mesh());
+                std::cout << "Processus " << world.rank() << " : " << nb_cells << " cellules après load balancing" << std::endl;
+            }
         }
     };
 

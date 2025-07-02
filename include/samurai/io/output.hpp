@@ -5,7 +5,6 @@
 #include <fmt/format.h>
 #include <fmt/printf.h>
 #include <functional>
-// <string_view> n'est plus nécessaire après simplification
 
 #ifdef SAMURAI_WITH_MPI
 #include <boost/mpi.hpp>
@@ -16,7 +15,6 @@ namespace samurai
 {
     namespace output
     {
-        // Fonction utilitaire minimaliste : rang courant du processus.
         inline int rank()
         {
 #ifdef SAMURAI_WITH_MPI
@@ -26,8 +24,6 @@ namespace samurai
             return 0;
 #endif
         }
-
-        // ---------------------- Impression standard ----------------------
 
         template <typename... Args>
         void print(int target_rank, const char* format, Args&&... args)
@@ -65,9 +61,21 @@ namespace samurai
             fmt::print(stderr, fmt::runtime(format), std::forward<Args>(args)...);
         }
 
-        // Forward declaration needed for two-phase lookup in templates using print_reduce below.
         template <typename T, typename Op>
-        void print_reduce(const T& local_value, Op op, const char* format);
+        void print_reduce(const T& local_value, Op op, const char* format)
+        {
+#ifdef SAMURAI_WITH_MPI
+            mpi::communicator world;
+            T global_val;
+            mpi::all_reduce(world, local_value, global_val, op);
+            if (world.rank() == 0)
+            {
+                fmt::print(fmt::runtime(format), global_val);
+            }
+#else
+            fmt::print(fmt::runtime(format), local_value);
+#endif
+        }
 
         template <typename T>
         void print_max(const T& local_value, const char* format = "Max value: {}\n")
@@ -94,22 +102,6 @@ namespace samurai
         {
 #ifdef SAMURAI_WITH_MPI
             print_reduce(local_value, std::plus<T>(), format);
-#else
-            fmt::print(fmt::runtime(format), local_value);
-#endif
-        }
-
-        template <typename T, typename Op>
-        void print_reduce(const T& local_value, Op op, const char* format)
-        {
-#ifdef SAMURAI_WITH_MPI
-            mpi::communicator world;
-            T global_val;
-            mpi::all_reduce(world, local_value, global_val, op);
-            if (world.rank() == 0)
-            {
-                fmt::print(fmt::runtime(format), global_val);
-            }
 #else
             fmt::print(fmt::runtime(format), local_value);
 #endif

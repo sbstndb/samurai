@@ -1,443 +1,662 @@
-# Numerical Schemes
+# Schémas Numériques - Samurai
 
-## Introduction
+## Vue d'ensemble
 
-Samurai provides a comprehensive framework for implementing numerical schemes, particularly focused on finite volume methods. The scheme system is designed to be flexible, efficient, and easy to use, supporting both explicit and implicit time integration, various spatial discretizations, and different boundary condition treatments.
+Samurai propose une collection complète de schémas numériques pour la résolution d'équations aux dérivées partielles (EDP) sur des maillages adaptatifs. Ces schémas sont conçus pour fonctionner efficacement avec le système AMR et supportent les simulations multi-physiques.
 
-## Core Concepts
+## Architecture des Schémas
 
-### 1. Scheme Types
-
-Samurai supports two main types of finite volume schemes:
-
-- **Cell-based Schemes**: Operate directly on cell values
-- **Flux-based Schemes**: Compute fluxes at cell interfaces
-
-### 2. Scheme Configuration
-
-Schemes are configured using template parameters and configuration structures:
-
-```cpp
-template <class DerivedScheme, class cfg_, class bdry_cfg_>
-class FVScheme
-{
-    using cfg = cfg_;
-    using bdry_cfg = bdry_cfg_;
-    // ...
-};
-```
-
-## Finite Volume Schemes
-
-### 1. Base Scheme Class
-
-All finite volume schemes inherit from `FVScheme`:
-
-```cpp
-template <class DerivedScheme, class cfg_, class bdry_cfg_>
-class FVScheme
-{
-public:
-    using input_field_t = typename cfg_::input_field_t;
-    using field_t = input_field_t;
-    using mesh_t = typename field_t::mesh_t;
-    using field_value_type = typename field_t::value_type;
+```mermaid
+graph TB
+    A[Schémas Numériques] --> B[Schémas Flux-Based]
+    A --> C[Schémas Cell-Based]
+    A --> D[Opérateurs Différentiels]
     
-    // Scheme application
-    auto operator()(input_field_t& input_field);
-    void apply(output_field_t& output_field, input_field_t& input_field);
+    B --> E[Convection Upwind]
+    B --> F[Convection WENO5]
+    B --> G[Diffusion]
     
-    // Directional application
-    auto operator()(std::size_t d, input_field_t& input_field);
-    void apply(std::size_t d, output_field_t& output_field, input_field_t& input_field);
-};
+    C --> H[Schémas Explicites]
+    C --> I[Schémas Implicites]
+    
+    D --> J[Gradient]
+    D --> K[Divergence]
+    D --> L[Laplacien]
+    
+    subgraph "Types de Schémas"
+        M[Linéaires Homogènes]
+        N[Linéaires Hétérogènes]
+        O[Non-Linéaires]
+    end
 ```
 
-### 2. Cell-based Schemes
+## Schémas Flux-Based
 
-Cell-based schemes operate directly on cell values:
+### Conception Générale
+
+Les schémas flux-based dans Samurai sont basés sur une approche conservative où les flux sont calculés aux interfaces entre cellules.
+
+```mermaid
+graph LR
+    A[Cellule i-1] --> B[Flux i-1/2]
+    B --> C[Cellule i]
+    C --> D[Flux i+1/2]
+    D --> E[Cellule i+1]
+    
+    subgraph "Calcul de Flux"
+        F[Évaluation des Variables]
+        G[Calcul du Flux Numérique]
+        H[Application des Conditions aux Limites]
+    end
+```
+
+### Configuration des Schémas Flux-Based
 
 ```cpp
-template <class cfg>
-class CellBasedScheme : public FVScheme<CellBasedScheme<cfg>, cfg, cfg::bdry_cfg>
+template <SchemeType scheme_type,
+          std::size_t output_n_comp,
+          std::size_t stencil_size,
+          class Field>
+struct FluxConfig
 {
-public:
-    // Cell-based stencil computation
-    template <class Field>
-    auto make_cell_based_stencil(Field& field);
+    static constexpr SchemeType type = scheme_type;
+    static constexpr std::size_t output_n_comp = output_n_comp;
+    static constexpr std::size_t stencil_size = stencil_size;
+    using field_t = Field;
 };
 ```
 
-### 3. Flux-based Schemes
+## Schémas de Convection
 
-Flux-based schemes compute fluxes at cell interfaces:
+### Convection Upwind Linéaire
 
-```cpp
-template <class cfg>
-class FluxBasedScheme : public FVScheme<FluxBasedScheme<cfg>, cfg, cfg::bdry_cfg>
-{
-public:
-    // Flux computation
-    template <class Field>
-    auto make_flux_based_stencil(Field& field);
-};
-```
-
-## Built-in Schemes
-
-### 1. Diffusion Schemes
+Le schéma upwind est le schéma de convection le plus simple et robuste.
 
 ```cpp
-// Second-order diffusion scheme
-template <class Field, std::size_t dim>
-auto make_diffusion_order2(Field& field, const DiffCoeff<dim>& K);
-
-// Usage
-samurai::DiffCoeff<dim> K;
-K.fill(diffusion_coefficient);
-auto diffusion = samurai::make_diffusion_order2(u, K);
-```
-
-### 2. Convection Schemes
-
-```cpp
-// Upwind scheme for convection
-template <class Field, class Velocity>
-auto make_convection_upwind(Field& field, const Velocity& velocity);
-
-// Central difference scheme
-template <class Field, class Velocity>
-auto make_convection_central(Field& field, const Velocity& velocity);
-```
-
-### 3. Advection Schemes
-
-```cpp
-// Linear advection scheme
 template <class Field>
-auto make_advection_upwind(Field& field, double velocity);
-
-// Usage
-auto advection = samurai::make_advection_upwind(u, 1.0);
+auto make_convection_upwind(const VelocityVector<Field::dim>& velocity)
 ```
 
-## Scheme Configuration
+**Principe du Schéma Upwind :**
 
-### 1. Scheme Configuration Structure
+```mermaid
+graph TD
+    A[Vitesse > 0] --> B[Utiliser Valeur Gauche]
+    A --> C[Vitesse < 0] --> D[Utiliser Valeur Droite]
+    
+    B --> E[Flux = v * u_left]
+    D --> F[Flux = v * u_right]
+    
+    subgraph "Stencil"
+        G[Cellule i-1] --> H[Cellule i]
+        H --> I[Cellule i+1]
+    end
+```
+
+**Coefficients du Schéma :**
 
 ```cpp
-template <class input_field_t_, std::size_t output_n_comp_ = 1>
-struct SchemeConfig
+// Pour v >= 0 (upwind gauche)
+coeffs[left] = velocity(d);
+coeffs[right] = 0;
+
+// Pour v < 0 (upwind droite)
+coeffs[left] = 0;
+coeffs[right] = velocity(d);
+```
+
+### Convection WENO5
+
+Le schéma WENO5 (Weighted Essentially Non-Oscillatory) offre une précision d'ordre 5 avec une limitation d'oscillations.
+
+```cpp
+template <class Field>
+auto make_convection_weno5(const VelocityVector<Field::dim>& velocity)
+```
+
+**Structure du Stencil WENO5 :**
+
+```mermaid
+graph LR
+    A[i-2] --> B[i-1] --> C[i] --> D[i+1] --> E[i+2] --> F[i+3]
+    
+    subgraph "Stencils Locaux"
+        G[Stencil 1: i-2, i-1, i]
+        H[Stencil 2: i-1, i, i+1]
+        I[Stencil 3: i, i+1, i+2]
+    end
+    
+    subgraph "Reconstruction"
+        J[Calcul des Polynômes]
+        K[Calcul des Poids]
+        L[Reconstruction Finale]
+    end
+```
+
+**Algorithme WENO5 :**
+
+```mermaid
+graph TD
+    A[Données d'Entrée] --> B[Calcul des Flux Locaux]
+    B --> C[Calcul des Indicateurs de Lissage]
+    C --> D[Calcul des Poids Non-Oscillatoires]
+    D --> E[Reconstruction WENO]
+    E --> F[Flux Final]
+    
+    subgraph "Indicateurs de Lissage"
+        G[β₀ = (uᵢ₊₁ - uᵢ)² + (uᵢ - uᵢ₋₁)²]
+        H[β₁ = (uᵢ₊₂ - uᵢ₊₁)² + (uᵢ₊₁ - uᵢ)²]
+        I[β₂ = (uᵢ₊₃ - uᵢ₊₂)² + (uᵢ₊₂ - uᵢ₊₁)²]
+    end
+```
+
+### Convection avec Champ de Vitesse Variable
+
+```cpp
+template <class Field, class VelocityField>
+auto make_convection_upwind(const VelocityField& velocity_field)
+```
+
+**Workflow avec Vitesse Variable :**
+
+```mermaid
+graph LR
+    A[Champ de Vitesse] --> B[Évaluation Locale]
+    B --> C[Détermination Direction]
+    C --> D[Application Schéma Upwind]
+    D --> E[Flux Résultant]
+    
+    subgraph "Évaluation"
+        F[Calcul v(x,t)]
+        G[Test v ≥ 0]
+        H[Sélection Stencil]
+    end
+```
+
+## Schémas de Diffusion
+
+### Diffusion Linéaire Homogène
+
+```cpp
+template <class Field, DirichletEnforcement dirichlet_enfcmt = Equation>
+auto make_diffusion_order2(const DiffCoeff<Field::dim>& K)
+```
+
+**Principe du Schéma de Diffusion :**
+
+```mermaid
+graph TD
+    A[Laplacien Discret] --> B[Différences Finies Centrées]
+    B --> C[Flux de Diffusion]
+    C --> D[Opérateur -∇·(K∇u)]
+    
+    subgraph "Stencil 1D"
+        E[uᵢ₋₁] --> F[uᵢ] --> G[uᵢ₊₁]
+        H[Flux i-1/2] --> F
+        F --> I[Flux i+1/2]
+    end
+```
+
+**Coefficients du Schéma :**
+
+```cpp
+// Flux de diffusion
+coeffs[left] = -K(d) / h;
+coeffs[right] = K(d) / h;
+
+// Opérateur -Laplacien
+coeffs[left] *= -1;
+coeffs[right] *= -1;
+```
+
+### Diffusion Multi-Composantes
+
+```cpp
+template <class Field, DirichletEnforcement dirichlet_enfcmt = Equation>
+auto make_multi_diffusion_order2(const DiffCoeff<Field::n_comp>& K)
+```
+
+**Structure Multi-Composantes :**
+
+```mermaid
+graph TB
+    A[Champ Multi-Composantes] --> B[Composante 1]
+    A --> C[Composante 2]
+    A --> D[Composante n]
+    
+    B --> E[Diffusion K₁]
+    C --> F[Diffusion K₂]
+    D --> G[Diffusion Kₙ]
+    
+    E --> H[Champ Résultant]
+    F --> H
+    G --> H
+```
+
+### Conditions aux Limites pour la Diffusion
+
+#### Conditions de Dirichlet
+
+```cpp
+void set_dirichlet_config()
 {
-    using input_field_t = input_field_t_;
-    static constexpr std::size_t output_n_comp = output_n_comp_;
-    using bdry_cfg = BoundaryConfigFV<1, Equation>;
-};
-```
-
-### 2. Boundary Configuration
-
-```cpp
-template <std::size_t neighbourhood_width_ = 1, DirichletEnforcement dirichlet_enfcmt_ = Equation>
-struct BoundaryConfigFV
-{
-    static constexpr std::size_t neighbourhood_width = neighbourhood_width_;
-    static constexpr std::size_t stencil_size = 1 + 2 * neighbourhood_width;
-    static constexpr std::size_t nb_ghosts = neighbourhood_width;
-    static constexpr DirichletEnforcement dirichlet_enfcmt = dirichlet_enfcmt_;
-};
-```
-
-## Boundary Conditions
-
-### 1. Boundary Condition Types
-
-```cpp
-// Dirichlet boundary condition
-template <std::size_t neighbourhood_width>
-class Dirichlet;
-
-// Neumann boundary condition
-template <std::size_t neighbourhood_width>
-class Neumann;
-
-// Periodic boundary condition
-template <std::size_t neighbourhood_width>
-class Periodic;
-```
-
-### 2. Boundary Condition Application
-
-```cpp
-// Create boundary condition
-auto bc = samurai::make_bc<samurai::Dirichlet<1>>(field, 0.0);
-
-// Attach to field
-field.attach_bc(bc);
-
-// Apply boundary conditions
-samurai::update_bc(field);
-```
-
-## Scheme Application
-
-### 1. Explicit Application
-
-```cpp
-// Create scheme
-auto scheme = samurai::make_diffusion_order2(u, K);
-
-// Apply scheme explicitly
-auto result = scheme(u);
-
-// Or apply to existing field
-scheme.apply(output_field, u);
-```
-
-### 2. Directional Application
-
-```cpp
-// Apply scheme in specific direction
-auto result_x = scheme(0, u);  // x-direction
-auto result_y = scheme(1, u);  // y-direction
-```
-
-### 3. Time Integration
-
-```cpp
-// Explicit Euler
-for (std::size_t iter = 0; iter < max_iterations; ++iter) {
-    auto rhs = scheme(u);
-    u = u + dt * rhs;
+    // Équation: (u_ghost + u_cell)/2 = dirichlet_value
+    // Coefficient: [1/2, 1/2] = dirichlet_value
+    coeffs[cell] = -1/(h*h);
+    coeffs[ghost] = -1/(h*h);
+    rhs_coeffs = -2/(h*h) * dirichlet_value;
 }
-
-// Implicit Euler (with PETSc)
-auto implicit_scheme = samurai::make_implicit(scheme);
-implicit_scheme.apply(u, dt);
 ```
 
-## Stencil Operations
-
-### 1. Stencil Definition
+#### Conditions de Neumann
 
 ```cpp
-template <std::size_t size, std::size_t dim>
-class Stencil
+void set_neumann_config()
 {
-    std::array<std::array<int, dim>, size> m_offsets;
-    std::array<double, size> m_weights;
-};
+    // Équation: (u_ghost - u_cell)/h = neumann_value
+    // Coefficient: [1/h², -1/h²] = (1/h) * neumann_value
+    coeffs[cell] = -1/(h*h);
+    coeffs[ghost] = 1/(h*h);
+    rhs_coeffs = (1/h) * neumann_value;
+}
 ```
 
-### 2. Stencil Application
+## Schémas Cell-Based
+
+### Schémas Explicites
 
 ```cpp
-// Apply stencil to field
-samurai::for_each_interval(mesh, [&](std::size_t level, const auto& interval, const auto& index) {
-    auto j = index[0];
-    for (auto i = interval.start; i < interval.end; i += interval.step) {
-        double result = 0.0;
-        for (std::size_t k = 0; k < stencil.size(); ++k) {
-            auto offset = stencil.offset(k);
-            result += stencil.weight(k) * field(level, i + offset[0], j + offset[1]);
-        }
-        output(level, i, j) = result;
-    }
-});
+template <class cfg>
+class ExplicitCellBasedScheme : public CellBasedScheme<cfg>
 ```
 
-## PETSc Integration
+**Workflow des Schémas Explicites :**
 
-### 1. Matrix Assembly
+```mermaid
+graph LR
+    A[État Actuel] --> B[Calcul des Flux]
+    B --> C[Intégration Temporelle]
+    C --> D[Nouvel État]
+    
+    subgraph "Intégration"
+        E[Méthode Euler Explicite]
+        F[Méthode RK4]
+        G[Méthode Adams-Bashforth]
+    end
+```
+
+### Schémas Implicites
 
 ```cpp
-// Create PETSc matrix
-auto matrix = samurai::make_matrix<decltype(scheme)>(scheme);
-
-// Assemble matrix
-matrix.assemble();
-
-// Solve linear system
-auto solver = samurai::make_solver(matrix);
-solver.solve(solution, rhs);
+template <class cfg>
+class ImplicitCellBasedScheme : public CellBasedScheme<cfg>
 ```
 
-### 2. Nonlinear Solvers
+**Workflow des Schémas Implicites :**
 
-```cpp
-// Create nonlinear scheme
-auto nonlinear_scheme = samurai::make_nonlinear_scheme(scheme);
-
-// Solve nonlinear system
-auto solver = samurai::make_nonlinear_solver(nonlinear_scheme);
-solver.solve(u);
+```mermaid
+graph LR
+    A[État Actuel] --> B[Assemblage Matrice]
+    B --> C[Résolution Système Linéaire]
+    C --> D[Nouvel État]
+    
+    subgraph "Résolution"
+        E[Solveur Direct]
+        F[Solveur Itératif]
+        G[Préconditionnement]
+    end
 ```
 
-## Custom Scheme Implementation
+## Opérateurs Différentiels
 
-### 1. Basic Custom Scheme
+### Opérateur Gradient
 
 ```cpp
 template <class Field>
-class CustomScheme
-{
-public:
-    using input_field_t = Field;
-    using field_t = input_field_t;
-    using mesh_t = typename field_t::mesh_t;
-    using field_value_type = typename field_t::value_type;
-    
-    static constexpr std::size_t output_n_comp = 1;
-    
-    template <class Config>
-    auto make_stencil(Field& field)
-    {
-        return [&](auto& stencil)
-        {
-            // Define stencil coefficients
-            stencil(0, 0) = -4.0;  // center
-            stencil(-1, 0) = 1.0;  // left
-            stencil(1, 0) = 1.0;   // right
-            stencil(0, -1) = 1.0;  // bottom
-            stencil(0, 1) = 1.0;   // top
-        };
-    }
-};
+auto make_gradient()
 ```
 
-### 2. Scheme with Configuration
+**Calcul du Gradient :**
+
+```mermaid
+graph TD
+    A[Champ Scalaire] --> B[Calcul ∂u/∂x]
+    A --> C[Calcul ∂u/∂y]
+    A --> D[Calcul ∂u/∂z]
+    
+    B --> E[Gradient ∇u]
+    C --> E
+    D --> E
+    
+    subgraph "Différences Finies"
+        F[∂u/∂x ≈ (uᵢ₊₁ - uᵢ₋₁)/(2h)]
+        G[∂u/∂y ≈ (uⱼ₊₁ - uⱼ₋₁)/(2h)]
+        H[∂u/∂z ≈ (uₖ₊₁ - uₖ₋₁)/(2h)]
+    end
+```
+
+### Opérateur Divergence
 
 ```cpp
 template <class Field>
-struct CustomSchemeConfig
-{
-    using input_field_t = Field;
-    static constexpr std::size_t output_n_comp = 1;
-    using bdry_cfg = samurai::BoundaryConfigFV<1, samurai::Equation>;
-    
-    double coefficient = 1.0;
-};
-
-template <class Field>
-class CustomScheme : public samurai::FVScheme<CustomScheme<Field>, CustomSchemeConfig<Field>, CustomSchemeConfig<Field>::bdry_cfg>
-{
-public:
-    using config = CustomSchemeConfig<Field>;
-    
-    CustomScheme(double coeff = 1.0) : m_coeff(coeff) {}
-    
-    template <class Stencil>
-    void make_stencil(Stencil& stencil)
-    {
-        stencil(0, 0) = -4.0 * m_coeff;
-        stencil(-1, 0) = m_coeff;
-        stencil(1, 0) = m_coeff;
-        stencil(0, -1) = m_coeff;
-        stencil(0, 1) = m_coeff;
-    }
-    
-private:
-    double m_coeff;
-};
+auto make_divergence()
 ```
 
-## Examples
+**Calcul de la Divergence :**
 
-### 1. Heat Equation
+```mermaid
+graph TD
+    A[Champ Vectoriel] --> B[Composante X]
+    A --> C[Composante Y]
+    A --> D[Composante Z]
+    
+    B --> E[∂vₓ/∂x]
+    C --> F[∂vᵧ/∂y]
+    D --> G[∂vᵤ/∂z]
+    
+    E --> H[Divergence ∇·v]
+    F --> H
+    G --> H
+```
+
+### Opérateur Laplacien
+
+```cpp
+template <class Field>
+auto make_laplacian_order2()
+{
+    return make_diffusion_order2<Field>(1.0);
+}
+```
+
+## Schémas Non-Linéaires
+
+### Convection Non-Linéaire
+
+```cpp
+template <class Field>
+auto make_convection_nonlinear()
+```
+
+**Gestion de la Non-Linéarité :**
+
+```mermaid
+graph LR
+    A[Champ Non-Linéaire] --> B[Linéarisation]
+    B --> C[Schéma Linéaire]
+    C --> D[Correction Non-Linéaire]
+    D --> E[Résultat Final]
+    
+    subgraph "Méthodes"
+        F[Newton-Raphson]
+        G[Itération de Point Fixe]
+        H[Schéma de Relaxation]
+    end
+```
+
+## Intégration Temporelle
+
+### Schémas Explicites
+
+```mermaid
+graph LR
+    A[État tₙ] --> B[Calcul Flux]
+    B --> C[Intégration]
+    C --> D[État tₙ₊₁]
+    
+    subgraph "Méthodes"
+        E[Euler Explicite]
+        F[RK2]
+        G[RK4]
+        H[Adams-Bashforth]
+    end
+```
+
+### Schémas Implicites
+
+```mermaid
+graph LR
+    A[État tₙ] --> B[Assemblage Système]
+    B --> C[Résolution]
+    C --> D[État tₙ₊₁]
+    
+    subgraph "Méthodes"
+        E[Euler Implicite]
+        F[Crank-Nicolson]
+        G[BDF]
+        H[Schémas Multi-Pas]
+    end
+```
+
+## Conditions aux Limites
+
+### Types de Conditions
+
+```mermaid
+graph TB
+    A[Conditions aux Limites] --> B[Dirichlet]
+    A --> C[Neumann]
+    A --> D[Périodiques]
+    A --> E[Robin]
+    A --> F[Personnalisées]
+    
+    B --> G[u = g sur ∂Ω]
+    C --> H[∂u/∂n = h sur ∂Ω]
+    D --> I[u(x) = u(x+L)]
+    E --> J[αu + β∂u/∂n = γ]
+    F --> K[Conditions Spécifiques]
+```
+
+### Implémentation des Conditions
+
+```cpp
+// Configuration Dirichlet
+scheme.set_dirichlet_config();
+
+// Configuration Neumann  
+scheme.set_neumann_config();
+
+// Configuration Périodique
+scheme.set_periodic_config();
+```
+
+## Optimisations et Performance
+
+### Optimisations Compile-Time
+
+```cpp
+// Utilisation de constantes compile-time
+static constexpr std::size_t stencil_size = 2;
+static constexpr std::size_t output_n_comp = n_comp;
+
+// Spécialisation des templates
+template <std::size_t dim>
+using VelocityVector = xt::xtensor_fixed<double, xt::xshape<dim>>;
+```
+
+### Optimisations Runtime
+
+```mermaid
+graph TB
+    A[Calcul de Flux] --> B{Optimisations}
+    B --> C[Vectorisation SIMD]
+    B --> D[Cache Locality]
+    B --> E[Parallélisation]
+    
+    C --> F[Amélioration Performance]
+    D --> F
+    E --> F
+```
+
+## Validation et Tests
+
+### Tests de Convergence
+
+```cpp
+// Test de convergence pour un schéma
+auto error = compute_convergence_error(scheme, exact_solution);
+std::cout << "Convergence rate: " << error << std::endl;
+```
+
+### Tests de Conservation
+
+```mermaid
+graph LR
+    A[État Initial] --> B[Évolution]
+    B --> C[État Final]
+    
+    A --> D[Calcul Quantité Conservée]
+    C --> E[Calcul Quantité Conservée]
+    
+    D --> F{Conservation?}
+    E --> F
+    F -->|Oui| G[Test Réussi]
+    F -->|Non| H[Test Échoué]
+```
+
+## Exemples Complets
+
+### Exemple 1: Équation de Convection-Diffusion
 
 ```cpp
 #include <samurai/schemes/fv.hpp>
 
-int main() {
-    // Create mesh and fields
-    samurai::MRMesh<Config> mesh(box, min_level, max_level);
-    auto u = samurai::make_scalar_field<double>("u", mesh);
-    auto unp1 = samurai::make_scalar_field<double>("unp1", mesh);
+int main()
+{
+    // Configuration du maillage
+    auto mesh = make_mesh();
     
-    // Set boundary conditions
-    samurai::make_bc<samurai::Dirichlet<1>>(u, 0.0);
-    samurai::make_bc<samurai::Dirichlet<1>>(unp1, 0.0);
+    // Création des champs
+    auto u = make_field<double, 1>("u", mesh);
+    auto velocity = make_field<double, 2>("velocity", mesh);
     
-    // Create diffusion scheme
-    samurai::DiffCoeff<dim> K;
-    K.fill(diffusion_coefficient);
-    auto diffusion = samurai::make_diffusion_order2<decltype(u)>(K);
+    // Schémas numériques
+    auto convection = make_convection_upwind(velocity);
+    auto diffusion = make_diffusion_order2(1.0);
     
-    // Time loop
-    for (std::size_t iter = 0; iter < max_iterations; ++iter) {
-        // Apply diffusion scheme
-        auto rhs = diffusion(u);
-        
-        // Update solution
-        unp1 = u + dt * rhs;
-        
-        // Swap fields
-        std::swap(unp1.array(), u.array());
+    // Combinaison des schémas
+    auto scheme = convection + diffusion;
+    
+    // Application
+    scheme.apply(u);
+    
+    return 0;
+}
+```
+
+### Exemple 2: Équation de Burgers avec WENO5
+
+```cpp
+#include <samurai/schemes/fv.hpp>
+
+int main()
+{
+    // Configuration
+    auto mesh = make_amr_mesh();
+    auto u = make_field<double, 1>("u", mesh);
+    
+    // Schéma WENO5 pour l'équation de Burgers
+    auto burgers_scheme = make_convection_weno5(u);
+    
+    // Intégration temporelle
+    for (std::size_t step = 0; step < n_steps; ++step)
+    {
+        burgers_scheme.apply(u);
+        update_time_step();
     }
     
     return 0;
 }
 ```
 
-### 2. Advection Equation
+### Exemple 3: Système Multi-Physiques
 
 ```cpp
-// Create advection scheme
-auto advection = samurai::make_advection_upwind(u, velocity);
+#include <samurai/schemes/fv.hpp>
 
-// Apply scheme
-samurai::for_each_interval(mesh, [&](std::size_t level, const auto& interval, const auto& index) {
-    auto j = index[0];
-    for (auto i = interval.start; i < interval.end; i += interval.step) {
-        double dx = mesh.cell_length(level);
-        unp1(level, i, j) = u(level, i, j) - 
-                           dt / dx * (u(level, i, j) - u(level, i - 1, j));
-    }
-});
-```
-
-### 3. Implicit Scheme with PETSc
-
-```cpp
-// Create implicit scheme
-auto implicit_diffusion = samurai::make_implicit(diffusion);
-
-// Create PETSc matrix
-auto matrix = samurai::make_matrix<decltype(implicit_diffusion)>(implicit_diffusion);
-
-// Assemble matrix
-matrix.assemble();
-
-// Create solver
-auto solver = samurai::make_solver(matrix);
-
-// Solve system
-solver.solve(unp1, u);
-```
-
-### 4. Custom Scheme
-
-```cpp
-// Define custom scheme
-template <class Field>
-class MyScheme : public samurai::FVScheme<MyScheme<Field>, MyConfig<Field>>
+int main()
 {
-public:
-    template <class Stencil>
-    void make_stencil(Stencil& stencil)
-    {
-        // 5-point stencil
-        stencil(0, 0) = -4.0;
-        stencil(-1, 0) = 1.0;
-        stencil(1, 0) = 1.0;
-        stencil(0, -1) = 1.0;
-        stencil(0, 1) = 1.0;
-    }
-};
-
-// Use custom scheme
-auto my_scheme = MyScheme<decltype(u)>{};
-auto result = my_scheme(u);
+    // Champs multi-composantes
+    auto rho = make_field<double, 1>("density", mesh);
+    auto v = make_field<double, 2>("velocity", mesh);
+    auto p = make_field<double, 1>("pressure", mesh);
+    
+    // Schémas pour chaque équation
+    auto mass_equation = make_convection_upwind(v);
+    auto momentum_equation = make_convection_weno5(v) + make_diffusion_order2(mu);
+    auto energy_equation = make_convection_upwind(v) + make_diffusion_order2(kappa);
+    
+    // Système couplé
+    mass_equation.apply(rho);
+    momentum_equation.apply(v);
+    energy_equation.apply(p);
+    
+    return 0;
+}
 ```
 
-The numerical scheme system in Samurai provides a flexible and efficient framework for implementing various finite volume methods, with support for both explicit and implicit time integration, complex boundary conditions, and integration with external linear algebra libraries like PETSc. 
+## Monitoring et Debugging
+
+### Monitoring des Schémas
+
+```cpp
+// Activation du monitoring
+scheme.set_monitoring(true);
+
+// Affichage des statistiques
+std::cout << "Scheme statistics:" << std::endl;
+std::cout << "  - CFL number: " << scheme.get_cfl() << std::endl;
+std::cout << "  - Max eigenvalue: " << scheme.get_max_eigenvalue() << std::endl;
+std::cout << "  - Min eigenvalue: " << scheme.get_min_eigenvalue() << std::endl;
+```
+
+### Debugging des Schémas
+
+```cpp
+// Validation des coefficients
+scheme.validate_coefficients();
+
+// Vérification de la stabilité
+if (!scheme.check_stability())
+{
+    std::cerr << "Warning: Scheme may be unstable!" << std::endl;
+}
+```
+
+## Intégration avec AMR
+
+### Schémas Adaptatifs
+
+```mermaid
+graph LR
+    A[Maillage AMR] --> B[Identification Niveaux]
+    B --> C[Application Schémas]
+    C --> D[Projection/Prédiction]
+    D --> E[Mise à Jour Solution]
+    
+    subgraph "Gestion Multi-Niveaux"
+        F[Schémas par Niveau]
+        G[Synchronisation]
+        H[Conservation]
+    end
+```
+
+### Schémas avec Raffinement
+
+```cpp
+// Application sur maillage AMR
+for (std::size_t level = mesh.min_level(); level <= mesh.max_level(); ++level)
+{
+    auto level_scheme = make_scheme_for_level(level);
+    level_scheme.apply(field);
+}
+
+// Synchronisation entre niveaux
+synchronize_levels(field);
+```
+
+## Conclusion
+
+Les schémas numériques de Samurai offrent une palette complète d'outils pour la résolution d'EDP sur des maillages adaptatifs. Ils combinent précision numérique, robustesse et efficacité, tout en s'intégrant parfaitement avec le système AMR.
+
+La modularité des schémas permet une grande flexibilité dans la conception de solveurs pour des problèmes multi-physiques complexes. 

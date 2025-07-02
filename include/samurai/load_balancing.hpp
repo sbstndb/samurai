@@ -26,21 +26,53 @@ namespace samurai
         INTERVAL
     };
 
+    namespace weight
+    {
+        template <class Mesh>
+        auto from_level(const Mesh& mesh)
+        {
+            using mesh_id_t = typename Mesh::mesh_id_t;
+            auto weight     = samurai::make_scalar_field<double>("weight", mesh);
+            weight.fill(0.);
+
+            auto min_level = mesh.min_level();
+            samurai::for_each_cell(mesh[mesh_id_t::cells],
+                                   [&](auto cell)
+                                   {
+                                       weight[cell] = std::pow(2.0, static_cast<double>(cell.level - min_level));
+                                   });
+            return weight;
+        }
+
+        template <class Field>
+        auto from_field(const Field& f)
+        {
+            auto weight = samurai::make_scalar_field<double>("weight", f.mesh());
+            weight.fill(0.);
+            samurai::for_each_cell(f.mesh(),
+                                   [&](auto cell)
+                                   {
+                                       weight[cell] = 1.0 + std::abs(f[cell]);
+                                   });
+            return weight;
+        }
+    }
+
     /**
      * Compute the load of the current process based on intervals or cells. It uses the
      * mesh_id_t::cells to only consider leaves.
      */
-    template <BalanceElement_t elem, class Mesh_t>
-    static std::size_t cmptLoad(const Mesh_t& mesh)
+    template <BalanceElement_t elem, class Mesh_t, class Field_t>
+    static double cmptLoad(const Mesh_t& mesh, const Field_t& weight)
     {
         using mesh_id_t                  = typename Mesh_t::mesh_id_t;
         const auto& current_mesh         = mesh[mesh_id_t::cells];
-        std::size_t current_process_load = 0;
-        // cell-based load without weight.
-        samurai::for_each_interval(current_mesh,
-                                   [&]([[maybe_unused]] std::size_t level, const auto& interval, [[maybe_unused]] const auto& index)
+        double current_process_load = 0.;
+        // cell-based load with weight.
+        samurai::for_each_cell(current_mesh,
+                                   [&](const auto& cell)
                                    {
-                                       current_process_load += interval.size(); // * load_balancing_cell_weight[ level ];
+                                       current_process_load += weight[cell];
                                    });
         return current_process_load;
     }
@@ -55,8 +87,8 @@ namespace samurai
      * This function use 2 MPI all_gather calls.
      *
      */
-    template <BalanceElement_t elem, class Mesh_t>
-    std::vector<int> cmptFluxes(Mesh_t& mesh, int niterations)
+    template <BalanceElement_t elem, class Mesh_t, class Field_t>
+    std::vector<double> cmptFluxes(Mesh_t& mesh, const Field_t& weight, int niterations)
     {
         // Démarrer le timer pour le calcul des flux
         samurai::times::timers.start("load_balancing_flux_computation");
@@ -68,29 +100,29 @@ namespace samurai
         size_t n_neighbours                         = neighbourhood.size();
 
         // load of current process
-        int my_load = static_cast<int>(cmptLoad<elem>(mesh));
+        double my_load = cmptLoad<elem>(mesh, weight);
         // fluxes between processes
-        std::vector<int> fluxes(n_neighbours, 0);
+        std::vector<double> fluxes(n_neighbours, 0.);
         // load of each process (all processes not only neighbours)
-        std::vector<int> loads;
+        std::vector<double> loads;
         int nt = 0;
         while (nt < niterations)
         {
             boost::mpi::all_gather(world, my_load, loads);
 
             // compute updated my_load for current process based on its neighbourhood
-            int my_load_new = my_load;
+            double my_load_new = my_load;
             bool all_fluxes_zero = true;
             for (std::size_t n_i = 0; n_i < n_neighbours; ++n_i)
             // get "my_load" from other processes
             {
                 std::size_t neighbour_rank = static_cast<std::size_t>(neighbourhood[n_i].rank);
-                int neighbour_load         = loads[neighbour_rank];
-                double diff_load = static_cast<double>(neighbour_load - my_load_new);
+                double neighbour_load         = loads[neighbour_rank];
+                double diff_load = neighbour_load - my_load_new;
 
                 // if transferLoad < 0 -> need to send data, if transferLoad > 0 need to receive data
                 // Utilise le facteur diffusion 1/(deg+1) pour la stabilité
-                int transfertLoad = static_cast<int>(std::trunc(0.5* diff_load));
+                double transfertLoad = 0.5* diff_load;
 
 
                 // Accumule le flux total sur l'arête courante
@@ -395,14 +427,14 @@ namespace samurai
             return new_mesh;
         }
 
-        template <class Mesh_t, class Field_t, class... Fields>
-        void load_balance(Mesh_t& mesh, Field_t& field, Fields&... kw)
+        template <class Mesh_t, class Weight_t, class Field_t, class... Fields>
+        void load_balance(Mesh_t& mesh, const Weight_t& weight, Field_t& field, Fields&... kw)
         {
             // Démarrer le timer pour le load balancing
             samurai::times::timers.start("load_balancing");
 
             // Calcul des flags pour cette unique passe
-            auto flags = static_cast<Flavor*>(this)->load_balance_impl(mesh);
+            auto flags = static_cast<Flavor*>(this)->load_balance_impl(mesh, weight);
 
             // Mise à jour du maillage
             auto new_mesh = update_mesh(mesh, flags);
@@ -421,8 +453,10 @@ namespace samurai
             // Affichage final du nombre de cellules après load balancing
             {
                 boost::mpi::communicator world;
-                std::size_t nb_cells = cmptLoad<BalanceElement_t::CELL>(field.mesh());
-                std::cout << "Processus " << world.rank() << " : " << nb_cells << " cellules après load balancing" << std::endl;
+                using mesh_id_t = typename Mesh_t::mesh_id_t;
+                double total_weight = cmptLoad<BalanceElement_t::CELL>(field.mesh(), weight);
+                auto nb_cells = field.mesh().nb_cells(mesh_id_t::cells);
+                std::cout << "Processus " << world.rank() << " : " << nb_cells << " cellules (poids total " << total_weight << ") après load balancing" << std::endl;
             }
         }
     };

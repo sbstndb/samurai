@@ -206,7 +206,7 @@ int main(int argc, char* argv[])
     fs::path path              = fs::current_path();
     std::string filename       = "FV_advection_2d";
     std::size_t nfiles         = 1;
-    std::size_t nt_loadbalance = 10; // nombre d'iteration entre les equilibrages
+    std::size_t nt_loadbalance = 1; // nombre d'iteration entre les equilibrages
 
     app.add_option("--min-corner", min_corner, "The min corner of the box")->capture_default_str()->group("Simulation parameters");
     app.add_option("--max-corner", max_corner, "The max corner of the box")->capture_default_str()->group("Simulation parameters");
@@ -273,7 +273,9 @@ int main(int argc, char* argv[])
 #ifdef SAMURAI_WITH_MPI
         if (((nt % nt_loadbalance == 0) && nt > 1) || nt == 1)
         {
-            balancer.load_balance(mesh, u);
+	auto weight = samurai::weight::from_level(mesh);
+	balancer.load_balance(mesh, weight, u);
+
         }
 #endif
 

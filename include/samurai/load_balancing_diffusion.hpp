@@ -15,8 +15,8 @@ namespace Load_balancing
 
         Diffusion() = default;
 
-        template <class Mesh_t>
-        auto load_balance_impl(Mesh_t& mesh)
+        template <class Mesh_t, class Weight_t>
+        auto load_balance_impl(Mesh_t& mesh, const Weight_t& weight)
         {
             // Démarrer le timer pour l'algorithme de diffusion
             samurai::times::timers.start("load_balancing_diffusion_algorithm");
@@ -26,7 +26,7 @@ namespace Load_balancing
             boost::mpi::communicator world;
 
             // compute fluxes in terms of number of intervals to transfer/receive
-            std::vector<int> fluxes = samurai::cmptFluxes<samurai::BalanceElement_t::CELL>(mesh, 100);
+            std::vector<double> fluxes = samurai::cmptFluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 100);
 
             // set field "flags" for each rank. Initialized to current for all cells (leaves only)
             auto flags = samurai::make_scalar_field<int>("diffusion_flag", mesh);
@@ -50,8 +50,6 @@ namespace Load_balancing
                 return flags;
             }
 
-            const std::size_t cells_size = cells.size();
-
             // Comparateur pour trier en priorité les cellules « en haut puis à gauche »
             const auto comp_cells = [&](const cell_t& a, const cell_t& b)
             {
@@ -66,10 +64,11 @@ namespace Load_balancing
                     return ca(0) > cb(0); // puis plus à gauche
                 }
             };
+            std::sort(cells.begin(), cells.end(), comp_cells);
 
-            // Nombre de cellules à envoyer/recevoir vers chaque voisin
-            std::size_t n_top    = 0; // portion « en haut »
-            std::size_t n_bottom = 0; // portion « en bas »
+            // Poids à envoyer/recevoir vers chaque voisin
+            double weight_to_send_top    = 0.; // vers rang+1
+            double weight_to_send_bottom = 0.; // vers rang-1
 
             if (world.size() > 1)
             {
@@ -77,85 +76,63 @@ namespace Load_balancing
                 {
                     if (fluxes[0] < 0)
                     {
-                        n_top = static_cast<std::size_t>(std::abs(fluxes[0]));
+                        weight_to_send_top = -fluxes[0];
                     }
                 }
                 else if (world.rank() == world.size() - 1)
                 {
                     if (fluxes[0] < 0)
                     {
-                        n_bottom = static_cast<std::size_t>(std::abs(fluxes[0]));
+                        weight_to_send_bottom = -fluxes[0];
                     }
                 }
                 else
                 {
                     if (fluxes[0] < 0)
                     {
-                        n_bottom = static_cast<std::size_t>(std::abs(fluxes[0])); // vers rang-1
+                        weight_to_send_bottom = -fluxes[0]; // vers rang-1
                     }
                     if (fluxes[1] < 0)
                     {
-                        n_top = static_cast<std::size_t>(std::abs(fluxes[1])); // vers rang+1
+                        weight_to_send_top = -fluxes[1]; // vers rang+1
                     }
                 }
             }
 
-            // Sélection des n_top cellules les plus « hautes »
-            if (n_top > 0)
+            // Marquer les cellules à envoyer "en haut"
+            if (weight_to_send_top > 0)
             {
-                std::size_t k = std::min(n_top, cells_size);
-                auto middle   = cells.begin() + static_cast<std::ptrdiff_t>(k);
-                std::nth_element(cells.begin(), middle, cells.end(), comp_cells);
-            }
-
-            // Sélection des n_bottom cellules les plus « basses »
-            if (n_bottom > 0)
-            {
-                std::size_t k = std::min(n_bottom, cells_size);
-                auto middle   = cells.end() - static_cast<std::ptrdiff_t>(k);
-                std::nth_element(cells.begin(), middle, cells.end(), comp_cells);
-            }
-
-            // Attribution des flags en fonction des flux calculés
-            if (world.size() > 1)
-            {
-                // Fonction helper pour attribuer les flags
-                auto assign_flags = [&](std::size_t count, std::size_t start_idx, int target_rank)
+                double a_weight = 0.;
+                for (std::size_t i = 0; i < cells.size(); ++i)
                 {
-                    if (count > 0)
+                    if (a_weight < weight_to_send_top)
                     {
-                        std::size_t k = std::min(count, cells_size);
-                        for (std::size_t i = 0; i < k; ++i)
-                        {
-                            flags[cells[start_idx + i]] = target_rank;
-                        }
+                        a_weight += weight[cells[i]];
+                        flags[cells[i]] = world.rank() + 1;
                     }
-                };
-
-                // Fonction helper pour traiter un flux négatif
-                auto process_negative_flux = [&](int flux_idx, std::size_t count, std::size_t start_idx, int target_rank)
-                {
-                    if (fluxes[flux_idx] < 0)
+                    else
                     {
-                        assign_flags(count, start_idx, target_rank);
+                        break;
                     }
-                };
+                }
+            }
 
-                if (world.rank() == 0)
+            // Marquer les cellules à envoyer "en bas"
+            if (weight_to_send_bottom > 0)
+            {
+                double a_weight = 0.;
+                for (std::size_t i = 0; i < cells.size(); ++i)
                 {
-                    // Processus le plus « bas » : envoie n_top cellules au rang 1
-                    process_negative_flux(0, n_top, 0, 1);
-                }
-                else if (world.rank() == world.size() - 1)
-                {
-                    // Dernier processus : envoie n_bottom cellules au rang-1
-                    process_negative_flux(0, n_bottom, cells_size - n_bottom, world.rank() - 1);
-                }
-                else
-                {
-                    // Processus intérieur : deux échanges possibles
-                    process_negative_flux(0, n_bottom, cells_size - n_bottom, world.rank() - 1);
-                    process_negative_flux(1, n_top, 0, world.rank() + 1);
+                    auto& cell = cells[cells.size() - 1 - i];
+                    if (a_weight < weight_to_send_bottom)
+                    {
+                        a_weight += weight[cell];
+                        flags[cell] = world.rank() - 1;
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
             }
 

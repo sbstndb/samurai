@@ -3,6 +3,7 @@
 #include "timers.hpp"
 
 #include <algorithm>
+#include <iterator>
 
 #ifdef SAMURAI_WITH_MPI
 namespace Load_balancing
@@ -35,14 +36,24 @@ namespace Load_balancing
             std::vector<cell_t> cells;
             cells.reserve(mesh.nb_cells(mesh_id_t::cells));
 
+            // Collecter toutes les cellules
             samurai::for_each_cell(mesh[mesh_id_t::cells],
                                    [&](auto cell)
                                    {
-                                       cells.push_back(cell);
+                                       cells.emplace_back(cell);
                                    });
 
+            // Si pas de cellules, retourner directement
+            if (cells.empty())
+            {
+                samurai::times::timers.stop("load_balancing_diffusion_algorithm");
+                return flags;
+            }
+
+            const std::size_t cells_size = cells.size();
+
             // Comparateur pour trier en priorité les cellules « en haut puis à gauche »
-            auto comp_cells = [&](const cell_t& a, const cell_t& b)
+            const auto comp_cells = [&](const cell_t& a, const cell_t& b)
             {
                 auto ca = a.center();
                 auto cb = b.center();
@@ -90,17 +101,17 @@ namespace Load_balancing
             }
 
             // Sélection des n_top cellules les plus « hautes »
-            if (n_top > 0 && !cells.empty())
+            if (n_top > 0)
             {
-                std::size_t k = std::min(n_top, cells.size());
+                std::size_t k = std::min(n_top, cells_size);
                 auto middle   = cells.begin() + static_cast<std::ptrdiff_t>(k);
                 std::nth_element(cells.begin(), middle, cells.end(), comp_cells);
             }
 
             // Sélection des n_bottom cellules les plus « basses »
-            if (n_bottom > 0 && !cells.empty())
+            if (n_bottom > 0)
             {
-                std::size_t k = std::min(n_bottom, cells.size());
+                std::size_t k = std::min(n_bottom, cells_size);
                 auto middle   = cells.end() - static_cast<std::ptrdiff_t>(k);
                 std::nth_element(cells.begin(), middle, cells.end(), comp_cells);
             }
@@ -108,50 +119,43 @@ namespace Load_balancing
             // Attribution des flags en fonction des flux calculés
             if (world.size() > 1)
             {
+                // Fonction helper pour attribuer les flags
+                auto assign_flags = [&](std::size_t count, std::size_t start_idx, int target_rank)
+                {
+                    if (count > 0)
+                    {
+                        std::size_t k = std::min(count, cells_size);
+                        for (std::size_t i = 0; i < k; ++i)
+                        {
+                            flags[cells[start_idx + i]] = target_rank;
+                        }
+                    }
+                };
+
+                // Fonction helper pour traiter un flux négatif
+                auto process_negative_flux = [&](int flux_idx, std::size_t count, std::size_t start_idx, int target_rank)
+                {
+                    if (fluxes[flux_idx] < 0)
+                    {
+                        assign_flags(count, start_idx, target_rank);
+                    }
+                };
+
                 if (world.rank() == 0)
                 {
                     // Processus le plus « bas » : envoie n_top cellules au rang 1
-                    if (fluxes[0] < 0)
-                    {
-                        std::size_t k = std::min(n_top, cells.size());
-                        for (std::size_t i = 0; i < k; ++i)
-                        {
-                            flags[cells[i]] = 1;
-                        }
-                    }
+                    process_negative_flux(0, n_top, 0, 1);
                 }
                 else if (world.rank() == world.size() - 1)
                 {
                     // Dernier processus : envoie n_bottom cellules au rang-1
-                    if (fluxes[0] < 0)
-                    {
-                        std::size_t k = std::min(n_bottom, cells.size());
-                        for (std::size_t i = 0; i < k; ++i)
-                        {
-                            flags[cells[cells.size() - k + i]] = world.rank() - 1;
-                        }
-                    }
+                    process_negative_flux(0, n_bottom, cells_size - n_bottom, world.rank() - 1);
                 }
                 else
                 {
                     // Processus intérieur : deux échanges possibles
-                    if (fluxes[0] < 0)
-                    {
-                        std::size_t k = std::min(n_bottom, cells.size());
-                        for (std::size_t i = 0; i < k; ++i)
-                        {
-                            flags[cells[cells.size() - k + i]] = world.rank() - 1;
-                        }
-                    }
-
-                    if (fluxes[1] < 0)
-                    {
-                        std::size_t k = std::min(n_top, cells.size());
-                        for (std::size_t i = 0; i < k; ++i)
-                        {
-                            flags[cells[i]] = world.rank() + 1;
-                        }
-                    }
+                    process_negative_flux(0, n_bottom, cells_size - n_bottom, world.rank() - 1);
+                    process_negative_flux(1, n_top, 0, world.rank() + 1);
                 }
             }
 

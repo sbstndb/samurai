@@ -1,11 +1,11 @@
 // Copyright 2018-2025 the samurai's authors
 // SPDX-License-Identifier:  BSD-3-Clause
 
-#include <samurai/samurai.hpp>
-#include <samurai/io/output.hpp>
-#include <thread>
 #include <chrono>
 #include <random>
+#include <samurai/io/output.hpp>
+#include <samurai/samurai.hpp>
+#include <thread>
 #ifdef SAMURAI_WITH_MPI
 #include <boost/mpi.hpp>
 #endif
@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
         std::uniform_real_distribution<double> dist(0.0, 1.0);
         local_result += dist(gen);
 #endif
-        
+
         // Message depuis tous les rangs avec préfixe
         samurai::output::print_all("Résultat local: {:.3f}\n", local_result);
 
@@ -70,4 +70,4 @@ int main(int argc, char* argv[])
 
     samurai::finalize();
     return 0;
-} 
+}

@@ -206,6 +206,7 @@ int main(int argc, char* argv[])
     fs::path path              = fs::current_path();
     std::string filename       = "FV_advection_2d";
     std::size_t nfiles         = 1;
+    std::size_t active_loadbalance = 1 ; 
     std::size_t nt_loadbalance = 1; // nombre d'iteration entre les equilibrages
 
     app.add_option("--min-corner", min_corner, "The min corner of the box")->capture_default_str()->group("Simulation parameters");
@@ -218,6 +219,7 @@ int main(int argc, char* argv[])
     app.add_option("--min-level", min_level, "Minimum level of the multiresolution")->capture_default_str()->group("Multiresolution");
     app.add_option("--max-level", max_level, "Maximum level of the multiresolution")->capture_default_str()->group("Multiresolution");
 #ifdef SAMURAI_WITH_MPI
+    app.add_option("--loadbalance", active_loadbalance, "Maximum level of the multiresolution")->capture_default_str()->group("Multiresolution");    
     app.add_option("--nt-loadbalance", nt_loadbalance, "Maximum level of the multiresolution")->capture_default_str()->group("Multiresolution");
 #endif
     app.add_option("--mr-eps", mr_epsilon, "The epsilon used by the multiresolution to adapt the mesh")
@@ -273,8 +275,11 @@ int main(int argc, char* argv[])
 #ifdef SAMURAI_WITH_MPI
         if (((nt % nt_loadbalance == 0) && nt > 1) || nt == 1)
         {
-	auto weight = samurai::weight::from_level_exp(mesh);
-	balancer.load_balance(mesh, weight, u);
+		if (active_loadbalance == 1){
+		//	auto weight = samurai::weight::from_level_exp(mesh, 1.4);
+			auto weight = samurai::weight::uniform(mesh);
+			balancer.load_balance(mesh, weight, u);
+		}
 
         }
 #endif

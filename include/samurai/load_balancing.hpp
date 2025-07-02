@@ -72,6 +72,21 @@ namespace samurai
                                    });
             return weight;
         }
+
+        template <class Mesh>
+        auto uniform(const Mesh& mesh)
+        {
+            using mesh_id_t = typename Mesh::mesh_id_t;
+            auto weight     = samurai::make_scalar_field<double>("weight", mesh);
+            weight.fill(0.);
+
+            samurai::for_each_cell(mesh[mesh_id_t::cells],
+                                   [&](auto cell)
+                                   {
+                                       weight[cell] = 1.0;
+                                   });
+            return weight;
+        }
     }
 
     /**

@@ -22,8 +22,6 @@ linear_convection.cpp:finite-volume-linear-convection
 burgers.cpp:finite-volume-burgers
 burgers_mra.cpp:finite-volume-burgers-mra
 burgers_os.cpp:finite-volume-burgers-os
-debug_example.cpp:debug-example
-debug_example_production.cpp:debug-example-production
 )
 
 include(FindPkgConfig)
@@ -59,9 +57,5 @@ if(MSVC)
     target_compile_options(finite-volume-level-set PUBLIC /bigobj)
 endif()
 
-# Debug examples with production mode
-add_executable(debug-example-production-release debug_example_production.cpp)
-target_link_libraries(debug-example-production-release samurai CLI11::CLI11)
-target_compile_definitions(debug-example-production-release PRIVATE SAMURAI_DEBUG_ENABLED=0)
 
 # add_subdirectory(BZ)

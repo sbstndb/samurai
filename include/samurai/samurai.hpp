@@ -10,7 +10,6 @@ namespace mpi = boost::mpi;
 
 #include "arguments.hpp"
 #include "timers.hpp"
-#include "io/debug.hpp"
 
 namespace samurai
 {

@@ -1,9 +1,7 @@
 #include "field.hpp"
 #include "load_balancing.hpp"
 #include "timers.hpp"
-#include <map>
 
-// for std::sort
 #include <algorithm>
 
 #ifdef SAMURAI_WITH_MPI
@@ -12,24 +10,9 @@ namespace Load_balancing
 
     class Diffusion : public samurai::LoadBalancer<Diffusion>
     {
-      private:
-
-        int _ndomains;
-        int _rank;
-
       public:
 
-        Diffusion()
-        {
-#ifdef SAMURAI_WITH_MPI
-            boost::mpi::communicator world;
-            _ndomains = world.size();
-            _rank     = world.rank();
-#else
-            _ndomains = 1;
-            _rank     = 0;
-#endif
-        }
+        Diffusion() = default;
 
         template <class Mesh_t>
         auto load_balance_impl(Mesh_t& mesh)
@@ -37,40 +20,16 @@ namespace Load_balancing
             // Démarrer le timer pour l'algorithme de diffusion
             samurai::times::timers.start("load_balancing_diffusion_algorithm");
             
-            using mpi_subdomain_t = typename Mesh_t::mpi_subdomain_t;
-            using CellList_t      = typename Mesh_t::cl_type;
-            using mesh_id_t       = typename Mesh_t::mesh_id_t;
-
-            using Coord_t = xt::xtensor_fixed<double, xt::xshape<Mesh_t::dim>>;
-            using Stencil = xt::xtensor_fixed<int, xt::xshape<Mesh_t::dim>>;
+            using mesh_id_t = typename Mesh_t::mesh_id_t;
 
             boost::mpi::communicator world;
-            std::vector<mpi_subdomain_t>& neighbourhood = mesh.mpi_neighbourhood();
-            size_t n_neighbours                         = neighbourhood.size();
 
             // compute fluxes in terms of number of intervals to transfer/receive
-            // by default, perform 5 iterations
-            // std::vector<int> fluxes = samurai::cmptFluxes<samurai::BalanceElement_t::CELL>( mesh, forceNeighbour, 5 );
             std::vector<int> fluxes = samurai::cmptFluxes<samurai::BalanceElement_t::CELL>(mesh, 100);
-            std::vector<CellList_t> cl_to_send(n_neighbours);
 
             // set field "flags" for each rank. Initialized to current for all cells (leaves only)
             auto flags = samurai::make_scalar_field<int>("diffusion_flag", mesh);
             flags.fill(world.rank());
-            // load balancing order
-
-            std::vector<size_t> order(n_neighbours);
-            for (size_t i = 0; i < order.size(); ++i)
-            {
-                order[i] = i;
-            }
-            // order neighbour to echange data with, based on load
-            std::sort(order.begin(),
-                      order.end(),
-                      [&fluxes](size_t i, size_t j)
-                      {
-                          return fluxes[i] < fluxes[j];
-                      });
 
             using cell_t = typename Mesh_t::cell_t;
             std::vector<cell_t> cells;
@@ -93,11 +52,10 @@ namespace Load_balancing
                 }
                 else
                 {
-                    return ca(0) > cb(0); // puis plus à gauche (x plus petit ? dépend du repère)
+                    return ca(0) > cb(0); // puis plus à gauche
                 }
             };
 
-            // --- Sélection partielle au lieu d'un tri global coûteux ---
             // Nombre de cellules à envoyer/recevoir vers chaque voisin
             std::size_t n_top    = 0; // portion « en haut »
             std::size_t n_bottom = 0; // portion « en bas »
@@ -147,12 +105,12 @@ namespace Load_balancing
                 std::nth_element(cells.begin(), middle, cells.end(), comp_cells);
             }
 
-            // --- Attribution des flags en fonction des flux calculés ---
+            // Attribution des flags en fonction des flux calculés
             if (world.size() > 1)
             {
                 if (world.rank() == 0)
                 {
-                    // Processus le plus « bas » (ou à gauche) : envoie n_top cellules au rang 1
+                    // Processus le plus « bas » : envoie n_top cellules au rang 1
                     if (fluxes[0] < 0)
                     {
                         std::size_t k = std::min(n_top, cells.size());

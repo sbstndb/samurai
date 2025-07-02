@@ -44,6 +44,22 @@ namespace samurai
             return weight;
         }
 
+        template <class Mesh>
+        auto from_level_exp(const Mesh& mesh, double base = 1.1)
+        {
+            using mesh_id_t = typename Mesh::mesh_id_t;
+            auto weight     = samurai::make_scalar_field<double>("weight", mesh);
+            weight.fill(0.);
+
+            auto min_level = mesh.min_level();
+            samurai::for_each_cell(mesh[mesh_id_t::cells],
+                                   [&](auto cell)
+                                   {
+                                       weight[cell] = std::pow(base, static_cast<double>(cell.level - min_level));
+                                   });
+            return weight;
+        }
+
         template <class Field>
         auto from_field(const Field& f)
         {

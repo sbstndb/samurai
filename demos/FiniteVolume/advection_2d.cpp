@@ -273,7 +273,7 @@ int main(int argc, char* argv[])
 #ifdef SAMURAI_WITH_MPI
         if (((nt % nt_loadbalance == 0) && nt > 1) || nt == 1)
         {
-	auto weight = samurai::weight::from_level(mesh);
+	auto weight = samurai::weight::from_level_exp(mesh);
 	balancer.load_balance(mesh, weight, u);
 
         }

@@ -5,7 +5,7 @@
 #include <fmt/format.h>
 #include <fmt/printf.h>
 #include <functional>
-#include <string_view>
+// <string_view> n'est plus nécessaire après simplification
 
 #ifdef SAMURAI_WITH_MPI
 #include <boost/mpi.hpp>
@@ -16,68 +16,27 @@ namespace samurai
 {
     namespace output
     {
-        // Fonctions utilitaires internes (préfixées d'un '_' pour ne pas
-        // polluer l'API publique).
-
-        template <class F>
-        inline void _on_rank(int target_rank, F&& f)
+        // Fonction utilitaire minimaliste : rang courant du processus.
+        inline int rank()
         {
 #ifdef SAMURAI_WITH_MPI
             mpi::communicator world;
-            if (world.rank() == target_rank)
-            {
-                std::forward<F>(f)();
-            }
+            return world.rank();
 #else
-            std::forward<F>(f)();
+            return 0;
 #endif
         }
 
-        template <class F>
-        inline void _with_rank(F&& f)
-        {
-#ifdef SAMURAI_WITH_MPI
-            mpi::communicator world;
-            std::forward<F>(f)(world.rank());
-#else
-            std::forward<F>(f)(0);
-#endif
-        }
-
-        template <typename... Args>
-        inline void _print_out(std::string_view prefix, const char* format, Args&&... args)
-        {
-            if (prefix.empty())
-            {
-                fmt::print(fmt::runtime(format), std::forward<Args>(args)...);
-            }
-            else
-            {
-                fmt::print("{}{}", prefix, fmt::format(fmt::runtime(format), std::forward<Args>(args)...));
-            }
-        }
-
-        template <typename... Args>
-        inline void _print_err(std::string_view prefix, const char* format, Args&&... args)
-        {
-            if (prefix.empty())
-            {
-                fmt::print(stderr, fmt::runtime(format), std::forward<Args>(args)...);
-            }
-            else
-            {
-                fmt::print(stderr, "{}{}", prefix, fmt::format(fmt::runtime(format), std::forward<Args>(args)...));
-            }
-        }
+        // ---------------------- Impression standard ----------------------
 
         template <typename... Args>
         void print(int target_rank, const char* format, Args&&... args)
         {
-            _on_rank(target_rank,
-                     [&]
-                     {
-                         _print_out("", format, std::forward<Args>(args)...);
-                     });
+#ifdef SAMURAI_WITH_MPI
+            if (rank() != target_rank)
+                return;
+#endif
+            fmt::print(fmt::runtime(format), std::forward<Args>(args)...);
         }
 
         template <typename... Args>
@@ -89,21 +48,21 @@ namespace samurai
         template <typename... Args>
         void print_all(const char* format, Args&&... args)
         {
-            _with_rank(
-                [&](int rank)
-                {
-                    _print_out(fmt::format("[Rang {}] ", rank), format, std::forward<Args>(args)...);
-                });
+#ifdef SAMURAI_WITH_MPI
+            fmt::print("[Rang {}] ", rank());
+#endif
+            fmt::print(fmt::runtime(format), std::forward<Args>(args)...);
         }
 
         template <typename... Args>
         void print_error(const char* format, Args&&... args)
         {
-            _with_rank(
-                [&](int rank)
-                {
-                    _print_err(fmt::format("[Rang {}] ERREUR: ", rank), format, std::forward<Args>(args)...);
-                });
+#ifdef SAMURAI_WITH_MPI
+            fmt::print(stderr, "[Rang {}] ERREUR: ", rank());
+#else
+            fmt::print(stderr, "ERREUR: ");
+#endif
+            fmt::print(stderr, fmt::runtime(format), std::forward<Args>(args)...);
         }
 
         // Forward declaration needed for two-phase lookup in templates using print_reduce below.

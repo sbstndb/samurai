@@ -446,6 +446,14 @@ namespace samurai
         template <class Mesh_t, class Weight_t, class Field_t, class... Fields>
         void load_balance(Mesh_t& mesh, Weight_t& weight, Field_t& field, Fields&... kw)
         {
+            // Vérification précoce : pas de load balancing avec un seul processus
+            boost::mpi::communicator world;
+            if (world.size() <= 1)
+            {
+                std::cout << "Processus " << world.rank() << " : Un seul processus MPI détecté, load balancing ignoré" << std::endl;
+                return;
+            }
+
             // Démarrer le timer pour le load balancing
             samurai::times::timers.start("load_balancing");
 
@@ -468,7 +476,6 @@ namespace samurai
 
             // Affichage final du nombre de cellules après load balancing
             {
-                boost::mpi::communicator world;
                 using mesh_id_t = typename Mesh_t::mesh_id_t;
                 double total_weight = cmptLoad<BalanceElement_t::CELL>(field.mesh(), weight);
                 auto nb_cells = field.mesh().nb_cells(mesh_id_t::cells);

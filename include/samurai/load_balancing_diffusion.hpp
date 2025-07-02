@@ -21,11 +21,11 @@ namespace Load_balancing
             using mesh_id_t = typename Mesh_t::mesh_id_t;
             boost::mpi::communicator world;
 
-            // compute fluxes in terms of load to transfer/receive
-            std::vector<double> fluxes = samurai::cmptFluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 100);
-
             auto flags = samurai::make_scalar_field<int>("diffusion_flag", mesh);
             flags.fill(world.rank());
+
+            // compute fluxes in terms of load to transfer/receive
+            std::vector<double> fluxes = samurai::cmptFluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 100);
 
             using cell_t = typename Mesh_t::cell_t;
             std::vector<cell_t> cells;

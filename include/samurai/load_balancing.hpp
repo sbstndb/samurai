@@ -39,7 +39,7 @@ namespace samurai
             samurai::for_each_cell(mesh[mesh_id_t::cells],
                                    [&](auto cell)
                                    {
-                                       weight[cell] = std::pow(2.0, static_cast<double>(cell.level - min_level));
+                                       weight[cell] = 1.0 + static_cast<double>(cell.level - min_level);
                                    });
             return weight;
         }
@@ -428,7 +428,7 @@ namespace samurai
         }
 
         template <class Mesh_t, class Weight_t, class Field_t, class... Fields>
-        void load_balance(Mesh_t& mesh, const Weight_t& weight, Field_t& field, Fields&... kw)
+        void load_balance(Mesh_t& mesh, Weight_t& weight, Field_t& field, Fields&... kw)
         {
             // Démarrer le timer pour le load balancing
             samurai::times::timers.start("load_balancing");
@@ -440,7 +440,7 @@ namespace samurai
             auto new_mesh = update_mesh(mesh, flags);
 
             // Mise à jour des champs physiques
-            update_fields(new_mesh, field, kw...);
+            update_fields(new_mesh, weight, field, kw...);
 
             // On remplace le maillage de référence
             mesh.swap(new_mesh);

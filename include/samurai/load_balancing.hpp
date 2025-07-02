@@ -67,9 +67,6 @@ namespace samurai
         std::vector<mpi_subdomain_t>& neighbourhood = mesh.mpi_neighbourhood();
         size_t n_neighbours                         = neighbourhood.size();
 
-        // nombre moyen de voisins + moi-même utilisé pour le partage de charge
-        double inv_deg_plus_one = 1.0 / static_cast<double>(n_neighbours + 1);
-
         // load of current process
         int my_load = static_cast<int>(cmptLoad<elem>(mesh));
         // fluxes between processes
@@ -139,7 +136,6 @@ namespace samurai
       public:
 
         int nloadbalancing;
-        int nb_passes = 2; // nombre maximal de passes de load balancing (modifiable par l'utilisateur)
 
         template <class Mesh_t, class Field_t>
         void update_field(Mesh_t& new_mesh, Field_t& field)
@@ -402,58 +398,29 @@ namespace samurai
         template <class Mesh_t, class Field_t, class... Fields>
         void load_balance(Mesh_t& mesh, Field_t& field, Fields&... kw)
         {
-            boost::mpi::communicator world;
+            // Démarrer le timer pour le load balancing
+            samurai::times::timers.start("load_balancing");
 
-            for (int pass = 0; pass < nb_passes; ++pass)
+            // Calcul des flags pour cette unique passe
+            auto flags = static_cast<Flavor*>(this)->load_balance_impl(mesh);
+
+            // Mise à jour du maillage
+            auto new_mesh = update_mesh(mesh, flags);
+
+            // Mise à jour des champs physiques
+            update_fields(new_mesh, field, kw...);
+
+            // On remplace le maillage de référence
+            mesh.swap(new_mesh);
+
+            nloadbalancing += 1;
+
+            // Arrêter le timer
+            samurai::times::timers.stop("load_balancing");
+
+            // Affichage final du nombre de cellules après load balancing
             {
-                // Démarrer le timer pour le load balancing (une entrée par passe)
-                samurai::times::timers.start("load_balancing");
-
-                // Calcul des flags pour cette passe
-                auto flags = static_cast<Flavor*>(this)->load_balance_impl(mesh);
-
-                // Détermination locale : y a-t-il des cellules à déplacer ?
-                bool local_need = false;
-                samurai::for_each_cell(
-                    mesh[Mesh_t::mesh_id_t::cells],
-                    [&](const auto& cell)
-                    {
-                        if (flags[cell] != world.rank())
-                        {
-                            local_need = true;
-                        }
-                    });
-
-                // Réduction globale (si aucun processus n'a besoin, on arrête)
-                bool global_need = boost::mpi::all_reduce(world, local_need, std::logical_or<bool>());
-
-                if (!global_need)
-                {
-                    samurai::times::timers.stop("load_balancing");
-                    if (world.rank() == 0)
-                    {
-                        std::cout << "Load balancing : convergence atteinte après " << pass << " passe(s)" << std::endl;
-                    }
-                    break;
-                }
-
-                // Mise à jour du maillage
-                auto new_mesh = update_mesh(mesh, flags);
-
-                // Mise à jour des champs physiques
-                update_fields(new_mesh, field, kw...);
-
-                // On remplace le maillage de référence pour la passe suivante
-                mesh.swap(new_mesh);
-
-                nloadbalancing += 1;
-
-                // Arrêter le timer pour cette passe
-                samurai::times::timers.stop("load_balancing");
-            }
-
-            // Affichage final du nombre de cellules après la dernière passe
-            {
+                boost::mpi::communicator world;
                 std::size_t nb_cells = cmptLoad<BalanceElement_t::CELL>(field.mesh());
                 std::cout << "Processus " << world.rank() << " : " << nb_cells << " cellules après load balancing" << std::endl;
             }

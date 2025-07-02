@@ -4,7 +4,7 @@
 #pragma once
 
 #ifndef SAMURAI_DEBUG_ENABLED
-#define SAMURAI_DEBUG_ENABLED 1  // Par défaut activé, peut être désactivé en production
+#define SAMURAI_DEBUG_ENABLED 1  // Enabled by default, can be disabled in production
 #endif
 
 #if SAMURAI_DEBUG_ENABLED
@@ -63,7 +63,7 @@ namespace samurai
             }
         }
 #else
-        // Version sans debug : fonctions vides inlinées
+        // No-debug version: empty inline functions
         inline void initialize_debug(const std::string& = "samurai_debug") {}
 
         template<typename... Args>

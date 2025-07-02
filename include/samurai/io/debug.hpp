@@ -11,7 +11,6 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <sstream>
 #endif
 
 #ifdef SAMURAI_WITH_MPI
@@ -24,94 +23,44 @@ namespace samurai
     namespace debug
     {
 #if SAMURAI_DEBUG_ENABLED
-        class DebugLogger
+        inline std::ofstream& get_debug_stream()
         {
-        private:
-            std::ofstream file_stream_;
-            std::string filename_;
-            bool enabled_;
-
-        public:
-            DebugLogger() : enabled_(false) {}
-            
-            ~DebugLogger()
-            {
-                if (file_stream_.is_open())
-                {
-                    file_stream_.close();
-                }
-            }
-            
-            void initialize(const std::string& base_filename = "samurai_debug")
-            {
-                if (enabled_)
-                    return;
-                
-                #ifdef SAMURAI_WITH_MPI
-                mpi::communicator world;
-                int rank = world.rank();
-                filename_ = base_filename + "_rank" + std::to_string(rank) + ".log";
-                #else
-                filename_ = base_filename + ".log";
-                #endif
-                
-                file_stream_.open(filename_);
-                if (file_stream_.is_open())
-                {
-                    enabled_ = true;
-                }
-                else
-                {
-                    std::cerr << "Warning: Could not open debug file " << filename_ << std::endl;
-                }
-            }
-            
-            template<typename... Args>
-            void log(const std::string& scope, Args&&... args)
-            {
-                if (!enabled_)
-                    return;
-                    
-                if (file_stream_.is_open())
-                {
-                    file_stream_ << "[" << scope << "] ";
-                    (log_impl(std::forward<Args>(args)), ...);
-                    file_stream_ << std::endl;
-                    file_stream_.flush();
-                }
-            }
-            
-        private:
-            template<typename T>
-            void log_impl(const T& value)
-            {
-                file_stream_ << value;
-            }
-            
-            template<typename T>
-            void log_impl(const T& value, const std::string& separator)
-            {
-                file_stream_ << value << separator;
-            }
-        };
-        
-        // Singleton instance
-        inline DebugLogger& get_logger()
-        {
-            static DebugLogger logger;
-            return logger;
+            static std::ofstream stream;
+            return stream;
         }
         
-        // Convenience functions
         inline void initialize_debug(const std::string& base_filename = "samurai_debug")
         {
-            get_logger().initialize(base_filename);
+            auto& stream = get_debug_stream();
+            if (stream.is_open())
+                return;
+            
+            std::string filename;
+            #ifdef SAMURAI_WITH_MPI
+            mpi::communicator world;
+            filename = base_filename + "_rank" + std::to_string(world.rank()) + ".log";
+            #else
+            filename = base_filename + ".log";
+            #endif
+            
+            stream.open(filename);
+            if (!stream.is_open())
+            {
+                std::cerr << "Warning: Could not open debug file " << filename << std::endl;
+            }
         }
         
         template<typename... Args>
         inline void debug_log(const std::string& scope, Args&&... args)
         {
-            get_logger().log(scope, std::forward<Args>(args)...);
+            auto& stream = get_debug_stream();
+            if (stream.is_open())
+            {
+                stream << "[" << scope << "] ";
+                (stream << ... << std::forward<Args>(args));
+                stream << std::endl;
+                stream.flush();
+            }
         }
 #else
         // Version sans debug : fonctions vides inlinées
@@ -121,5 +70,4 @@ namespace samurai
         inline void debug_log(const std::string&, Args&&...) {}
 #endif // SAMURAI_DEBUG_ENABLED
     }
-
 } 

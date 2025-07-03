@@ -17,14 +17,14 @@ Boundary conditions (BCs) are essential for the correctness and stability of num
 
 ```mermaid
 graph TD
-    A[Domain] --> B[Boundary: u = g(x)]
+    A[Domain] --> B["Boundary: u = g(x)"]
 ```
 
 ### Neumann
 
 ```mermaid
 graph TD
-    A[Domain] --> B[Boundary: ∂u/∂n = h(x)]
+    A[Domain] --> B["Boundary: ∂u/∂n = h(x)"]
 ```
 
 ### Periodic

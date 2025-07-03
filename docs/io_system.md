@@ -2,11 +2,11 @@
 
 ## Introduction
 
-Le système d'entrée/sortie (I/O) de Samurai fournit des capacités complètes pour sauvegarder et charger des données de simulation, incluant les maillages, les champs et les métadonnées. Il supporte principalement le format HDF5 avec des métadonnées XML pour une portabilité et une interopérabilité maximales.
+Samurai's input/output (I/O) system provides comprehensive capabilities for saving and loading simulation data, including meshes, fields, and metadata. It primarily supports the HDF5 format with XML metadata for maximum portability and interoperability.
 
-## Vue d'Ensemble du Système I/O
+## I/O System Overview
 
-### Architecture Générale
+### General Architecture
 
 ```mermaid
 graph TB
@@ -28,16 +28,16 @@ graph TB
     D --> D3[Simulation Params]
 ```
 
-### Formats Supportés
+### Supported Formats
 
-- **HDF5** : Format principal pour les données binaires
-- **XML** : Métadonnées et structure de grille
-- **VTK** : Compatibilité avec Paraview/VTK
-- **CGAL** : Import de géométries complexes
+- **HDF5** : Primary format for binary data
+- **XML** : Metadata and grid structure
+- **VTK** : Paraview/VTK compatibility
+- **CGAL** : Import of complex geometries
 
-## Système HDF5
+## HDF5 System
 
-### Structure des Fichiers
+### File Structure
 
 ```mermaid
 graph TD
@@ -58,7 +58,7 @@ graph TD
     D --> D3[Parameters]
 ```
 
-### Classes HDF5
+### HDF5 Classes
 
 #### Hdf5 Base Class
 
@@ -113,7 +113,7 @@ private:
 };
 ```
 
-### Options de Sauvegarde
+### Save Options
 
 ```cpp
 template <class D>
@@ -122,14 +122,14 @@ struct Hdf5Options
     Hdf5Options(bool level = false, bool mesh_id = false)
         : by_level(level), by_mesh_id(mesh_id) {}
     
-    bool by_level = false;    // Sauvegarder par niveau
-    bool by_mesh_id = false;  // Sauvegarder par ID de maillage
+    bool by_level = false;    // Save by level
+    bool by_mesh_id = false;  // Save by mesh ID
 };
 ```
 
-## Sauvegarde de Maillages
+## Mesh Saving
 
-### Maillages Uniformes
+### Uniform Meshes
 
 ```cpp
 template <class Config, class... T>
@@ -143,7 +143,7 @@ void save(const fs::path& path, const std::string& filename,
 }
 ```
 
-### Maillages Adaptatifs
+### Adaptive Meshes
 
 ```cpp
 template <std::size_t dim, class TInterval, class... T>
@@ -157,9 +157,9 @@ void save(const fs::path& path, const std::string& filename,
 }
 ```
 
-## Extraction de Coordonnées et Connectivité
+## Coordinate and Connectivity Extraction
 
-### Fonction d'Extraction
+### Extraction Function
 
 ```cpp
 template <class Mesh>
@@ -178,16 +178,16 @@ auto extract_coords_and_connectivity(const Mesh& mesh)
     std::map<std::array<double, dim>, std::size_t> points_id;
     auto element = get_element(std::integral_constant<std::size_t, dim>{});
     
-    // Extraction des coordonnées et connectivité
+    // Coordinate and connectivity extraction
     // ...
     
     return std::make_pair(coords, connectivity);
 }
 ```
 
-### Éléments par Dimension
+### Elements by Dimension
 
-#### 1D - Ligne
+#### 1D - Line
 
 ```cpp
 inline auto get_element(std::integral_constant<std::size_t, 1>)
@@ -196,12 +196,12 @@ inline auto get_element(std::integral_constant<std::size_t, 1>)
 }
 ```
 
-**Schéma Visuel :**
+**Visual Scheme:**
 ```
 [0]----[1]
 ```
 
-#### 2D - Quadrilatère
+#### 2D - Quadrilateral
 
 ```cpp
 inline auto get_element(std::integral_constant<std::size_t, 2>)
@@ -212,7 +212,7 @@ inline auto get_element(std::integral_constant<std::size_t, 2>)
 }
 ```
 
-**Schéma Visuel :**
+**Visual Scheme:**
 ```
 [0,0]----[1,0]
   |        |
@@ -220,7 +220,7 @@ inline auto get_element(std::integral_constant<std::size_t, 2>)
 [0,1]----[1,1]
 ```
 
-#### 3D - Hexaèdre
+#### 3D - Hexahedron
 
 ```cpp
 inline auto get_element(std::integral_constant<std::size_t, 3>)
@@ -232,7 +232,7 @@ inline auto get_element(std::integral_constant<std::size_t, 3>)
 }
 ```
 
-**Schéma Visuel :**
+**Visual Scheme:**
 ```
     [0,0,1]----[1,0,1]
    /|         /|
@@ -245,9 +245,9 @@ inline auto get_element(std::integral_constant<std::size_t, 3>)
 [0,1,0]----[1,1,0]
 ```
 
-## Sauvegarde de Champs
+## Field Saving
 
-### Structure des Données
+### Data Structure
 
 ```mermaid
 graph LR
@@ -260,30 +260,30 @@ graph LR
     A --> A3[Tensor Fields]
 ```
 
-### Sauvegarde par Niveau
+### Save by Level
 
 ```cpp
 template <class Submesh, class Field>
 void save_field(pugi::xml_node& grid, const std::string& prefix, 
                const Submesh& submesh, const Field& field)
 {
-    // Extraction des valeurs du champ
+    // Extract field values
     auto values = extract_field_values(field, submesh);
     
-    // Sauvegarde dans HDF5
+    // Save to HDF5
     std::string dataset_name = prefix + "_values";
     h5_file.createDataSet(dataset_name, values);
     
-    // Métadonnées XML
+    // XML metadata
     auto field_node = grid.append_child("Field");
     field_node.append_attribute("name") = prefix.c_str();
     field_node.append_attribute("dataset") = dataset_name.c_str();
 }
 ```
 
-## Métadonnées XML
+## XML Metadata
 
-### Structure XML
+### XML Structure
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -312,7 +312,7 @@ void save_field(pugi::xml_node& grid, const std::string& prefix,
 </Xdmf>
 ```
 
-### Génération Automatique
+### Automatic Generation
 
 ```cpp
 void generate_xml_metadata()
@@ -322,75 +322,75 @@ void generate_xml_metadata()
     grid.append_attribute("Name") = "Samurai_Mesh";
     grid.append_attribute("GridType") = "Collection";
     
-    // Ajout des niveaux de maillage
+    // Add mesh levels
     for (std::size_t level = 0; level < mesh.max_level() + 1; ++level) {
         auto level_grid = grid.append_child("Grid");
         level_grid.append_attribute("Name") = fmt::format("Level_{}", level).c_str();
         level_grid.append_attribute("GridType") = "Uniform";
         
-        // Topologie et géométrie
+        // Topology and geometry
         add_topology(level_grid, level);
         add_geometry(level_grid, level);
         
-        // Champs
+        // Fields
         add_fields(level_grid, level);
     }
 }
 ```
 
-## Exemples d'Utilisation
+## Usage Examples
 
-### Exemple 1: Sauvegarde Simple
+### Example 1: Simple Save
 
 ```cpp
 #include <samurai/io/hdf5.hpp>
 
 int main() {
-    // Créer un maillage et des champs
+    // Create a mesh and fields
     auto mesh = samurai::make_mesh(/* ... */);
     auto field1 = samurai::make_scalar_field<double>("pressure", mesh);
     auto field2 = samurai::make_vector_field<double, 2>("velocity", mesh);
     
-    // Initialiser les champs
+    // Initialize fields
     samurai::for_each_cell(mesh, [&](const auto& cell) {
         field1[cell] = initial_pressure(cell.center());
         field2[cell] = initial_velocity(cell.center());
     });
     
-    // Sauvegarder
+    // Save
     samurai::save("output", "simulation.h5", mesh, field1, field2);
     
     return 0;
 }
 ```
 
-### Exemple 2: Sauvegarde avec Options
+### Example 2: Save with Options
 
 ```cpp
 #include <samurai/io/hdf5.hpp>
 
 int main() {
-    // Options de sauvegarde
-    samurai::Hdf5Options<decltype(mesh)> options(true, false); // par niveau
+    // Save options
+    samurai::Hdf5Options<decltype(mesh)> options(true, false); // by level
     
-    // Sauvegarder avec options
+    // Save with options
     samurai::save("output", "simulation.h5", options, mesh, field1, field2);
     
     return 0;
 }
 ```
 
-### Exemple 3: Sauvegarde Parallèle
+### Example 3: Parallel Save
 
 ```cpp
 #ifdef SAMURAI_WITH_MPI
 #include <samurai/io/hdf5.hpp>
 
 int main() {
-    // Configuration MPI
+    // MPI configuration
     mpi::communicator world;
     
-    // Sauvegarde parallèle
+    // Parallel save
     if (world.rank() == 0) {
         samurai::save("output", "simulation.h5", mesh, field1, field2);
     }
@@ -400,34 +400,34 @@ int main() {
 #endif
 ```
 
-## Formats de Sortie Alternatifs
+## Alternative Output Formats
 
-### Format VTK
+### VTK Format
 
 ```cpp
 template <class Mesh, class... Fields>
 void save_vtk(const std::string& filename, const Mesh& mesh, const Fields&... fields)
 {
-    // Génération du fichier VTK
+    // Generate VTK file
     std::ofstream file(filename);
     
-    // En-tête VTK
+    // VTK header
     file << "# vtk DataFile Version 3.0\n";
     file << "Samurai Simulation Output\n";
     file << "ASCII\n";
     file << "DATASET UNSTRUCTURED_GRID\n";
     
-    // Coordonnées et connectivité
+    // Coordinates and connectivity
     auto [coords, connectivity] = extract_coords_and_connectivity(mesh);
     write_vtk_coordinates(file, coords);
     write_vtk_connectivity(file, connectivity);
     
-    // Champs
+    // Fields
     write_vtk_fields(file, fields...);
 }
 ```
 
-### Import CGAL
+### CGAL Import
 
 ```cpp
 #include <samurai/io/cgal.hpp>
@@ -435,30 +435,30 @@ void save_vtk(const std::string& filename, const Mesh& mesh, const Fields&... fi
 template <class Mesh>
 void import_from_cgal(const std::string& filename, Mesh& mesh)
 {
-    // Import de géométrie CGAL
+    // Import CGAL geometry
     auto geometry = samurai::cgal::load_geometry(filename);
     
-    // Adaptation du maillage
+    // Mesh adaptation
     samurai::adapt_mesh_to_geometry(mesh, geometry);
 }
 ```
 
-## Optimisations de Performance
+## Performance Optimizations
 
-### Compression HDF5
+### HDF5 Compression
 
 ```cpp
 HighFive::File create_h5file(const fs::path& path, const std::string& filename)
 {
     HighFive::FileCreateProps fcprops;
     fcprops.add(HighFive::Chunking(std::vector<hsize_t>{1000, 1000}));
-    fcprops.add(HighFive::Deflate(9)); // Compression maximale
+    fcprops.add(HighFive::Deflate(9)); // Maximum compression
     
     return HighFive::File((path / filename).string(), HighFive::File::Create, fcprops);
 }
 ```
 
-### I/O Parallèle
+### Parallel I/O
 
 ```mermaid
 graph TD
@@ -471,13 +471,13 @@ graph TD
     A --> A3[Async I/O]
 ```
 
-### Streaming pour Grands Datasets
+### Streaming for Large Datasets
 
 ```cpp
 template <class Field>
 void save_field_streaming(const std::string& filename, const Field& field)
 {
-    // Sauvegarde par blocs pour éviter la surcharge mémoire
+    // Save by blocks to avoid memory overhead
     const std::size_t block_size = 10000;
     
     for (std::size_t block = 0; block < field.size() / block_size; ++block) {
@@ -487,9 +487,9 @@ void save_field_streaming(const std::string& filename, const Field& field)
 }
 ```
 
-## Monitoring et Validation
+## Monitoring and Validation
 
-### Vérification d'Intégrité
+### Integrity Verification
 
 ```cpp
 bool verify_hdf5_file(const std::string& filename)
@@ -497,11 +497,11 @@ bool verify_hdf5_file(const std::string& filename)
     try {
         HighFive::File file(filename, HighFive::File::ReadOnly);
         
-        // Vérifier la structure
+        // Check structure
         if (!file.exist("Grid")) return false;
         if (!file.exist("Fields")) return false;
         
-        // Vérifier les données
+        // Check data
         auto grid_group = file.getGroup("Grid");
         auto fields_group = file.getGroup("Fields");
         
@@ -512,7 +512,7 @@ bool verify_hdf5_file(const std::string& filename)
 }
 ```
 
-### Analyse de Performance I/O
+### I/O Performance Analysis
 
 ```cpp
 void benchmark_io_performance()
@@ -527,9 +527,9 @@ void benchmark_io_performance()
 }
 ```
 
-## Cas d'Usage Avancés
+## Advanced Use Cases
 
-### 1. Sauvegarde Incrémentale
+### 1. Incremental Save
 
 ```cpp
 template <class Mesh, class... Fields>
@@ -541,36 +541,36 @@ void save_incremental(const std::string& base_filename, int iteration,
 }
 ```
 
-### 2. Restart de Simulation
+### 2. Simulation Restart
 
 ```cpp
 template <class Mesh, class... Fields>
 void load_restart(const std::string& filename, Mesh& mesh, Fields&... fields)
 {
-    // Charger l'état de la simulation
+    // Load simulation state
     samurai::load(filename, mesh, fields...);
 }
 ```
 
-### 3. Visualisation en Temps Réel
+### 3. Real-time Visualization
 
 ```cpp
 template <class Mesh, class... Fields>
 void setup_realtime_visualization(const Mesh& mesh, const Fields&... fields)
 {
-    // Configuration pour visualisation en temps réel
+    // Configuration for real-time visualization
     samurai::setup_vtk_pipeline(mesh, fields...);
 }
 ```
 
 ## Conclusion
 
-Le système I/O de Samurai offre :
+Samurai's I/O system offers:
 
-- **Flexibilité** avec support de multiples formats
-- **Performance** grâce aux optimisations HDF5 et I/O parallèle
-- **Interopérabilité** avec les outils de visualisation standards
-- **Robustesse** avec validation et gestion d'erreurs
-- **Extensibilité** pour les formats personnalisés
+- **Flexibility** with support for multiple formats
+- **Performance** through HDF5 optimizations and parallel I/O
+- **Interoperability** with standard visualization tools
+- **Robustness** with validation and error handling
+- **Extensibility** for custom formats
 
-Ce système permet une intégration transparente dans les workflows de simulation et de post-traitement, facilitant l'analyse et la visualisation des résultats. 
+This system enables seamless integration into simulation and post-processing workflows, facilitating result analysis and visualization. 

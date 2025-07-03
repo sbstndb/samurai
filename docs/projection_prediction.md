@@ -1,27 +1,27 @@
-# Opérateurs de Projection et Prédiction
+# Projection and Prediction Operators
 
 ## Introduction
 
-Les opérateurs de projection et prédiction sont des composants fondamentaux de Samurai pour la gestion des solutions sur des maillages multiniveaux. Ces opérateurs permettent de transférer les solutions entre différents niveaux de raffinement, assurant la cohérence et la précision des calculs sur maillages adaptatifs.
+Projection and prediction operators are fundamental components of Samurai for managing solutions on multilevel meshes. These operators allow transferring solutions between different refinement levels, ensuring consistency and accuracy of calculations on adaptive meshes.
 
-## Vue d'Ensemble
+## Overview
 
-### Rôle des Opérateurs
+### Role of Operators
 
 ```mermaid
 graph TB
-    A[Solution sur Maillage Multiniveau] --> B[Projection]
-    A --> C[Prédiction]
+    A[Solution on Multilevel Mesh] --> B[Projection]
+    A --> C[Prediction]
     
-    B --> D[Transfert Fin → Grossier]
-    B --> E[Moyenne des Cellules Enfants]
-    B --> F[Conservation de la Masse]
+    B --> D[Fine → Coarse Transfer]
+    B --> E[Child Cell Averaging]
+    B --> F[Mass Conservation]
     
-    C --> G[Transfert Grossier → Fin]
-    C --> H[Interpolation des Cellules Parents]
-    C --> I[Précision Numérique]
+    C --> G[Coarse → Fine Transfer]
+    C --> H[Parent Cell Interpolation]
+    C --> I[Numerical Accuracy]
     
-    D --> J[Opérations Multiniveaux]
+    D --> J[Multilevel Operations]
     E --> J
     F --> J
     G --> J
@@ -29,33 +29,33 @@ graph TB
     I --> J
 ```
 
-### Principe de Conservation
+### Conservation Principle
 
-Les opérateurs respectent le principe de **conservation de la masse** :
+The operators respect the **mass conservation** principle:
 
 ```
-∫_Ω u(x) dx = constante
+∫_Ω u(x) dx = constant
 ```
 
-Où `Ω` représente le domaine et `u(x)` la solution.
+Where `Ω` represents the domain and `u(x)` the solution.
 
-## Opérateur de Projection
+## Projection Operator
 
-### Principe Fondamental
+### Fundamental Principle
 
-L'opérateur de projection calcule la valeur moyenne d'une solution sur une cellule grossière à partir des valeurs sur les cellules fines enfants.
+The projection operator calculates the average value of a solution on a coarse cell from the values on the fine child cells.
 
-### Formulation Mathématique
+### Mathematical Formulation
 
-Pour une cellule grossière `C` de niveau `l` et ses enfants `c_i` de niveau `l+1` :
+For a coarse cell `C` at level `l` and its children `c_i` at level `l+1`:
 
 ```
 u_l(C) = (1/|C|) * Σ |c_i| * u_{l+1}(c_i)
 ```
 
-Où `|C|` et `|c_i|` représentent les volumes des cellules.
+Where `|C|` and `|c_i|` represent the cell volumes.
 
-### Implémentation par Dimension
+### Implementation by Dimension
 
 #### 1D - Projection
 
@@ -67,10 +67,10 @@ inline void operator()(Dim<1>, T1& dest, const T2& src) const
 }
 ```
 
-**Schéma Visuel 1D :**
+**1D Visual Scheme:**
 ```
-Niveau l+1 (fin):   [u0][u1] [u2][u3] [u4][u5] [u6][u7]
-Niveau l (grossier): [  U0  ] [  U1  ] [  U2  ] [  U3  ]
+Level l+1 (fine):   [u0][u1] [u2][u3] [u4][u5] [u6][u7]
+Level l (coarse):   [  U0  ] [  U1  ] [  U2  ] [  U3  ]
 
 U0 = 0.5 * (u0 + u1)
 U1 = 0.5 * (u2 + u3)
@@ -93,13 +93,13 @@ inline void operator()(Dim<2>, T1& dest, const T2& src) const
 }
 ```
 
-**Schéma Visuel 2D :**
+**2D Visual Scheme:**
 ```
-Niveau l+1 (fin):
+Level l+1 (fine):
 [u00][u01] [u02][u03]
 [u10][u11] [u12][u13]
 
-Niveau l (grossier):
+Level l (coarse):
 [    U0    ]
 
 U0 = 0.25 * (u00 + u01 + u10 + u11)
@@ -124,66 +124,66 @@ inline void operator()(Dim<3>, T1& dest, const T2& src) const
 }
 ```
 
-**Schéma Visuel 3D :**
+**3D Visual Scheme:**
 ```
-Niveau l+1: 8 cellules fines (2×2×2)
-Niveau l:   1 cellule grossière
+Level l+1: 8 fine cells (2×2×2)
+Level l:   1 coarse cell
 
-U = 0.125 * Σ(u_i) pour i = 1 à 8
+U = 0.125 * Σ(u_i) for i = 1 to 8
 ```
 
-### Utilisation de l'Opérateur
+### Operator Usage
 
 ```cpp
-// Projection simple
+// Simple projection
 auto proj_op = samurai::projection(field);
 
-// Projection avec source et destination explicites
+// Projection with explicit source and destination
 auto proj_op = samurai::projection(dest_field, src_field);
 
-// Projection variadique (plusieurs champs)
+// Variadic projection (multiple fields)
 auto proj_op = samurai::variadic_projection(field1, field2, field3);
 ```
 
-## Opérateur de Prédiction
+## Prediction Operator
 
-### Principe Fondamental
+### Fundamental Principle
 
-L'opérateur de prédiction calcule les valeurs sur les cellules fines à partir des valeurs sur les cellules grossières parents, en utilisant des schémas d'interpolation d'ordre élevé.
+The prediction operator calculates values on fine cells from values on coarse parent cells, using high-order interpolation schemes.
 
-### Formulation Mathématique
+### Mathematical Formulation
 
-La prédiction utilise des schémas d'interpolation basés sur des développements en série de Taylor :
+Prediction uses interpolation schemes based on Taylor series expansions:
 
 ```
 u_{l+1}(x) = u_l(x) + Σ c_k * (u_l(x + kh) - u_l(x - kh))
 ```
 
-Où `c_k` sont les coefficients d'interpolation et `h` la taille de cellule.
+Where `c_k` are the interpolation coefficients and `h` the cell size.
 
-### Coefficients d'Interpolation
+### Interpolation Coefficients
 
-#### Coefficients de Prédiction
+#### Prediction Coefficients
 
 ```cpp
 template <std::size_t s>
 inline std::array<double, s> prediction_coeffs();
 
-// Ordre 1
+// Order 1
 template <>
 inline std::array<double, 1> prediction_coeffs<1>()
 {
     return {-1. / 8.};
 }
 
-// Ordre 2
+// Order 2
 template <>
 inline std::array<double, 2> prediction_coeffs<2>()
 {
     return {-22. / 128., 3. / 128.};
 }
 
-// Ordre 3
+// Order 3
 template <>
 inline std::array<double, 3> prediction_coeffs<3>()
 {
@@ -191,20 +191,20 @@ inline std::array<double, 3> prediction_coeffs<3>()
 }
 ```
 
-#### Coefficients d'Interpolation
+#### Interpolation Coefficients
 
 ```cpp
 template <std::size_t s>
 inline std::array<double, s> interp_coeffs(double sign);
 
-// Ordre 1
+// Order 1
 template <>
 inline std::array<double, 1> interp_coeffs(double)
 {
     return {1};
 }
 
-// Ordre 3
+// Order 3
 template <>
 inline std::array<double, 3> interp_coeffs(double sign)
 {
@@ -212,9 +212,9 @@ inline std::array<double, 3> interp_coeffs(double sign)
 }
 ```
 
-### Implémentation par Dimension
+### Implementation by Dimension
 
-#### 1D - Prédiction
+#### 1D - Prediction
 
 ```cpp
 template <class T1, class T2, std::size_t order>
@@ -222,12 +222,12 @@ inline void operator()(Dim<1>, T1& dest, const T2& src) const
 {
     auto coeffs = prediction_coeffs<order>();
     
-    // Prédiction pour les cellules paires
+    // Prediction for even cells
     if (auto i_even = i.even_elements(); i_even.is_valid()) {
         dest(level + 1, i_even) = src(level, i_even >> 1);
     }
     
-    // Prédiction pour les cellules impaires
+    // Prediction for odd cells
     if (auto i_odd = i.odd_elements(); i_odd.is_valid()) {
         auto qs = Qs_i<order>(src, level, i_odd >> 1);
         dest(level + 1, i_odd) = src(level, i_odd >> 1) + qs;
@@ -235,31 +235,31 @@ inline void operator()(Dim<1>, T1& dest, const T2& src) const
 }
 ```
 
-**Schéma Visuel 1D :**
+**1D Visual Scheme:**
 ```
-Niveau l (grossier):     [U0][U1][U2][U3]
-Niveau l+1 (fin):      [u0][u1][u2][u3][u4][u5][u6][u7]
+Level l (coarse):     [U0][U1][U2][U3]
+Level l+1 (fine):      [u0][u1][u2][u3][u4][u5][u6][u7]
 
-u0 = U0 (cellule paire)
-u1 = U0 + Q1(U0, U1, U2, ...) (cellule impaire)
-u2 = U1 (cellule paire)
-u3 = U1 + Q1(U0, U1, U2, ...) (cellule impaire)
+u0 = U0 (even cell)
+u1 = U0 + Q1(U0, U1, U2, ...) (odd cell)
+u2 = U1 (even cell)
+u3 = U1 + Q1(U0, U1, U2, ...) (odd cell)
 ```
 
-#### 2D - Prédiction
+#### 2D - Prediction
 
 ```cpp
 template <class T1, class T2, std::size_t order>
 inline void operator()(Dim<2>, T1& dest, const T2& src) const
 {
-    // Prédiction pour les cellules (pair, pair)
+    // Prediction for even cells (pair, pair)
     if (auto i_even = i.even_elements(); i_even.is_valid()) {
         if (auto j_even = j.even_elements(); j_even.is_valid()) {
             dest(level + 1, i_even, j_even) = src(level, i_even >> 1, j_even >> 1);
         }
     }
     
-    // Prédiction pour les cellules (impair, pair)
+    // Prediction for even cells (odd, pair)
     if (auto i_odd = i.odd_elements(); i_odd.is_valid()) {
         if (auto j_even = j.even_elements(); j_even.is_valid()) {
             auto qs = Qs_i<order>(src, level, i_odd >> 1, j_even >> 1);
@@ -267,7 +267,7 @@ inline void operator()(Dim<2>, T1& dest, const T2& src) const
         }
     }
     
-    // Prédiction pour les cellules (pair, impair)
+    // Prediction for even cells (pair, odd)
     if (auto i_even = i.even_elements(); i_even.is_valid()) {
         if (auto j_odd = j.odd_elements(); j_odd.is_valid()) {
             auto qs = Qs_j<order>(src, level, i_even >> 1, j_odd >> 1);
@@ -275,7 +275,7 @@ inline void operator()(Dim<2>, T1& dest, const T2& src) const
         }
     }
     
-    // Prédiction pour les cellules (impair, impair)
+    // Prediction for odd cells (odd, odd)
     if (auto i_odd = i.odd_elements(); i_odd.is_valid()) {
         if (auto j_odd = j.odd_elements(); j_odd.is_valid()) {
             auto qs_ij = Qs_ij<order>(src, level, i_odd >> 1, j_odd >> 1);
@@ -285,26 +285,26 @@ inline void operator()(Dim<2>, T1& dest, const T2& src) const
 }
 ```
 
-**Schéma Visuel 2D :**
+**2D Visual Scheme:**
 ```
-Niveau l (grossier):
+Level l (coarse):
 [U00][U01]
 [U10][U11]
 
-Niveau l+1 (fin):
+Level l+1 (fine):
 [u00][u01][u02][u03]
 [u10][u11][u12][u13]
 [u20][u21][u22][u23]
 [u30][u31][u32][u33]
 
-Types de cellules:
-- (pair,pair): u00, u02, u20, u22 → copie directe
-- (impair,pair): u01, u03, u21, u23 → prédiction i
-- (pair,impair): u10, u12, u30, u32 → prédiction j
-- (impair,impair): u11, u13, u31, u33 → prédiction ij
+Cell types:
+- (pair,pair): u00, u02, u20, u22 → direct copy
+- (odd,pair): u01, u03, u21, u23 → prediction i
+- (pair,odd): u10, u12, u30, u32 → prediction j
+- (odd,odd): u11, u13, u31, u33 → prediction ij
 ```
 
-### Opérateurs Qs (Quadrature Stencils)
+### Qs Operators (Quadrature Stencils)
 
 #### Qs_i (Direction i)
 
@@ -318,7 +318,7 @@ inline auto Qs_i(const Field& field, std::size_t level, const interval_t& i, con
 }
 ```
 
-**Formulation :**
+**Formulation:**
 ```
 Qs_i = Σ c_k * (u(x + kh, y) - u(x - kh, y))
 ```
@@ -335,12 +335,12 @@ inline auto Qs_j(const Field& field, std::size_t level, const interval_t& i, con
 }
 ```
 
-**Formulation :**
+**Formulation:**
 ```
 Qs_j = Σ c_k * (u(x, y + kh) - u(x, y - kh))
 ```
 
-#### Qs_ij (Directions i et j)
+#### Qs_ij (Directions i and j)
 
 ```cpp
 template <std::size_t s, class Field, class interval_t, class coord_index_t, class... index_t>
@@ -350,29 +350,29 @@ inline auto Qs_ij(const Field& field, std::size_t level, const interval_t& i, co
 }
 ```
 
-**Formulation :**
+**Formulation:**
 ```
 Qs_ij = Qs_i + Qs_j
 ```
 
-## Utilisation Pratique
+## Practical Usage
 
-### Exemple 1: Projection Simple
+### Example 1: Simple Projection
 
 ```cpp
 #include <samurai/numeric/projection.hpp>
 
 int main() {
-    // Créer des champs sur différents niveaux
+    // Create fields on different levels
     auto fine_field = samurai::make_scalar_field<double>("fine", fine_mesh);
     auto coarse_field = samurai::make_scalar_field<double>("coarse", coarse_mesh);
     
-    // Initialiser le champ fin
+    // Initialize the fine field
     samurai::for_each_cell(fine_mesh, [&](const auto& cell) {
         fine_field[cell] = initial_condition(cell.center());
     });
     
-    // Projeter du fin vers le grossier
+    // Project from fine to coarse
     auto proj_op = samurai::projection(coarse_field, fine_field);
     samurai::for_each_interval(fine_mesh, [&](std::size_t level, const auto& interval, const auto& index) {
         proj_op(level, interval, index);
@@ -382,22 +382,22 @@ int main() {
 }
 ```
 
-### Exemple 2: Prédiction avec Ordre Variable
+### Example 2: Prediction with Variable Order
 
 ```cpp
 #include <samurai/numeric/prediction.hpp>
 
 int main() {
-    // Créer des champs
+    // Create fields
     auto fine_field = samurai::make_scalar_field<double>("fine", fine_mesh);
     auto coarse_field = samurai::make_scalar_field<double>("coarse", coarse_mesh);
     
-    // Initialiser le champ grossier
+    // Initialize the coarse field
     samurai::for_each_cell(coarse_mesh, [&](const auto& cell) {
         coarse_field[cell] = initial_condition(cell.center());
     });
     
-    // Prédire du grossier vers le fin (ordre 3)
+    // Predict from coarse to fine (order 3)
     auto pred_op = samurai::prediction<3, false>(fine_field, coarse_field);
     samurai::for_each_interval(coarse_mesh, [&](std::size_t level, const auto& interval, const auto& index) {
         pred_op(level, interval, index);
@@ -407,152 +407,152 @@ int main() {
 }
 ```
 
-### Exemple 3: Opérations Multiniveaux
+### Example 3: Multilevel Operations
 
 ```cpp
-// Workflow complet projection/prédiction
+// Complete projection/prediction workflow
 void multilevel_operations() {
-    // 1. Prédiction initiale
+    // 1. Initial prediction
     samurai::prediction<3>(fine_field, coarse_field);
     
-    // 2. Calcul sur niveau fin
+    // 2. Compute on fine level
     compute_on_fine_level(fine_field);
     
-    // 3. Projection des corrections
+    // 3. Project corrections
     samurai::projection(correction_coarse, correction_fine);
     
-    // 4. Correction du niveau grossier
+    // 4. Correct coarse level
     coarse_field = coarse_field + correction_coarse;
     
-    // 5. Prédiction de la correction
+    // 5. Predict correction
     samurai::prediction<3>(correction_fine, correction_coarse);
     
-    // 6. Application de la correction
+    // 6. Apply correction
     fine_field = fine_field + correction_fine;
 }
 ```
 
-## Optimisations de Performance
+## Performance Optimizations
 
-### 1. Traitement par Intervalles
+### 1. Processing by Intervals
 
 ```mermaid
 graph LR
-    A[Cellules Individuelles] --> B[Intervalles Contigus]
-    B --> C[Opérations Vectorisées]
-    C --> D[Performance Améliorée]
+    A[Individual Cells] --> B[Contiguous Intervals]
+    B --> C[Vectorized Operations]
+    C --> D[Improved Performance]
 ```
 
-### 2. Éléments Pairs et Impairs
+### 2. Even and Odd Elements
 
 ```cpp
-// Traitement séparé pour optimiser l'accès mémoire
+// Separate processing for memory access optimization
 if (auto i_even = i.even_elements(); i_even.is_valid()) {
-    // Traitement des éléments pairs
+    // Process even elements
 }
 if (auto i_odd = i.odd_elements(); i_odd.is_valid()) {
-    // Traitement des éléments impairs
+    // Process odd elements
 }
 ```
 
-### 3. Réutilisation des Coefficients
+### 3. Reusing Coefficients
 
 ```cpp
-// Coefficients précalculés pour éviter les recalculs
+// Pre-calculated coefficients to avoid recalculations
 static const auto coeffs = prediction_coeffs<order>();
 ```
 
-## Analyse de Précision
+## Precision Analysis
 
-### Ordre de Précision
+### Order of Precision
 
 ```mermaid
 graph TD
-    A[Ordre 1] --> B[Précision O(h)]
-    C[Ordre 3] --> D[Précision O(h³)]
-    E[Ordre 5] --> F[Précision O(h⁵)]
+    A[Order 1] --> B[Precision O(h)]
+    C[Order 3] --> D[Precision O(h³)]
+    E[Order 5] --> F[Precision O(h⁵)]
     
-    B --> G[Simple mais peu précis]
-    D --> H[Équilibré]
-    F --> I[Précis mais coûteux]
+    B --> G[Simple but less precise]
+    D --> H[Balanced]
+    F --> I[Precise but costly]
 ```
 
-### Conservation des Propriétés
+### Conservation of Properties
 
-| Propriété | Projection | Prédiction |
+| Property | Projection | Prediction |
 |-----------|------------|------------|
-| Conservation de masse | ✅ Exacte | ✅ Approchée |
-| Continuité | ❌ Non garantie | ✅ Garantie |
-| Stabilité | ✅ Stable | ⚠️ Conditionnelle |
+| Mass Conservation | ✅ Exact | ✅ Approximate |
+| Continuity | ❌ Not guaranteed | ✅ Guaranteed |
+| Stability | ✅ Stable | ⚠️ Conditional |
 
-## Cas d'Usage Avancés
+## Advanced Usage Cases
 
-### 1. Schémas Multiniveaux
+### 1. Multilevel Schemes
 
 ```cpp
-// Cycle V multiniveau
+// V-cycle multilevel
 void v_cycle() {
-    // 1. Lissage sur niveau fin
+    // 1. Smoothing on fine level
     smooth(fine_field);
     
-    // 2. Calcul du résidu
+    // 2. Compute residual
     auto residual = compute_residual(fine_field);
     
-    // 3. Projection du résidu
+    // 3. Project residual
     samurai::projection(coarse_residual, residual);
     
-    // 4. Résolution sur niveau grossier
+    // 4. Solve on coarse level
     solve_coarse(coarse_residual);
     
-    // 5. Prédiction de la correction
+    // 5. Predict correction
     samurai::prediction<3>(correction, coarse_residual);
     
-    // 6. Correction du niveau fin
+    // 6. Correct fine level
     fine_field = fine_field + correction;
 }
 ```
 
-### 2. Adaptation de Maillage
+### 2. Mesh Adaptation
 
 ```cpp
-// Adaptation avec projection/prédiction
+// Adaptive refinement with projection/prediction
 void adaptive_refinement() {
-    // 1. Prédiction sur nouveaux niveaux
+    // 1. Predict on new levels
     samurai::prediction<3>(new_level_field, parent_field);
     
-    // 2. Calcul sur nouveau niveau
+    // 2. Compute on new level
     compute_on_new_level(new_level_field);
     
-    // 3. Projection des corrections
+    // 3. Project corrections
     samurai::projection(parent_correction, new_level_correction);
     
-    // 4. Mise à jour du niveau parent
+    // 4. Update parent level
     parent_field = parent_field + parent_correction;
 }
 ```
 
-### 3. Conditions aux Limites
+### 3. Boundary Conditions
 
 ```cpp
-// Gestion des conditions aux limites
+// Boundary condition handling
 void boundary_conditions() {
-    // 1. Prédiction avec conditions aux limites
+    // 1. Predict with boundary conditions
     samurai::prediction<3>(fine_field, coarse_field);
     
-    // 2. Application des conditions aux limites
+    // 2. Apply boundary conditions
     apply_boundary_conditions(fine_field);
     
-    // 3. Projection avec conditions aux limites
+    // 3. Project with boundary conditions
     samurai::projection(coarse_field, fine_field);
 }
 ```
 
-## Monitoring et Validation
+## Monitoring and Validation
 
-### Vérification de la Conservation
+### Mass Conservation Check
 
 ```cpp
-// Vérifier la conservation de la masse
+// Check mass conservation
 double check_mass_conservation() {
     double mass_fine = 0.0, mass_coarse = 0.0;
     
@@ -568,10 +568,10 @@ double check_mass_conservation() {
 }
 ```
 
-### Analyse d'Erreur
+### Error Analysis
 
 ```cpp
-// Calcul de l'erreur de projection/prédiction
+// Compute projection/prediction error
 double compute_error() {
     double error = 0.0;
     
@@ -587,12 +587,12 @@ double compute_error() {
 
 ## Conclusion
 
-Les opérateurs de projection et prédiction sont des composants essentiels de Samurai qui permettent :
+Projection and prediction operators are essential components of Samurai that allow:
 
-- **Transfert cohérent** des solutions entre niveaux de raffinement
-- **Conservation de la masse** pour maintenir la précision physique
-- **Précision numérique** grâce aux schémas d'ordre élevé
-- **Performance optimisée** par le traitement par intervalles
-- **Flexibilité** pour différents types de problèmes
+- **Consistent transfer** of solutions between refinement levels
+- **Mass conservation** to maintain physical accuracy
+- **Numerical accuracy** through high-order schemes
+- **Optimized performance** through interval processing
+- **Flexibility** for different problem types
 
-Ces opérateurs forment la base des algorithmes multiniveaux et de l'adaptation de maillage dans Samurai, assurant la robustesse et l'efficacité des simulations numériques sur maillages adaptatifs. 
+These operators form the basis of multilevel algorithms and mesh adaptation in Samurai, ensuring robustness and efficiency of numerical simulations on adaptive meshes. 

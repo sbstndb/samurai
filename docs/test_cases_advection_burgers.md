@@ -1,44 +1,44 @@
-# Cas Tests : Advection 2D, Convection Linéaire et Burgers - Samurai
+# Test Cases: 2D Advection, Linear Convection and Burgers - Samurai
 
-## Vue d'ensemble
+## Overview
 
-Samurai propose une collection complète de cas tests pour valider les schémas numériques sur des équations fondamentales de la mécanique des fluides : l'advection, la convection linéaire et l'équation de Burgers.
+Samurai provides a comprehensive collection of test cases to validate numerical schemes on fundamental fluid mechanics equations: advection, linear convection, and the Burgers equation.
 
-## 1. Cas Test : Advection 2D
+## 1. Test Case: 2D Advection
 
-### Équation Modélisée
+### Modeled Equation
 
-L'équation d'advection 2D est donnée par :
+The 2D advection equation is given by:
 
 ```
 ∂u/∂t + a₁∂u/∂x + a₂∂u/∂y = 0
 ```
 
-où `u(x,y,t)` est la variable d'état et `a = (a₁, a₂)` est le vecteur vitesse constant.
+where `u(x,y,t)` is the state variable and `a = (a₁, a₂)` is the constant velocity vector.
 
-### Configuration du Problème
+### Problem Configuration
 
 ```cpp
-// Paramètres de simulation
+// Simulation parameters
 constexpr std::size_t dim = 2;
 xt::xtensor_fixed<double, xt::xshape<dim>> min_corner = {0., 0.};
 xt::xtensor_fixed<double, xt::xshape<dim>> max_corner = {1., 1.};
-std::array<double, dim> a = {1, 1};  // Vitesse diagonale
-double Tf = 0.1;                     // Temps final
-double cfl = 0.5;                    // Nombre de Courant
+std::array<double, dim> a = {1, 1};  // Diagonal velocity
+double Tf = 0.1;                     // Final time
+double cfl = 0.5;                    // Courant number
 ```
 
-### Condition Initiale
+### Initial Condition
 
 ```mermaid
 graph LR
-    A[Disque Centré] --> B[Rayon 0.2]
-    B --> C[Centre (0.3, 0.3)]
-    C --> D[Valeur 1.0 à l'intérieur]
-    D --> E[Valeur 0.0 à l'extérieur]
+    A[Centered Disk] --> B[Radius 0.2]
+    B --> C[Center (0.3, 0.3)]
+    C --> D[Value 1.0 inside]
+    D --> E[Value 0.0 outside]
 ```
 
-**Implémentation :**
+**Implementation:**
 
 ```cpp
 template <class Field>
@@ -67,16 +67,16 @@ void init(Field& u)
 }
 ```
 
-### Schéma Numérique
+### Numerical Scheme
 
-**Opérateur Upwind :**
+**Upwind Operator:**
 
 ```cpp
-// Schéma upwind explicite
+// Explicit upwind scheme
 unp1 = u - dt * samurai::upwind(a, u);
 ```
 
-**Correction de Flux Multi-Niveaux :**
+**Multi-Level Flux Correction:**
 
 ```cpp
 template <class Field>
@@ -85,7 +85,7 @@ void flux_correction(double dt, const std::array<double, 2>& a,
 {
     for (std::size_t level = mesh.min_level(); level < mesh.max_level(); ++level)
     {
-        // Direction X
+        // X Direction
         auto subset_right = samurai::intersection(
             samurai::translate(mesh[mesh_id_t::cells][level + 1], {-1, 0}),
             mesh[mesh_id_t::cells][level]).on(level);
@@ -102,48 +102,48 @@ void flux_correction(double dt, const std::array<double, 2>& a,
 }
 ```
 
-## 2. Cas Test : Convection Linéaire
+## 2. Test Case: Linear Convection
 
-### Équation Modélisée
+### Modeled Equation
 
-L'équation de convection linéaire 2D :
+The 2D linear convection equation:
 
 ```
 ∂u/∂t + v₁∂u/∂x + v₂∂u/∂y = 0
 ```
 
-avec `v = (v₁, v₂)` vecteur vitesse constant.
+with `v = (v₁, v₂)` constant velocity vector.
 
-### Configuration du Problème
+### Problem Configuration
 
 ```cpp
-// Paramètres de simulation
+// Simulation parameters
 double left_box = -1;
 double right_box = 1;
 double Tf = 3;
 double cfl = 0.95;
 
-// Vitesse de convection
+// Convection velocity
 samurai::VelocityVector<dim> velocity;
 velocity.fill(1);
 if constexpr (dim == 2)
 {
-    velocity(1) = -1;  // Vitesse diagonale
+    velocity(1) = -1;  // Diagonal velocity
 }
 ```
 
-### Condition Initiale
+### Initial Condition
 
 ```mermaid
 graph LR
-    A[Fonction Échelon] --> B[1D: Intervalle [-0.8, -0.3]]
+    A[Step Function] --> B[1D: Interval [-0.8, -0.3]]
     A --> C[2D: Rectangle [-0.8, -0.3] × [0.3, 0.8]]
 ```
 
-**Implémentation :**
+**Implementation:**
 
 ```cpp
-// Condition initiale
+// Initial condition
 u = samurai::make_scalar_field<double>("u", mesh,
     [](const auto& coords)
     {
@@ -162,14 +162,14 @@ u = samurai::make_scalar_field<double>("u", mesh,
     });
 ```
 
-### Schéma Numérique WENO5
+### WENO5 Numerical Scheme
 
 ```cpp
-// Opérateur de convection WENO5
+// WENO5 convection operator
 auto conv = samurai::make_convection_weno5<decltype(u)>(velocity);
 ```
 
-**Intégration Temporelle RK3 :**
+**RK3 Time Integration:**
 
 ```cpp
 // TVD-RK3 (SSPRK3)
@@ -182,47 +182,47 @@ samurai::update_ghost_mr(u2);
 unp1 = 1./3 * u + 2./3 * (u2 - dt * conv(u2));
 ```
 
-### Conditions aux Limites Périodiques
+### Periodic Boundary Conditions
 
 ```cpp
-// Conditions périodiques
+// Periodic conditions
 std::array<bool, dim> periodic;
 periodic.fill(true);
 mesh = {box, min_level, max_level, periodic};
 ```
 
-## 3. Cas Test : Équation de Burgers
+## 3. Test Case: Burgers Equation
 
-### Équation Modélisée
+### Modeled Equation
 
-L'équation de Burgers vectorielle :
+The vector Burgers equation:
 
 ```
 ∂u/∂t + ∇·(F(u)) = 0
 ```
 
-où `F(u) = (1/2)u²` pour l'équation scalaire et `F(u) = (1/2)u⊗u` pour l'équation vectorielle.
+where `F(u) = (1/2)u²` for the scalar equation and `F(u) = (1/2)u⊗u` for the vector equation.
 
-### Configuration du Problème
+### Problem Configuration
 
 ```cpp
-// Paramètres de simulation
+// Simulation parameters
 double left_box = -1;
 double right_box = 1;
 double Tf = 1.;
 double cfl = 0.95;
 std::string init_sol = "hat";  // hat/linear/bands
 
-// Configuration multirésolution
+// Multiresolution configuration
 std::size_t min_level = 0;
 std::size_t max_level = dim == 1 ? 5 : 3;
 double mr_epsilon = 1e-4;
 double mr_regularity = 1.;
 ```
 
-### Conditions Initiales Multiples
+### Multiple Initial Conditions
 
-#### 1. Solution "Hat" (Chapeau)
+#### 1. "Hat" Solution (Hat)
 
 ```cpp
 if (init_sol == "hat")
@@ -245,7 +245,7 @@ if (init_sol == "hat")
 }
 ```
 
-#### 2. Solution Linéaire (Solution Exacte)
+#### 2. Linear Solution (Exact Solution)
 
 ```cpp
 template <std::size_t n_comp, std::size_t dim>
@@ -259,7 +259,7 @@ auto exact_solution(xt::xtensor_fixed<double, xt::xshape<dim>> coords, double t)
 }
 ```
 
-#### 3. Solution "Bands" (Multi-Composantes)
+#### 3. "Bands" Solution (Multi-Components)
 
 ```cpp
 if (dim > 1 && n_comp > 1 && init_sol == "bands")
@@ -286,20 +286,20 @@ if (dim > 1 && n_comp > 1 && init_sol == "bands")
 }
 ```
 
-### Schéma Numérique
+### Numerical Scheme
 
-**Opérateur de Convection Non-Linéaire :**
+**Non-Linear Convection Operator:**
 
 ```cpp
-// Constante pour l'équation de Burgers
-double cst = dim == 1 ? 0.5 : 1;  // f(u) = (1/2)*u² en 1D
+// Constant for Burgers equation
+double cst = dim == 1 ? 0.5 : 1;  // f(u) = (1/2)*u² in 1D
 auto conv = cst * samurai::make_convection_weno5<decltype(u)>();
 ```
 
-**Intégration Temporelle RK3 :**
+**RK3 Time Integration:**
 
 ```cpp
-// Schéma RK3 pour Burgers
+// RK3 for Burgers
 samurai::update_ghost_mr(u);
 u1 = u - dt * conv(u);
 samurai::update_ghost_mr(u1);
@@ -310,9 +310,9 @@ samurai::update_ghost_mr(u2);
 unp1 = 1./3 * u + 2./3 * (u2 - dt * conv(u2));
 ```
 
-### Validation Numérique
+### Numerical Validation
 
-**Calcul d'Erreur L2 :**
+**L2 Error Calculation:**
 
 ```cpp
 if (init_sol == "linear")
@@ -324,7 +324,7 @@ if (init_sol == "linear")
         });
     std::cout << ", L2-error: " << std::scientific << error;
     
-    // Erreur avec reconstruction
+    // Error with reconstruction
     if (mesh.min_level() != mesh.max_level())
     {
         samurai::update_ghost_mr(u);
@@ -339,19 +339,19 @@ if (init_sol == "linear")
 }
 ```
 
-## 4. Cas Test : Burgers Scalaire 2D
+## 4. Test Case: Scalar Burgers 2D
 
-### Configuration Spécifique
+### Specific Configuration
 
 ```cpp
-// Paramètres spécifiques
+// Specific parameters
 constexpr size_t dim = 2;
-std::array<double, 2> k = {sqrt(2.)/2., sqrt(2.)/2.};  // Direction diagonale
+std::array<double, 2> k = {sqrt(2.)/2., sqrt(2.)/2.};  // Diagonal direction
 double Tf = 0.1;
-double cfl = 0.05;  // CFL plus strict pour la non-linéarité
+double cfl = 0.05;  // More strict CFL for non-linearity
 ```
 
-### Condition Initiale Complexe
+### Complex Initial Condition
 
 ```cpp
 template <class Field>
@@ -365,7 +365,7 @@ void init(Field& u)
         auto center = cell.center();
         constexpr double radius = 0.1;
         
-        // Premier disque (valeur positive)
+        // First disk (positive value)
         constexpr double x_center = 0.5;
         constexpr double y_center = 0.5;
         if (((center[0] - x_center) * (center[0] - x_center) + 
@@ -378,7 +378,7 @@ void init(Field& u)
             u[cell] = 0;
         }
         
-        // Deuxième disque (valeur négative)
+        // Second disk (negative value)
         constexpr double x_center2 = 0.2;
         constexpr double y_center2 = 0.2;
         if (((center[0] - x_center2) * (center[0] - x_center2) + 
@@ -390,49 +390,49 @@ void init(Field& u)
 }
 ```
 
-## 5. Workflow Général des Cas Tests
+## 5. General Workflow for Test Cases
 
-### Structure Commune
+### Common Structure
 
 ```mermaid
 graph TD
-    A[Initialisation] --> B[Configuration Paramètres]
-    B --> C[Création Maillage]
-    C --> D[Initialisation Solution]
-    D --> E[Configuration Conditions Limites]
-    E --> F[Boucle Temporelle]
+    A[Initialization] --> B[Parameter Configuration]
+    B --> C[Mesh Creation]
+    C --> D[Solution Initialization]
+    D --> E[Boundary Condition Configuration]
+    E --> F[Time Loop]
     
-    F --> G[Adaptation Maillage]
-    G --> H[Mise à Jour Fantômes]
-    H --> I[Calcul Schéma Numérique]
-    I --> J[Intégration Temporelle]
-    J --> K[Sauvegarde Résultats]
-    K --> L{Fin Simulation?}
-    L -->|Non| F
-    L -->|Oui| M[Finalisation]
+    F --> G[Mesh Adaptation]
+    G --> H[Ghost Update]
+    H --> I[Numerical Scheme Calculation]
+    I --> J[Time Integration]
+    J --> K[Save Results]
+    K --> L{End Simulation?}
+    L -->|No| F
+    L -->|Yes| M[Finalization]
 ```
 
-### Boucle Temporelle Typique
+### Typical Time Loop
 
 ```cpp
 while (t != Tf)
 {
-    // Adaptation du maillage
+    // Mesh adaptation
     MRadaptation(mr_epsilon, mr_regularity);
     
-    // Mise à jour des cellules fantômes
+    // Update ghost cells
     samurai::update_ghost_mr(u);
     
-    // Application du schéma numérique
+    // Apply numerical scheme
     unp1 = u - dt * scheme(u);
     
-    // Intégration temporelle (si nécessaire)
-    // RK3, Euler explicite, etc.
+    // Time integration (if necessary)
+    // RK3, explicit Euler, etc.
     
-    // Échange des champs
+    // Exchange fields
     std::swap(u.array(), unp1.array());
     
-    // Sauvegarde périodique
+    // Periodic saving
     if (t >= save_time)
     {
         save(path, filename, u, suffix);
@@ -440,9 +440,9 @@ while (t != Tf)
 }
 ```
 
-## 6. Exemples d'Exécution
+## 6. Example Executions
 
-### Compilation et Exécution
+### Compilation and Execution
 
 ```bash
 # Compilation
@@ -450,48 +450,48 @@ mkdir build && cd build
 cmake ..
 make advection_2d linear_convection burgers scalar_burgers_2d
 
-# Exécution Advection 2D
+# Advection 2D Execution
 ./advection_2d --min-level 4 --max-level 8 --mr-eps 1e-4 --Tf 0.1
 
-# Exécution Convection Linéaire
+# Linear Convection Execution
 ./linear_convection --min-level 2 --max-level 6 --mr-eps 1e-4 --Tf 2.0
 
-# Exécution Burgers
+# Burgers Execution
 ./burgers --min-level 1 --max-level 5 --mr-eps 1e-4 --Tf 1.0 --init-sol hat
 
-# Exécution Burgers Scalaire 2D
+# Scalar Burgers 2D Execution
 ./scalar_burgers_2d --min-level 4 --max-level 8 --mr-eps 1e-4 --Tf 0.1
 ```
 
-### Visualisation avec Python
+### Visualization with Python
 
 ```bash
-# Visualisation des résultats
+# Visualization of results
 python ../python/read_mesh.py burgers_ite_ --field u level --start 0 --end 50
 ```
 
-## 7. Paramètres d'Optimisation
+## 7. Optimization Parameters
 
-### Paramètres de Performance
+### Performance Parameters
 
 ```cpp
-// Paramètres d'adaptation
-double mr_epsilon = 1e-4;     // Seuil d'adaptation (plus petit = plus précis)
-double mr_regularity = 1.0;   // Régularité estimée
+// Adaptation parameters
+double mr_epsilon = 1e-4;     // Adaptation threshold (smaller = more precise)
+double mr_regularity = 1.0;   // Estimated regularity
 
-// Paramètres de stabilité
-double cfl = 0.5;             // Nombre de Courant (0.5 pour upwind, 0.95 pour WENO)
+// Stability parameters
+double cfl = 0.5;             // Courant number (0.5 for upwind, 0.95 for WENO)
 
-// Paramètres de sortie
-std::size_t nfiles = 50;      // Nombre de fichiers de sortie
+// Output parameters
+std::size_t nfiles = 50;      // Number of output files
 ```
 
 ## Conclusion
 
-Les cas tests d'advection 2D, convection linéaire et Burgers dans Samurai fournissent une validation complète des schémas numériques implémentés. Ils couvrent :
+The test cases of 2D advection, linear convection, and Burgers in Samurai provide a complete validation of the implemented numerical schemes. They cover:
 
-- **Advection 2D** : Validation des schémas upwind et de la correction de flux multi-niveaux
-- **Convection Linéaire** : Test des schémas WENO5 et de l'intégration temporelle RK3
-- **Équation de Burgers** : Validation des schémas non-linéaires et des conditions aux limites
+- **2D Advection** : Validation of upwind schemes and multi-level flux correction
+- **Linear Convection** : Test of WENO5 schemes and RK3 time integration
+- **Burgers Equation** : Validation of non-linear schemes and boundary conditions
 
-Ces cas tests servent de référence pour évaluer la précision, la stabilité et l'efficacité des méthodes numériques de Samurai sur des problèmes fondamentaux de la mécanique des fluides. 
+These test cases serve as a reference for evaluating the accuracy, stability, and efficiency of numerical methods in Samurai on fundamental fluid mechanics problems. 

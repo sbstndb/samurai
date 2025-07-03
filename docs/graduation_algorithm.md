@@ -1,74 +1,74 @@
-# Algorithme de Graduation
+# Graduation Algorithm
 
 ## Introduction
 
-L'algorithme de graduation est un composant crucial de Samurai qui garantit la cohérence et la qualité du maillage adaptatif. Il assure que le maillage respecte la condition de **2:1 balance**, c'est-à-dire qu'aucune cellule ne peut avoir plus d'un niveau de raffinement de différence avec ses cellules voisines.
+The graduation algorithm is a crucial component of Samurai that ensures the consistency and quality of adaptive meshing. It ensures that the mesh respects the **2:1 balance condition**, meaning that no cell can have more than one level of refinement difference with its neighboring cells.
 
-## Principe Fondamental
+## Fundamental Principle
 
-### Pourquoi la Graduation ?
+### Why Graduation?
 
 ```mermaid
 graph TD
-    A[Maillage Initial] --> B[Adaptation]
-    B --> C[Maillage Incohérent]
+    A[Initial Mesh] --> B[Adaptation]
+    B --> C[Inconsistent Mesh]
     C --> D[Graduation]
-    D --> E[Maillage Cohérent]
+    D --> E[Consistent Mesh]
     
-    C --> F[Problèmes sans Graduation]
-    F --> G[Instabilité Numérique]
-    F --> H[Erreurs de Calcul]
-    F --> I[Difficultés d'Implémentation]
+    C --> F[Problems without Graduation]
+    F --> G[Numerical Instability]
+    F --> H[Calculation Errors]
+    F --> I[Implementation Difficulties]
     
-    E --> J[Avantages avec Graduation]
-    J --> K[Stabilité Numérique]
-    J --> L[Précision des Schémas]
-    J --> M[Facilité d'Implémentation]
+    E --> J[Advantages with Graduation]
+    J --> K[Numerical Stability]
+    J --> L[Scheme Accuracy]
+    J --> M[Implementation Ease]
 ```
 
-### Condition 2:1 Balance
+### 2:1 Balance Condition
 
-La condition de 2:1 balance stipule que :
-
-```
-Pour toute cellule C de niveau l, ses cellules voisines directes 
-ne peuvent avoir qu'un niveau l-1, l, ou l+1.
-```
-
-**Exemple Visuel :**
+The 2:1 balance condition states that:
 
 ```
-Niveau l+1:  [F][F] [F][F]     F = Fine cells
-Niveau l:    [C][C][C][C]      C = Coarse cells
-Niveau l-1:  [G][G][G][G]      G = Very coarse cells
-
-✅ VALIDE: Différence maximale de 1 niveau
-❌ INVALIDE: Différence de 2 niveaux ou plus
+For any cell C at level l, its direct neighboring cells 
+can only have level l-1, l, or l+1.
 ```
 
-## Architecture de l'Algorithme
+**Visual Example:**
 
-### Structure Générale
+```
+Level l+1:  [F][F] [F][F]     F = Fine cells
+Level l:    [C][C][C][C]      C = Coarse cells
+Level l-1:  [G][G][G][G]      G = Very coarse cells
+
+✅ VALID: Maximum difference of 1 level
+❌ INVALID: Difference of 2 levels or more
+```
+
+## Algorithm Architecture
+
+### General Structure
 
 ```mermaid
 flowchart TD
-    A[Début Graduation] --> B[Initialisation]
+    A[Start Graduation] --> B[Initialization]
     B --> C[Level = Max Level]
     C --> D{Level > Min Level?}
-    D -->|Oui| E[Traiter Niveau Level]
-    E --> F[Graduation Locale]
+    D -->|Yes| E[Process Level]
+    E --> F[Local Graduation]
     F --> G[Level = Level - 1]
     G --> D
-    D -->|Non| H[Fin Graduation]
+    D -->|No| H[End Graduation]
     
-    E --> I[Étapes de Graduation]
+    E --> I[Graduation Steps]
     I --> J[1. Tag to Keep]
     I --> K[2. Tag to Refine]
     I --> L[3. Keep Children Together]
     I --> M[4. Graduate Operation]
 ```
 
-### Composants Principaux
+### Main Components
 
 #### 1. Graduate Operator
 
@@ -80,7 +80,7 @@ public:
     template <std::size_t d, class T, class Stencil>
     inline void operator()(Dim<d>, T& tag, const Stencil& s) const
     {
-        // Logique de graduation
+        // Graduation logic
     }
 };
 ```
@@ -90,29 +90,29 @@ public:
 ```cpp
 enum class CellFlag : int
 {
-    keep = 1,      // Garder la cellule
-    refine = 2,    // Raffiner la cellule
-    coarsen = 4,   // Coarser la cellule
+    keep = 1,      // Keep the cell
+    refine = 2,    // Refine the cell
+    coarsen = 4,   // Coarsen the cell
     // ...
 };
 ```
 
-## Étapes Détaillées de l'Algorithme
+## Detailed Algorithm Steps
 
-### Étape 1: Tag to Keep
+### Step 1: Tag to Keep
 
-**Objectif :** Marquer les cellules qui doivent être conservées pour maintenir la connectivité.
+**Objective:** Mark cells that must be kept to maintain connectivity.
 
 ```mermaid
 graph LR
-    A[Cellules Actives Niveau l] --> B[Intersection]
-    C[Cellules Référence Niveau l-1] --> B
+    A[Active Cells Level l] --> B[Intersection]
+    C[Reference Cells Level l-1] --> B
     B --> D[Ghost Subset]
     D --> E[Tag to Keep]
-    E --> F[Marquage Cellules]
+    E --> F[Cell Marking]
 ```
 
-**Code :**
+**Code:**
 ```cpp
 auto ghost_subset = intersection(
     mesh[mesh_id_t::cells][level], 
@@ -122,27 +122,27 @@ auto ghost_subset = intersection(
 ghost_subset.apply_op(tag_to_keep<0>(tag));
 ```
 
-**Schéma Visuel :**
+**Visual Scheme:**
 ```
-Niveau l:   [A][A][A][A]  A = Active cells
-Niveau l-1: [R][R][R][R]  R = Reference cells
+Level l:   [A][A][A][A]  A = Active cells
+Level l-1: [R][R][R][R]  R = Reference cells
 
 Intersection: [G][G][G][G]  G = Ghost cells to keep
 ```
 
-### Étape 2: Tag to Refine
+### Step 2: Tag to Refine
 
-**Objectif :** Marquer les cellules qui doivent être raffinées pour respecter la condition 2:1.
+**Objective:** Mark cells that must be refined to respect the 2:1 condition.
 
 ```mermaid
 graph LR
-    A[Cellules Actives Niveau l] --> B[Auto-intersection]
+    A[Active Cells Level l] --> B[Self-intersection]
     B --> C[Subset Level l]
     C --> D[Tag to Refine]
-    D --> E[Marquage Raffinement]
+    D --> E[Refinement Marking]
 ```
 
-**Code :**
+**Code:**
 ```cpp
 auto subset_2 = intersection(
     mesh[mesh_id_t::cells][level], 
@@ -152,26 +152,26 @@ auto subset_2 = intersection(
 subset_2.apply_op(tag_to_keep<ghost_width>(tag, CellFlag::refine));
 ```
 
-**Schéma Visuel :**
+**Visual Scheme:**
 ```
-Avant:      [K][R][K][R]  K = Keep, R = Refine
-Après:      [K][R][K][R]  Marquage maintenu
+Before:     [K][R][K][R]  K = Keep, R = Refine
+After:      [K][R][K][R]  Marking maintained
 ```
 
-### Étape 3: Keep Children Together
+### Step 3: Keep Children Together
 
-**Objectif :** S'assurer que les cellules enfants d'une même cellule parente sont traitées ensemble.
+**Objective:** Ensure that child cells of the same parent cell are treated together.
 
 ```mermaid
 graph TD
-    A[Cellules Actives Niveau l] --> B[Intersection]
+    A[Active Cells Level l] --> B[Intersection]
     A --> B
-    B --> C[Keep Subset Niveau l-1]
+    B --> C[Keep Subset Level l-1]
     C --> D[Keep Children Together]
-    D --> E[Marquage Cohérent]
+    D --> E[Consistent Marking]
 ```
 
-**Code :**
+**Code:**
 ```cpp
 auto keep_subset = intersection(
     mesh[mesh_id_t::cells][level], 
@@ -181,327 +181,188 @@ auto keep_subset = intersection(
 keep_subset.apply_op(keep_children_together(tag));
 ```
 
-**Schéma Visuel :**
+**Visual Scheme:**
 ```
-Niveau l:   [C1][C2][C3][C4]  Ci = Children
-Niveau l-1: [P1][P2]          Pi = Parents
+Level l:   [C1][C2][C3][C4]  Ci = Children
+Level l-1: [P1][P2]          Pi = Parents
 
 Relation: P1 → [C1,C2], P2 → [C3,C4]
-Cohérence: Si C1 est gardé, C2 doit aussi être gardé
+Consistency: If C1 is kept, C2 must also be kept
 ```
 
-### Étape 4: Graduate Operation
+### Step 4: Graduate Operation
 
-**Objectif :** Appliquer l'opération de graduation proprement dite en utilisant un stencil.
+**Objective:** Apply the actual graduation operation using a stencil.
 
 ```mermaid
 graph LR
     A[Stencil] --> B[Translation]
-    B --> C[Intersection avec Niveau l-1]
+    B --> C[Intersection with Level l-1]
     C --> D[Graduate Operation]
-    D --> E[Marquage Final]
+    D --> E[Updated Tags]
 ```
 
-**Code :**
+**Code:**
 ```cpp
-for (std::size_t i = 0; i < stencil.shape()[0]; ++i) {
-    auto s = xt::view(stencil, i);
-    auto subset = intersection(
-        translate(mesh[mesh_id_t::cells][level], s), 
-        mesh[mesh_id_t::cells][level - 1]
-    ).on(level);
-    subset.apply_op(graduate(tag, s));
-}
+auto graduate_subset = intersection(
+    mesh[mesh_id_t::cells][level], 
+    mesh[mesh_id_t::cells][level]
+).on(level - 1);
+
+graduate_subset.apply_op(graduate_op(tag));
 ```
 
-## Cas d'Usage Détaillés
-
-### Cas 1: Raffinement Simple
-
-```mermaid
-graph TD
-    A[État Initial] --> B[Adaptation]
-    B --> C[Incohérence Détectée]
-    C --> D[Graduation]
-    D --> E[État Final Cohérent]
-    
-    A --> A1[Level l: [K][K][K][K]]
-    A --> A2[Level l-1: [K][K]]
-    
-    C --> C1[Level l: [K][R][K][K]]
-    C --> C2[Level l-1: [K][K]]
-    
-    E --> E1[Level l: [K][R][K][K]]
-    E --> E2[Level l-1: [R][K]]
+**Visual Scheme:**
+```
+Stencil:    [S][S][S][S]  S = Stencil points
+Translation: [T][T][T][T]  T = Translated points
+Result:     [G][G][G][G]  G = Graduated cells
 ```
 
-**Explication :**
-- Une cellule fine est marquée pour raffinement (R)
-- La cellule parente correspondante doit aussi être marquée (R)
-- Cela garantit la cohérence du maillage
+## Implementation Details
 
-### Cas 2: Coarsening avec Contraintes
+### Stencil Operations
 
-```mermaid
-graph TD
-    A[État Initial] --> B[Adaptation]
-    B --> C[Incohérence Détectée]
-    C --> D[Graduation]
-    D --> E[État Final Cohérent]
-    
-    A --> A1[Level l: [K][K][K][K]]
-    A --> A2[Level l-1: [K][K]]
-    
-    C --> C1[Level l: [K][K][C][C]]
-    C --> C2[Level l-1: [K][K]]
-    
-    E --> E1[Level l: [K][K][C][C]]
-    E --> E2[Level l-1: [K][C]]
-```
-
-**Explication :**
-- Deux cellules fines sont marquées pour coarsening (C)
-- La cellule parente correspondante doit aussi être marquée (C)
-- Cela évite les cellules orphelines
-
-## Implémentation Technique
-
-### Stencil de Graduation
-
-```cpp
-// Stencil en étoile pour la graduation
-template <std::size_t dim>
-auto star_stencil()
-{
-    // Génère un stencil en étoile pour la dimension donnée
-    // Exemple 2D: [0,0], [-1,0], [1,0], [0,-1], [0,1]
-}
-```
-
-**Schéma du Stencil 2D :**
-```
-     [0,1]
-[-1,0] [0,0] [1,0]
-     [0,-1]
-```
-
-### Opérateur de Graduation
+The graduation algorithm uses stencils to propagate information between mesh levels:
 
 ```cpp
 template <std::size_t dim, class TInterval>
-class graduate_op : public field_operator_base<dim, TInterval>
+class graduate_stencil
 {
 public:
-    template <std::size_t d, class T, class Stencil>
+    static constexpr std::size_t size = 2 * ghost_width + 1;
+    
+    template <std::size_t d, class T>
     inline void operator()(Dim<d>, T& tag, const Stencil& s) const
     {
-        // Traitement des éléments pairs et impairs
-        if (auto i_even = i.even_elements(); i_even.is_valid()) {
-            tag_func(i_even);
-        }
-        if (auto i_odd = i.odd_elements(); i_odd.is_valid()) {
-            tag_func(i_odd);
+        // Stencil-based graduation logic
+        for (std::size_t i = 0; i < size; ++i)
+        {
+            // Apply graduation rules
         }
     }
 };
 ```
 
-### Fonction Tag Function
+### Ghost Width Management
+
+The ghost width determines the extent of the graduation operation:
 
 ```cpp
-auto tag_func = [&](auto& i_f) {
-    // Marquer les cellules pour raffinement
-    auto mask = tag(level, i_f - s[0], index - view(s, xt::range(1, _))) 
-                & static_cast<int>(CellFlag::refine);
-    auto i_c = i_f >> 1;  // Division par 2 pour niveau parent
+constexpr std::size_t ghost_width = 1;  // Default value
+// Can be adjusted based on numerical scheme requirements
+```
+
+## Performance Considerations
+
+### Memory Efficiency
+
+- **Contiguous Operations:** Process cells in contiguous blocks
+- **Minimal Allocations:** Reuse temporary objects
+- **Cache-friendly Access:** Optimize memory access patterns
+
+### Computational Complexity
+
+- **Linear Complexity:** O(n) where n is the number of cells
+- **Level-wise Processing:** Process each level independently
+- **Parallel Potential:** Algorithm can be parallelized
+
+## Error Handling
+
+### Common Issues
+
+1. **Inconsistent Mesh:** Mesh violates 2:1 balance condition
+2. **Memory Issues:** Insufficient memory for large meshes
+3. **Convergence Problems:** Graduation fails to converge
+
+### Debugging Tools
+
+```cpp
+// Enable debug output
+samurai::set_debug_level(samurai::DebugLevel::Detailed);
+
+// Check mesh consistency
+bool is_consistent = samurai::check_mesh_consistency(mesh);
+
+// Validate graduation result
+samurai::validate_graduation(mesh, tag);
+```
+
+## Integration with Adaptation
+
+### Adaptation Workflow
+
+```mermaid
+graph TD
+    A[Initial Mesh] --> B[Error Estimation]
+    B --> C[Marking Cells]
+    C --> D[Graduation]
+    D --> E[Refinement/Coarsening]
+    E --> F[Projection/Prediction]
+    F --> G[Updated Mesh]
+    G --> H{Converged?}
+    H -->|No| B
+    H -->|Yes| I[Final Mesh]
+```
+
+### Code Integration
+
+```cpp
+// Complete adaptation workflow
+auto adaptation = samurai::make_MRAdapt(field);
+
+for (std::size_t iter = 0; iter < max_iterations; ++iter)
+{
+    // 1. Update ghost cells
+    samurai::update_ghost_mr(field);
     
-    apply_on_masked(tag(level - 1, i_c, index >> 1),
-                   mask,
-                   [](auto& e) { e |= static_cast<int>(CellFlag::refine); });
+    // 2. Apply numerical scheme
+    auto rhs = scheme(field);
+    field = field + dt * rhs;
     
-    // Marquer les cellules pour conservation
-    auto mask2 = tag(level, i_f - s[0], index - view(s, xt::range(1, _))) 
-                 & static_cast<int>(CellFlag::keep);
-    
-    apply_on_masked(tag(level - 1, i_c, index >> 1),
-                   mask2,
-                   [](auto& e) { e |= static_cast<int>(CellFlag::keep); });
+    // 3. Adapt mesh with graduation
+    adaptation(epsilon, regularity);
+}
+```
+
+## Advanced Features
+
+### Custom Graduation Rules
+
+Users can define custom graduation rules:
+
+```cpp
+template <class T>
+class custom_graduation_op
+{
+public:
+    template <std::size_t d, class Stencil>
+    inline void operator()(Dim<d>, T& tag, const Stencil& s) const
+    {
+        // Custom graduation logic
+    }
 };
 ```
 
-## Optimisations de Performance
+### Multi-level Graduation
 
-### 1. Traitement par Intervalles
-
-```mermaid
-graph LR
-    A[Cellules Individuelles] --> B[Intervalles Contigus]
-    B --> C[Traitement Vectorisé]
-    C --> D[Performance Améliorée]
-```
-
-**Avantage :** Traitement en bloc des cellules contiguës plutôt que cellule par cellule.
-
-### 2. Éléments Pairs et Impairs
+Support for multi-level graduation operations:
 
 ```cpp
-// Traitement séparé pour optimiser l'accès mémoire
-if (auto i_even = i.even_elements(); i_even.is_valid()) {
-    tag_func(i_even);
-}
-if (auto i_odd = i.odd_elements(); i_odd.is_valid()) {
-    tag_func(i_odd);
-}
-```
-
-**Schéma :**
-```
-Éléments Pairs:  [0][2][4][6][8]...
-Éléments Impairs: [1][3][5][7][9]...
-
-Traitement séparé pour optimiser l'accès cache
-```
-
-### 3. Masquage Conditionnel
-
-```cpp
-apply_on_masked(tag(level - 1, i_c, index >> 1),
-               mask,
-               [](auto& e) { e |= static_cast<int>(CellFlag::refine); });
-```
-
-**Avantage :** Application conditionnelle des opérations uniquement où nécessaire.
-
-## Vérification de la Graduation
-
-### Fonction is_graduated
-
-```cpp
-template <class Mesh, std::size_t neighbourhood_width = 1>
-bool is_graduated(const Mesh& mesh, const Stencil& stencil = star_stencil<Mesh::dim>())
+// Graduation across multiple levels
+for (std::size_t level = max_level; level > min_level; --level)
 {
-    // Vérifie que le maillage respecte la condition 2:1
-    for (std::size_t level = min_level + 2; level <= max_level; ++level) {
-        for (std::size_t level_below = min_level; level_below < level - 1; ++level_below) {
-            // Vérification pour chaque stencil
-            for (std::size_t is = 0; is < stencil.shape()[0]; ++is) {
-                auto s = xt::view(stencil, is);
-                auto set = intersection(translate(mesh[level], s), mesh[level_below]).on(level_below);
-                set([&cond](const auto&, const auto&) { cond = false; });
-                if (!cond) return false;
-            }
-        }
-    }
-    return true;
+    samurai::graduate_level(mesh, level, tag);
 }
-```
-
-### Test de Cohérence
-
-```mermaid
-graph TD
-    A[Maillage] --> B{is_graduated?}
-    B -->|Oui| C[Maillage Cohérent]
-    B -->|Non| D[Maillage Incohérent]
-    D --> E[Re-graduation Nécessaire]
-    E --> A
-```
-
-## Exemples Pratiques
-
-### Exemple 1: Graduation Simple
-
-```cpp
-#include <samurai/algorithm/graduation.hpp>
-
-int main() {
-    // Créer un maillage
-    samurai::MRMesh<Config> mesh(box, min_level, max_level);
-    
-    // Créer un tag pour l'adaptation
-    auto tag = samurai::make_field<int>("tag", mesh);
-    
-    // Marquer certaines cellules pour raffinement
-    samurai::for_each_cell(mesh, [&](const auto& cell) {
-        if (should_refine(cell)) {
-            tag[cell] = static_cast<int>(samurai::CellFlag::refine);
-        } else {
-            tag[cell] = static_cast<int>(samurai::CellFlag::keep);
-        }
-    });
-    
-    // Appliquer la graduation
-    auto stencil = samurai::star_stencil<dim>();
-    samurai::graduation(tag, stencil);
-    
-    // Vérifier la cohérence
-    bool is_consistent = samurai::is_graduated(mesh, stencil);
-    std::cout << "Maillage cohérent: " << is_consistent << std::endl;
-    
-    return 0;
-}
-```
-
-### Exemple 2: Graduation avec Contraintes
-
-```cpp
-// Graduation avec largeur de stencil personnalisée
-template <std::size_t dim, class TInterval, size_t max_size>
-size_t make_graduation(CellArray<dim, TInterval, max_size>& ca,
-                      const size_t grad_width = 1,
-                      const size_t half_stencil_width = 1)
-{
-    // Applique la graduation avec des paramètres spécifiques
-    // grad_width: largeur de la zone de graduation
-    // half_stencil_width: demi-largeur du stencil numérique
-    
-    // Logique de graduation...
-    return nb_refined_cells;
-}
-```
-
-## Considérations Avancées
-
-### 1. Graduation avec MPI
-
-```mermaid
-graph TD
-    A[Maillage Distribué] --> B[Graduation Locale]
-    B --> C[Communication MPI]
-    C --> D[Synchronisation]
-    D --> E[Maillage Cohérent Global]
-    
-    C --> C1[Échange de Tags]
-    C --> C2[Synchronisation des Frontières]
-```
-
-### 2. Graduation Adaptative
-
-```cpp
-// Graduation avec seuil adaptatif
-double adaptive_threshold = compute_adaptive_threshold(field);
-samurai::graduation(tag, stencil, adaptive_threshold);
-```
-
-### 3. Monitoring de Performance
-
-```cpp
-// Mesurer les performances de la graduation
-samurai::times::timers.start("graduation");
-samurai::graduation(tag, stencil);
-samurai::times::timers.stop("graduation");
-
-auto stats = samurai::times::timers.get("graduation");
-std::cout << "Temps de graduation: " << stats.total_time << "s" << std::endl;
 ```
 
 ## Conclusion
 
-L'algorithme de graduation est un composant essentiel de Samurai qui garantit la qualité et la cohérence du maillage adaptatif. En respectant la condition 2:1 balance, il assure :
+The graduation algorithm is essential for maintaining mesh quality and numerical stability in adaptive mesh refinement. It ensures that the mesh remains consistent and suitable for high-order numerical schemes while providing efficient performance and flexibility for various applications.
 
-- **Stabilité numérique** des schémas de discrétisation
-- **Précision** des calculs sur maillages adaptatifs
-- **Facilité d'implémentation** des opérateurs numériques
-- **Performance optimisée** grâce aux traitements par intervalles
-
-L'algorithme est conçu pour être robuste, efficace et adaptable aux différents types de problèmes numériques, tout en maintenant la cohérence du maillage dans des contextes parallèles et complexes. 
+Key benefits:
+- **Numerical Stability:** Prevents instabilities from mesh inconsistencies
+- **Scheme Accuracy:** Maintains accuracy of numerical schemes
+- **Implementation Ease:** Simplifies the implementation of complex schemes
+- **Performance:** Efficient algorithm with linear complexity
+- **Flexibility:** Supports custom graduation rules and multi-level operations 

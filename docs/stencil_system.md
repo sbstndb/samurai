@@ -2,13 +2,13 @@
 
 ## Introduction
 
-Le système de stencils de Samurai est un composant fondamental pour la discrétisation des opérateurs différentiels. Il fournit une interface flexible et performante pour définir et manipuler des stencils de différentes tailles et formes, essentiels pour les schémas numériques.
+The Samurai stencil system is a fundamental component for the discretization of differential operators. It provides a flexible and efficient interface to define and manipulate stencils of various sizes and shapes, essential for numerical schemes.
 
-## Vue d'Ensemble du Système
+## System Overview
 
-### Définition d'un Stencil
+### Stencil Definition
 
-Un stencil est un ensemble de points de grille utilisés pour approximer des dérivées ou des opérateurs différentiels.
+A stencil is a set of grid points used to approximate derivatives or differential operators.
 
 ```mermaid
 graph TB
@@ -25,16 +25,16 @@ graph TB
     B --> B3[Optimization]
 ```
 
-### Types de Stencils
+### Types of Stencils
 
-#### 1. Stencil en Étoile (Star Stencil)
+#### 1. Star Stencil
 
 ```cpp
 template <std::size_t dim, std::size_t neighbourhood_width = 1>
 constexpr Stencil<1 + 2 * dim * neighbourhood_width, dim> star_stencil()
 ```
 
-**Schéma Visuel 1D :**
+**Visual Schema 1D :**
 ```
 Neighbourhood = 1:  [L][C][R]
 Neighbourhood = 2: [L2][L][C][R][R2]
@@ -42,7 +42,7 @@ Neighbourhood = 2: [L2][L][C][R][R2]
 L = Left, C = Center, R = Right
 ```
 
-**Schéma Visuel 2D :**
+**Visual Schema 2D :**
 ```
 Neighbourhood = 1:
     [ ][T][ ]
@@ -59,7 +59,7 @@ Neighbourhood = 2:
 T = Top, B = Bottom, L = Left, R = Right
 ```
 
-**Schéma Visuel 3D :**
+**Visual Schema 3D :**
 ```
 Neighbourhood = 1:
     [ ][T][ ]
@@ -73,32 +73,32 @@ Neighbourhood = 1:
 F = Front, K = Back
 ```
 
-#### 2. Stencil Linéaire (Line Stencil)
+#### 2. Linear Stencil
 
 ```cpp
 template <std::size_t dim, std::size_t d, class... Ints>
 auto line_stencil(Ints... neighbours)
 ```
 
-**Exemple :**
+**Example :**
 ```cpp
-// Stencil linéaire 1D avec 5 points
+// Linear stencil 1D with 5 points
 auto stencil = line_stencil<1, 0>(-2, -1, 0, 1, 2);
 ```
 
-**Schéma Visuel :**
+**Visual Schema :**
 ```
 [-2][-1][0][1][2]
 ```
 
-#### 3. Stencil Cartésien
+#### 3. Cartesian Stencil
 
 ```cpp
 template <std::size_t dim>
 constexpr Stencil<2 * dim, dim> cartesian_directions()
 ```
 
-**Schéma Visuel 2D :**
+**Visual Schema 2D :**
 ```
     [ ][T][ ]
     [L][C][R]
@@ -107,7 +107,7 @@ constexpr Stencil<2 * dim, dim> cartesian_directions()
 Directions: {0,1}, {0,-1}, {1,0}, {-1,0}
 ```
 
-## Analyse de Stencil
+## Stencil Analysis
 
 ### StencilAnalyzer
 
@@ -122,51 +122,51 @@ struct StencilAnalyzer
 };
 ```
 
-**Fonctionnalités :**
-- Détection automatique de l'origine (point central)
-- Analyse des directions cartésiennes
-- Optimisation pour les opérations vectorisées
+**Features :**
+- Automatic origin detection (central point)
+- Cartesian direction analysis
+- Optimization for vectorized operations
 
-### Exemple d'Analyse
+### Example Analysis
 
 ```cpp
 auto stencil = star_stencil<2, 1>();
 auto analyzer = make_stencil_analyzer(stencil);
 
-// Vérifier si le stencil a une origine
+// Check if the stencil has an origin
 if (analyzer.has_origin) {
     std::cout << "Origin index: " << analyzer.origin_index << std::endl;
 }
 ```
 
-## Stencils Prédéfinis
+## Pre-defined Stencils
 
-### 1. Stencil Central
+### 1. Central Stencil
 
 ```cpp
 template <std::size_t dim>
 constexpr Stencil<1, dim> center_only_stencil()
 ```
 
-**Utilisation :** Pour les opérations locales (pas de voisins).
+**Usage:** For local operations (no neighbors).
 
-### 2. Stencil In/Out
+### 2. In/Out Stencil
 
 ```cpp
 template <std::size_t dim, class Vector>
 Stencil<2, dim> in_out_stencil(const Vector& towards_out_from_in)
 ```
 
-**Utilisation :** Pour les conditions aux limites et les flux.
+**Usage:** For boundary conditions and fluxes.
 
-### 3. Stencils Directionnels
+### 3. Directional Stencils
 
 ```cpp
 template <std::size_t dim, std::size_t neighbourhood_width = 1>
 auto directional_stencils()
 ```
 
-**Schéma Visuel :**
+**Visual Schema:**
 ```mermaid
 graph TD
     A[Directional Stencils] --> B[Direction 0]
@@ -178,7 +178,7 @@ graph TD
     D --> D1[Stencil Z]
 ```
 
-## Itérateurs de Stencil
+## Stencil Iterators
 
 ### IteratorStencil
 
@@ -197,28 +197,14 @@ private:
 };
 ```
 
-**Fonctionnalités :**
-- Itération efficace sur les stencils
-- Gestion automatique des frontières
-- Support pour les maillages adaptatifs
+**Features:**
+- Efficient iteration over stencils
+- Automatic boundary handling
+- Support for adaptive meshes
 
-### Exemple d'Utilisation
+## Stencils for Numerical Schemes
 
-```cpp
-auto stencil = star_stencil<2, 1>();
-auto analyzer = make_stencil_analyzer(stencil);
-auto iterator = make_stencil_iterator(mesh, analyzer);
-
-for_each_stencil(mesh, iterator, [&](const auto& stencil_cells) {
-    // Traitement du stencil
-    auto center_value = field[stencil_cells[analyzer.origin_index]];
-    // ...
-});
-```
-
-## Stencils pour Schémas Numériques
-
-### 1. Convection Linéaire (Upwind)
+### 1. Linear Convection (Upwind)
 
 ```cpp
 template <class Field>
@@ -229,13 +215,13 @@ auto make_convection_upwind(const VelocityVector<Field::dim>& velocity)
 }
 ```
 
-**Schéma Visuel :**
+**Visual Schema :**
 ```
-Upwind positif: [C][R] → utilise C
-Upwind négatif: [L][C] → utilise C
+Upwind positive: [C][R] → uses C
+Upwind negative: [L][C] → uses C
 ```
 
-### 2. Convection WENO5
+### 2. WENO5 Convection
 
 ```cpp
 template <class Field>
@@ -246,27 +232,27 @@ auto make_convection_weno5(const VelocityVector<Field::dim>& velocity)
 }
 ```
 
-**Schéma Visuel :**
+**Visual Schema :**
 ```
-WENO5 positif: [-2][-1][0][1][2][3] → utilise [0,1,2,3,4]
-WENO5 négatif: [-2][-1][0][1][2][3] → utilise [5,4,3,2,1]
+WENO5 positive: [-2][-1][0][1][2][3] → uses [0,1,2,3,4]
+WENO5 negative: [-2][-1][0][1][2][3] → uses [5,4,3,2,1]
 ```
 
-## Optimisations de Performance
+## Performance Optimizations
 
-### 1. Stencils Statiques
+### 1. Static Stencils
 
 ```cpp
 // Compile-time stencil definition
 static constexpr auto stencil = star_stencil<2, 1>();
 ```
 
-**Avantages :**
-- Optimisation compile-time
-- Pas d'allocation dynamique
-- Vectorisation automatique
+**Advantages :**
+- Compile-time optimization
+- No dynamic allocation
+- Automatic vectorization
 
-### 2. Stencils Directionnels
+### 2. Directional Stencils
 
 ```mermaid
 graph LR
@@ -275,26 +261,26 @@ graph LR
     C --> D[Performance Gain]
 ```
 
-### 3. Stencils Adaptatifs
+### 3. Adaptive Stencils
 
 ```cpp
-// Stencil adaptatif selon la direction
+// Adaptive stencil based on direction
 auto stencil = convert_for_direction(base_stencil, direction);
 ```
 
-## Cas d'Usage Avancés
+## Advanced Use Cases
 
-### 1. Stencils Multi-niveaux
+### 1. Multi-level Stencils
 
 ```cpp
 template <std::size_t index_coarse_cell, class Mesh, std::size_t stencil_size>
 class LevelJumpIterator
 {
-    // Itérateur pour stencils traversant plusieurs niveaux
+    // Iterator for stencils spanning multiple levels
 };
 ```
 
-**Schéma Visuel :**
+**Visual Schema :**
 ```mermaid
 graph TD
     A[Fine Level] --> B[Coarse Level]
@@ -304,35 +290,35 @@ graph TD
     C --> D
 ```
 
-### 2. Stencils Non-Uniformes
+### 2. Non-uniform Stencils
 
 ```cpp
-// Stencil avec espacement variable
+// Stencil with variable spacing
 auto non_uniform_stencil = create_non_uniform_stencil(spacing);
 ```
 
-### 3. Stencils Anisotropes
+### 3. Anisotropic Stencils
 
 ```cpp
-// Stencil avec résolution différente selon les directions
+// Stencil with different resolution in different directions
 auto anisotropic_stencil = create_anisotropic_stencil(resolution);
 ```
 
-## Exemples Pratiques
+## Practical Examples
 
-### Exemple 1: Stencil Simple
+### Example 1: Simple Stencil
 
 ```cpp
 #include <samurai/stencil.hpp>
 
 int main() {
-    // Créer un stencil en étoile 2D
+    // Create a 2D star stencil
     auto stencil = samurai::star_stencil<2, 1>();
     
-    // Analyser le stencil
+    // Analyze the stencil
     auto analyzer = samurai::make_stencil_analyzer(stencil);
     
-    // Afficher les informations
+    // Display information
     std::cout << "Stencil size: " << stencil.shape()[0] << std::endl;
     std::cout << "Has origin: " << analyzer.has_origin << std::endl;
     
@@ -340,33 +326,33 @@ int main() {
 }
 ```
 
-### Exemple 2: Stencil pour Schéma Numérique
+### Example 2: Stencil for Numerical Scheme
 
 ```cpp
 #include <samurai/stencil.hpp>
 #include <samurai/schemes/fv/operators/convection_lin.hpp>
 
 int main() {
-    // Créer un champ
+    // Create a field
     auto field = samurai::make_scalar_field<double>("u", mesh);
     
-    // Définir la vitesse
+    // Define velocity
     samurai::VelocityVector<2> velocity{1.0, 0.0};
     
-    // Créer le schéma de convection
+    // Create convection scheme
     auto scheme = samurai::make_convection_upwind(velocity);
     
-    // Appliquer le schéma
+    // Apply scheme
     auto result = scheme.apply(field);
     
     return 0;
 }
 ```
 
-### Exemple 3: Stencil Personnalisé
+### Example 3: Custom Stencil
 
 ```cpp
-// Créer un stencil personnalisé
+// Create a custom stencil
 samurai::Stencil<5, 2> custom_stencil;
 custom_stencil = {
     {-1, -1}, {0, -1}, {1, -1},
@@ -374,34 +360,34 @@ custom_stencil = {
     {-1,  1}, {0,  1}, {1,  1}
 };
 
-// Analyser le stencil
+// Analyze the stencil
 auto analyzer = samurai::make_stencil_analyzer(custom_stencil);
 
-// Utiliser dans un opérateur
+// Use in an operator
 samurai::for_each_stencil(mesh, custom_stencil, [&](const auto& cells) {
-    // Traitement personnalisé
+    // Custom processing
 });
 ```
 
-## Monitoring et Validation
+## Monitoring and Validation
 
-### Vérification de Stencil
+### Stencil Validation
 
 ```cpp
-// Vérifier si un stencil est valide
+// Check if a stencil is valid
 bool is_valid = samurai::is_valid_stencil(stencil);
 
-// Vérifier si c'est un stencil linéaire
+// Check if it's a linear stencil
 bool is_line = samurai::is_line_stencil(stencil);
 ```
 
-### Analyse de Performance
+### Performance Analysis
 
 ```cpp
-// Mesurer les performances d'un stencil
+// Measure stencil performance
 samurai::times::timers.start("stencil_application");
 samurai::for_each_stencil(mesh, stencil, [&](const auto& cells) {
-    // Application du stencil
+    // Stencil application
 });
 samurai::times::timers.stop("stencil_application");
 
@@ -409,9 +395,9 @@ auto stats = samurai::times::timers.get("stencil_application");
 std::cout << "Stencil time: " << stats.total_time << "s" << std::endl;
 ```
 
-## Considérations Avancées
+## Advanced Considerations
 
-### 1. Stencils et Cache
+### 1. Stencils and Cache
 
 ```mermaid
 graph TD
@@ -424,30 +410,30 @@ graph TD
     A --> A3[Prefetching]
 ```
 
-### 2. Stencils et Parallélisme
+### 2. Stencils and Parallelism
 
 ```cpp
-// Stencil avec OpenMP
+// Stencil with OpenMP
 #pragma omp parallel for
 samurai::for_each_stencil(mesh, stencil, [&](const auto& cells) {
-    // Traitement parallèle
+    // Parallel processing
 });
 ```
 
-### 3. Stencils et GPU
+### 3. Stencils and GPU
 
 ```cpp
-// Stencil optimisé pour GPU
+// Optimized stencil for GPU
 auto gpu_stencil = create_gpu_optimized_stencil(stencil);
 ```
 
 ## Conclusion
 
-Le système de stencils de Samurai offre :
+The Samurai stencil system offers:
 
-- **Flexibilité** pour définir des stencils complexes
-- **Performance** grâce aux optimisations compile-time
-- **Simplicité** d'utilisation avec les stencils prédéfinis
-- **Extensibilité** pour les cas d'usage avancés
+- **Flexibility** to define complex stencils
+- **Performance** through compile-time optimizations
+- **Simplicity** with pre-defined stencils
+- **Extensibility** for advanced use cases
 
-Les stencils sont au cœur des schémas numériques de Samurai, permettant une discrétisation précise et efficace des opérateurs différentiels sur maillages adaptatifs. 
+Stencils are at the heart of Samurai's numerical schemes, enabling precise and efficient discretization of differential operators on adaptive meshes. 

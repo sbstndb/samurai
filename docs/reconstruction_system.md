@@ -1,23 +1,23 @@
-# Système de Reconstruction - Samurai
+# Reconstruction System - Samurai
 
-## Vue d'ensemble
+## Overview
 
-Le système de reconstruction de Samurai est un composant fondamental pour les simulations numériques avec raffinement adaptatif de maillage (AMR). Il permet de reconstruire des valeurs de champs sur différents niveaux de raffinement en utilisant des opérateurs de projection et de prédiction.
+Samurai's reconstruction system is a fundamental component for numerical simulations with adaptive mesh refinement (AMR). It allows reconstructing field values on different refinement levels using projection and prediction operators.
 
-## Architecture du Système
+## System Architecture
 
 ```mermaid
 graph TB
-    A[Champ Source] --> B[Opérateur de Reconstruction]
-    B --> C[Carte de Prédiction]
-    C --> D[Fonction Portion]
-    D --> E[Champ Destination]
+    A[Source Field] --> B[Reconstruction Operator]
+    B --> C[Prediction Map]
+    C --> D[Portion Function]
+    D --> E[Destination Field]
     
-    F[Opérateurs de Projection] --> B
-    G[Opérateurs de Prédiction] --> B
-    H[Transfert de Champs] --> E
+    F[Projection Operators] --> B
+    G[Prediction Operators] --> B
+    H[Field Transfer] --> E
     
-    subgraph "Composants"
+    subgraph "Components"
         I[Prediction Map]
         J[Reconstruction Operator]
         K[Portion Functions]
@@ -25,11 +25,11 @@ graph TB
     end
 ```
 
-## Cartes de Prédiction (Prediction Maps)
+## Prediction Maps
 
-### Définition et Structure
+### Definition and Structure
 
-Les cartes de prédiction sont des objets mathématiques qui encapsulent les coefficients d'interpolation nécessaires pour reconstruire des valeurs sur différents niveaux de raffinement.
+Prediction maps are mathematical objects that encapsulate the interpolation coefficients necessary for reconstructing values on different refinement levels.
 
 ```cpp
 template <std::size_t dim, class index_t = default_config::value_t>
@@ -39,119 +39,119 @@ class prediction_map
 };
 ```
 
-### Opérations sur les Cartes
+### Map Operations
 
 ```mermaid
 graph LR
     A[Prediction Map 1] --> C[Addition]
     B[Prediction Map 2] --> C
-    C --> D[Résultat]
+    C --> D[Result]
     
-    E[Prediction Map] --> F[Multiplication Scalaire]
-    F --> G[Résultat]
+    E[Prediction Map] --> F[Scalar Multiplication]
+    F --> G[Result]
     
-    H[Prediction Map] --> I[Suppression Entrées Faibles]
-    I --> J[Map Nettoyée]
+    H[Prediction Map] --> I[Remove Weak Entries]
+    I --> J[Cleaned Map]
 ```
 
-### Exemple d'Utilisation
+### Usage Example
 
 ```cpp
-// Création d'une carte de prédiction 1D
-prediction_map<1> map1{{5}};  // Coefficient 1.0 à l'index 5
-prediction_map<1> map2{{6}};  // Coefficient 1.0 à l'index 6
+// Creating a 1D prediction map
+prediction_map<1> map1{{5}};  // Coefficient 1.0 at index 5
+prediction_map<1> map2{{6}};  // Coefficient 1.0 at index 6
 
-// Opérations
+// Operations
 auto result = map1 + map2;           // Addition
 auto scaled = 2.0 * map1;            // Multiplication
-map1.remove_small_entries(1e-10);    // Nettoyage
+map1.remove_small_entries(1e-10);    // Cleaning
 ```
 
-## Fonctions de Prédiction
+## Prediction Functions
 
-### Prédiction 1D
+### 1D Prediction
 
 ```cpp
 template <std::size_t order = 1, class index_t = default_config::value_t>
 auto prediction(std::size_t level, index_t i) -> prediction_map<1, index_t>
 ```
 
-**Algorithme de Prédiction 1D :**
+**1D Prediction Algorithm:**
 
 ```mermaid
 graph TD
     A[Level L, Index i] --> B{Level == 0?}
-    B -->|Oui| C[Retourner Map avec coefficient 1.0]
-    B -->|Non| D[Calculer ig = i >> 1]
-    D --> E[Calculer sign = (i & 1) ? -1 : 1]
-    E --> F[Récursion: prediction(level-1, ig)]
-    F --> G[Calculer coefficients d'interpolation]
-    G --> H[Appliquer interpolation]
-    H --> I[Retourner Map résultante]
+    B -->|Yes| C[Return Map with coefficient 1.0]
+    B -->|No| D[Calculate ig = i >> 1]
+    D --> E[Calculate sign = (i & 1) ? -1 : 1]
+    E --> F[Recursion: prediction(level-1, ig)]
+    F --> G[Calculate interpolation coefficients]
+    G --> H[Apply interpolation]
+    H --> I[Return resulting Map]
 ```
 
-### Prédiction 2D et 3D
+### 2D and 3D Prediction
 
 ```cpp
-// Prédiction 2D
+// 2D prediction
 auto pred_2d = prediction<1>(level, i, j);
 
-// Prédiction 3D  
+// 3D prediction  
 auto pred_3d = prediction<1>(level, i, j, k);
 ```
 
-**Structure de Prédiction Multi-dimensionnelle :**
+**Multi-dimensional Prediction Structure:**
 
 ```mermaid
 graph TB
-    A[Prédiction 2D] --> B[Direction X]
-    A --> C[Direction Y]
-    B --> D[Coefficients X]
-    C --> E[Coefficients Y]
-    D --> F[Map Résultante]
+    A[2D Prediction] --> B[X Direction]
+    A --> C[Y Direction]
+    B --> D[X Coefficients]
+    C --> E[Y Coefficients]
+    D --> F[Resulting Map]
     E --> F
     
-    G[Prédiction 3D] --> H[Direction X]
-    G --> I[Direction Y]
-    G --> J[Direction Z]
-    H --> K[Coefficients X]
-    I --> L[Coefficients Y]
-    J --> M[Coefficients Z]
-    K --> N[Map Résultante]
+    G[3D Prediction] --> H[X Direction]
+    G --> I[Y Direction]
+    G --> J[Z Direction]
+    H --> K[X Coefficients]
+    I --> L[Y Coefficients]
+    J --> M[Z Coefficients]
+    K --> N[Resulting Map]
     L --> N
     M --> N
 ```
 
-## Opérateur de Reconstruction
+## Reconstruction Operator
 
-### Définition
+### Definition
 
 ```cpp
 template <std::size_t dim, class TInterval>
 class reconstruction_op_ : public field_operator_base<dim, TInterval>
 ```
 
-### Workflow de Reconstruction
+### Reconstruction Workflow
 
 ```mermaid
 graph LR
-    A[Champ Source] --> B[Déterminer Niveau]
-    B --> C[Calculer Carte de Prédiction]
-    C --> D[Appliquer Reconstruction]
-    D --> E[Champ Reconstruit]
+    A[Source Field] --> B[Determine Level]
+    B --> C[Calculate Prediction Map]
+    C --> D[Apply Reconstruction]
+    D --> E[Reconstructed Field]
     
-    subgraph "Étapes"
-        F[1. Analyse du champ]
-        G[2. Calcul des coefficients]
-        H[3. Application des opérateurs]
-        I[4. Validation du résultat]
+    subgraph "Steps"
+        F[1. Field analysis]
+        G[2. Coefficient calculation]
+        H[3. Operator application]
+        I[4. Result validation]
     end
 ```
 
-### Exemple d'Utilisation
+### Usage Example
 
 ```cpp
-// Création d'un opérateur de reconstruction
+// Creating a reconstruction operator
 auto reconstruct_level = 2;
 auto reconstruct_field = make_field<double, 1>("reconstructed", mesh);
 auto reconstruction_op = make_reconstruction(reconstruct_level, reconstruct_field, source_field);
@@ -160,11 +160,11 @@ auto reconstruction_op = make_reconstruction(reconstruct_level, reconstruct_fiel
 reconstruction_op.apply();
 ```
 
-## Fonctions Portion
+## Portion Functions
 
 ### Concept
 
-Les fonctions `portion` permettent d'extraire des portions de champs sur différents niveaux de raffinement en utilisant les cartes de prédiction.
+The `portion` functions allow extracting portions of fields on different refinement levels using prediction maps.
 
 ### Signatures Principales
 
@@ -197,106 +197,106 @@ auto portion(const Field& f, std::size_t level,
              typename Field::interval_t::value_t kk)
 ```
 
-### Workflow des Fonctions Portion
+### Portion Functions Workflow
 
 ```mermaid
 graph TD
-    A[Champ Source] --> B[Paramètres: level, interval, delta_l]
-    B --> C[Calcul Carte de Prédiction]
-    C --> D[Extraction des Indices]
-    D --> E[Application des Coefficients]
-    E --> F[Portion Résultante]
+    A[Source Field] --> B[Parameters: level, interval, delta_l]
+    B --> C[Calculate Prediction Map]
+    C --> D[Extract Indices]
+    D --> E[Apply Coefficients]
+    E --> F[Resulting Portion]
     
-    subgraph "Paramètres"
-        G[level: niveau source]
-        H[interval: intervalle source]
-        I[delta_l: différence de niveau]
-        J[ii, jj, kk: indices destination]
+    subgraph "Parameters"
+        G[level: source level]
+        H[interval: source interval]
+        I[delta_l: level difference]
+        J[ii, jj, kk: destination indices]
     end
 ```
 
-### Exemples d'Utilisation
+### Usage Examples
 
 ```cpp
-// Extraction d'une portion 1D
+// Extract a 1D portion
 auto portion_1d = portion(field, 2, interval_t{10, 20}, 1, 15);
 
-// Extraction d'une portion 2D
+// Extract a 2D portion
 auto portion_2d = portion(field, 2, interval_t{10, 20}, 5, 1, 15, 3);
 
-// Extraction avec ordre de prédiction spécifique
+// Extract with specific prediction order
 auto portion_high_order = portion<2>(field, 2, interval_t{10, 20}, 1, 15);
 ```
 
-## Transfert de Champs
+## Field Transfer
 
-### Fonction de Transfert
+### Transfer Function
 
 ```cpp
 template <class Field_src, class Field_dst>
 void transfer(Field_src& field_src, Field_dst& field_dst)
 ```
 
-### Workflow de Transfert
+### Transfer Workflow
 
 ```mermaid
 graph LR
-    A[Champ Source] --> B[Analyse Dimensions]
-    B --> C[Vérification Compatibilité]
-    C --> D[Calcul Cartes de Prédiction]
-    D --> E[Application Transfert]
-    E --> F[Champ Destination]
+    A[Source Field] --> B[Analyze Dimensions]
+    B --> C[Check Compatibility]
+    C --> D[Calculate Prediction Maps]
+    D --> E[Apply Transfer]
+    E --> F[Destination Field]
     
     subgraph "Validation"
-        G[Vérification types]
-        H[Vérification dimensions]
-        I[Vérification maillages]
+        G[Check types]
+        H[Check dimensions]
+        I[Check meshes]
     end
 ```
 
-### Exemple de Transfert
+### Transfer Example
 
 ```cpp
-// Création des champs
+// Create fields
 auto source_field = make_field<double, 1>("source", source_mesh);
 auto dest_field = make_field<double, 1>("destination", dest_mesh);
 
-// Transfert
+// Transfer
 transfer(source_field, dest_field);
 ```
 
-## Optimisations et Performance
+## Optimizations and Performance
 
-### Cache des Cartes de Prédiction
+### Prediction Map Caching
 
 ```mermaid
 graph TB
-    A[Demande Carte] --> B{Cache Hit?}
-    B -->|Oui| C[Retourner Carte Cachée]
-    B -->|Non| D[Calculer Nouvelle Carte]
-    D --> E[Stocker dans Cache]
-    E --> F[Retourner Carte]
-    C --> G[Fin]
+    A[Map Request] --> B{Cache Hit?}
+    B -->|Yes| C[Return Cached Map]
+    B -->|No| D[Calculate New Map]
+    D --> E[Store in Cache]
+    E --> F[Return Map]
+    C --> G[End]
     F --> G
 ```
 
-### Optimisations Mémoire
+### Memory Optimizations
 
 ```cpp
-// Suppression des entrées faibles pour économiser la mémoire
+// Remove weak entries to save memory
 prediction_map.remove_small_entries(1e-15);
 
-// Utilisation de cache statique pour les cartes fréquentes
+// Use static cache for frequent maps
 static std::map<std::tuple<std::size_t, std::size_t, index_t>, 
                 prediction_map<1, index_t>> values;
 ```
 
-## Cas d'Usage Avancés
+## Advanced Use Cases
 
-### Reconstruction Multi-niveaux
+### Multi-level Reconstruction
 
 ```cpp
-// Reconstruction sur plusieurs niveaux
+// Reconstruction on multiple levels
 for (std::size_t level = min_level; level <= max_level; ++level)
 {
     auto reconstruction_op = make_reconstruction(level, dest_field, source_field);
@@ -304,89 +304,89 @@ for (std::size_t level = min_level; level <= max_level; ++level)
 }
 ```
 
-### Reconstruction avec Conditions aux Limites
+### Reconstruction with Boundary Conditions
 
 ```cpp
-// Reconstruction avec gestion des conditions aux limites
+// Reconstruction with boundary condition handling
 auto reconstruction_op = make_reconstruction(level, dest_field, source_field);
 reconstruction_op.set_bc(boundary_conditions);
 reconstruction_op.apply();
 ```
 
-### Reconstruction Parallèle
+### Parallel Reconstruction
 
 ```cpp
 #ifdef SAMURAI_WITH_MPI
-// Reconstruction avec synchronisation MPI
+// Reconstruction with MPI synchronization
 auto reconstruction_op = make_reconstruction(level, dest_field, source_field);
 reconstruction_op.apply();
 mpi::synchronize_ghosts(dest_field);
 #endif
 ```
 
-## Monitoring et Debugging
+## Monitoring and Debugging
 
-### Affichage des Cartes de Prédiction
+### Display Prediction Maps
 
 ```cpp
-// Affichage d'une carte de prédiction
+// Display a prediction map
 std::cout << "Prediction map:" << std::endl;
 prediction_map.to_stream(std::cout);
 
 // Format: (index): coefficient
-// Exemple: (5): 1.0
+// Example: (5): 1.0
 //         (6): 0.5
 ```
 
-### Validation des Résultats
+### Result Validation
 
 ```cpp
-// Validation de la reconstruction
+// Validate reconstruction
 auto error = compute_reconstruction_error(source_field, reconstructed_field);
 std::cout << "Reconstruction error: " << error << std::endl;
 
-// Vérification de la conservation
+// Check conservation
 auto conservation_error = check_conservation(source_field, reconstructed_field);
 ```
 
-## Intégration avec AMR
+## AMR Integration
 
-### Reconstruction dans le Cycle AMR
+### Reconstruction in AMR Cycle
 
 ```mermaid
 graph LR
-    A[Maillage AMR] --> B[Raffinement]
+    A[AMR Mesh] --> B[Refinement]
     B --> C[Reconstruction]
-    C --> D[Calcul Numérique]
-    D --> E[Critères de Raffinement]
+    C --> D[Numerical Computation]
+    D --> E[Refinement Criteria]
     E --> A
 ```
 
-### Reconstruction avec Graduation
+### Reconstruction with Graduation
 
 ```cpp
-// Reconstruction après graduation
+// Reconstruction after graduation
 graduation(mesh);
 auto reconstruction_op = make_reconstruction(level, dest_field, source_field);
 reconstruction_op.apply();
 ```
 
-## Exemples Complets
+## Complete Examples
 
-### Exemple 1: Reconstruction Simple
+### Example 1: Simple Reconstruction
 
 ```cpp
 #include <samurai/reconstruction.hpp>
 
 int main()
 {
-    // Création du maillage
+    // Create mesh
     auto mesh = make_mesh();
     
-    // Création du champ source
+    // Create source field
     auto source_field = make_field<double, 1>("source", mesh);
     
-    // Initialisation
+    // Initialize
     samurai::for_each_cell(source_field, [&](auto& cell)
     {
         source_field[cell] = std::sin(cell.center(0));
@@ -401,7 +401,7 @@ int main()
 }
 ```
 
-### Exemple 2: Reconstruction Multi-niveaux
+### Example 2: Multi-level Reconstruction
 
 ```cpp
 #include <samurai/reconstruction.hpp>
@@ -412,7 +412,7 @@ int main()
     auto mesh = make_amr_mesh();
     auto source_field = make_field<double, 1>("source", mesh);
     
-    // Reconstruction sur tous les niveaux
+    // Reconstruction on all levels
     for (std::size_t level = mesh.min_level(); level <= mesh.max_level(); ++level)
     {
         auto dest_field = make_field<double, 1>("dest_" + std::to_string(level), mesh);
@@ -424,7 +424,7 @@ int main()
 }
 ```
 
-### Exemple 3: Reconstruction avec Monitoring
+### Example 3: Reconstruction with Monitoring
 
 ```cpp
 #include <samurai/reconstruction.hpp>
@@ -432,10 +432,10 @@ int main()
 
 int main()
 {
-    // Timer pour monitoring
+    // Timer for monitoring
     auto timer = samurai::Timer("reconstruction");
     
-    // Reconstruction avec monitoring
+    // Reconstruction with monitoring
     timer.start();
     auto reconstruction_op = make_reconstruction(level, dest_field, source_field);
     reconstruction_op.apply();
@@ -445,10 +445,4 @@ int main()
     
     return 0;
 }
-```
-
-## Conclusion
-
-Le système de reconstruction de Samurai fournit un ensemble complet d'outils pour la reconstruction de champs sur des maillages multi-niveaux. Il combine efficacité numérique, flexibilité d'utilisation et intégration transparente avec le système AMR.
-
-Les cartes de prédiction, les opérateurs de reconstruction et les fonctions portion constituent une base solide pour les simulations numériques avancées avec raffinement adaptatif de maillage. 
+``` 

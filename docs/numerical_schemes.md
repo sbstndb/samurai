@@ -1,56 +1,56 @@
-# Schémas Numériques - Samurai
+# Numerical Schemes - Samurai
 
-## Vue d'ensemble
+## Overview
 
-Samurai propose une collection complète de schémas numériques pour la résolution d'équations aux dérivées partielles (EDP) sur des maillages adaptatifs. Ces schémas sont conçus pour fonctionner efficacement avec le système AMR et supportent les simulations multi-physiques.
+Samurai provides a comprehensive collection of numerical schemes for solving partial differential equations (PDEs) on adaptive meshes. These schemes are designed to work efficiently with the AMR system and support multi-physics simulations.
 
-## Architecture des Schémas
+## Scheme Architecture
 
 ```mermaid
 graph TB
-    A[Schémas Numériques] --> B[Schémas Flux-Based]
-    A --> C[Schémas Cell-Based]
-    A --> D[Opérateurs Différentiels]
+    A[Numerical Schemes] --> B[Flux-Based Schemes]
+    A --> C[Cell-Based Schemes]
+    A --> D[Differential Operators]
     
-    B --> E[Convection Upwind]
-    B --> F[Convection WENO5]
+    B --> E[Upwind Convection]
+    B --> F[WENO5 Convection]
     B --> G[Diffusion]
     
-    C --> H[Schémas Explicites]
-    C --> I[Schémas Implicites]
+    C --> H[Explicit Schemes]
+    C --> I[Implicit Schemes]
     
     D --> J[Gradient]
     D --> K[Divergence]
-    D --> L[Laplacien]
+    D --> L[Laplacian]
     
-    subgraph "Types de Schémas"
-        M[Linéaires Homogènes]
-        N[Linéaires Hétérogènes]
-        O[Non-Linéaires]
+    subgraph "Scheme Types"
+        M[Linear Homogeneous]
+        N[Linear Heterogeneous]
+        O[Non-Linear]
     end
 ```
 
-## Schémas Flux-Based
+## Flux-Based Schemes
 
-### Conception Générale
+### General Design
 
-Les schémas flux-based dans Samurai sont basés sur une approche conservative où les flux sont calculés aux interfaces entre cellules.
+Flux-based schemes in Samurai are based on a conservative approach where fluxes are calculated at interfaces between cells.
 
 ```mermaid
 graph LR
-    A[Cellule i-1] --> B[Flux i-1/2]
-    B --> C[Cellule i]
+    A[Cell i-1] --> B[Flux i-1/2]
+    B --> C[Cell i]
     C --> D[Flux i+1/2]
-    D --> E[Cellule i+1]
+    D --> E[Cell i+1]
     
-    subgraph "Calcul de Flux"
-        F[Évaluation des Variables]
-        G[Calcul du Flux Numérique]
-        H[Application des Conditions aux Limites]
+    subgraph "Flux Calculation"
+        F[Variable Evaluation]
+        G[Numerical Flux Calculation]
+        H[Boundary Condition Application]
     end
 ```
 
-### Configuration des Schémas Flux-Based
+### Flux-Based Scheme Configuration
 
 ```cpp
 template <SchemeType scheme_type,
@@ -66,141 +66,141 @@ struct FluxConfig
 };
 ```
 
-## Schémas de Convection
+## Convection Schemes
 
-### Convection Upwind Linéaire
+### Linear Upwind Convection
 
-Le schéma upwind est le schéma de convection le plus simple et robuste.
+The upwind scheme is the simplest and most robust convection scheme.
 
 ```cpp
 template <class Field>
 auto make_convection_upwind(const VelocityVector<Field::dim>& velocity)
 ```
 
-**Principe du Schéma Upwind :**
+**Upwind Scheme Principle:**
 
 ```mermaid
 graph TD
-    A[Vitesse > 0] --> B[Utiliser Valeur Gauche]
-    A --> C[Vitesse < 0] --> D[Utiliser Valeur Droite]
+    A[Velocity > 0] --> B[Use Left Value]
+    A --> C[Velocity < 0] --> D[Use Right Value]
     
     B --> E[Flux = v * u_left]
     D --> F[Flux = v * u_right]
     
     subgraph "Stencil"
-        G[Cellule i-1] --> H[Cellule i]
-        H --> I[Cellule i+1]
+        G[Cell i-1] --> H[Cell i]
+        H --> I[Cell i+1]
     end
 ```
 
-**Coefficients du Schéma :**
+**Scheme Coefficients:**
 
 ```cpp
-// Pour v >= 0 (upwind gauche)
+// For v >= 0 (left upwind)
 coeffs[left] = velocity(d);
 coeffs[right] = 0;
 
-// Pour v < 0 (upwind droite)
+// For v < 0 (right upwind)
 coeffs[left] = 0;
 coeffs[right] = velocity(d);
 ```
 
-### Convection WENO5
+### WENO5 Convection
 
-Le schéma WENO5 (Weighted Essentially Non-Oscillatory) offre une précision d'ordre 5 avec une limitation d'oscillations.
+The WENO5 (Weighted Essentially Non-Oscillatory) scheme provides 5th order accuracy with oscillation limiting.
 
 ```cpp
 template <class Field>
 auto make_convection_weno5(const VelocityVector<Field::dim>& velocity)
 ```
 
-**Structure du Stencil WENO5 :**
+**WENO5 Stencil Structure:**
 
 ```mermaid
 graph LR
     A[i-2] --> B[i-1] --> C[i] --> D[i+1] --> E[i+2] --> F[i+3]
     
-    subgraph "Stencils Locaux"
+    subgraph "Local Stencils"
         G[Stencil 1: i-2, i-1, i]
         H[Stencil 2: i-1, i, i+1]
         I[Stencil 3: i, i+1, i+2]
     end
     
     subgraph "Reconstruction"
-        J[Calcul des Polynômes]
-        K[Calcul des Poids]
-        L[Reconstruction Finale]
+        J[Polynomial Calculation]
+        K[Weight Calculation]
+        L[Final Reconstruction]
     end
 ```
 
-**Algorithme WENO5 :**
+**WENO5 Algorithm:**
 
 ```mermaid
 graph TD
-    A[Données d'Entrée] --> B[Calcul des Flux Locaux]
-    B --> C[Calcul des Indicateurs de Lissage]
-    C --> D[Calcul des Poids Non-Oscillatoires]
-    D --> E[Reconstruction WENO]
-    E --> F[Flux Final]
+    A[Input Data] --> B[Local Flux Calculation]
+    B --> C[Smoothness Indicator Calculation]
+    C --> D[Non-Oscillatory Weight Calculation]
+    D --> E[WENO Reconstruction]
+    E --> F[Final Flux]
     
-    subgraph "Indicateurs de Lissage"
+    subgraph "Smoothness Indicators"
         G[β₀ = (uᵢ₊₁ - uᵢ)² + (uᵢ - uᵢ₋₁)²]
         H[β₁ = (uᵢ₊₂ - uᵢ₊₁)² + (uᵢ₊₁ - uᵢ)²]
         I[β₂ = (uᵢ₊₃ - uᵢ₊₂)² + (uᵢ₊₂ - uᵢ₊₁)²]
     end
 ```
 
-### Convection avec Champ de Vitesse Variable
+### Convection with Variable Velocity Field
 
 ```cpp
 template <class Field, class VelocityField>
 auto make_convection_upwind(const VelocityField& velocity_field)
 ```
 
-**Workflow avec Vitesse Variable :**
+**Variable Velocity Workflow:**
 
 ```mermaid
 graph LR
-    A[Champ de Vitesse] --> B[Évaluation Locale]
-    B --> C[Détermination Direction]
-    C --> D[Application Schéma Upwind]
-    D --> E[Flux Résultant]
+    A[Velocity Field] --> B[Local Evaluation]
+    B --> C[Direction Determination]
+    C --> D[Upwind Scheme Application]
+    D --> E[Resulting Flux]
     
-    subgraph "Évaluation"
-        F[Calcul v(x,t)]
+    subgraph "Evaluation"
+        F[Calculate v(x,t)]
         G[Test v ≥ 0]
-        H[Sélection Stencil]
+        H[Stencil Selection]
     end
 ```
 
-## Schémas de Diffusion
+## Diffusion Schemes
 
-### Diffusion Linéaire Homogène
+### Linear Homogeneous Diffusion
 
 ```cpp
 template <class Field, DirichletEnforcement dirichlet_enfcmt = Equation>
 auto make_diffusion_order2(const DiffCoeff<Field::dim>& K)
 ```
 
-**Principe du Schéma de Diffusion :**
+**Diffusion Scheme Principle:**
 
 ```mermaid
 graph TD
-    A[Laplacien Discret] --> B[Différences Finies Centrées]
-    B --> C[Flux de Diffusion]
-    C --> D[Opérateur -∇·(K∇u)]
+    A[Discrete Laplacian] --> B[Centered Finite Differences]
+    B --> C[Diffusion Flux]
+    C --> D[Operator -∇·(K∇u)]
     
-    subgraph "Stencil 1D"
+    subgraph "1D Stencil"
         E[uᵢ₋₁] --> F[uᵢ] --> G[uᵢ₊₁]
         H[Flux i-1/2] --> F
         F --> I[Flux i+1/2]
     end
 ```
 
-**Coefficients du Schéma :**
+**Scheme Coefficients:**
 
 ```cpp
-// Flux de diffusion
+// Diffusion flux
 coeffs[left] = -K(d) / h;
 coeffs[right] = K(d) / h;
 
@@ -209,38 +209,38 @@ coeffs[left] *= -1;
 coeffs[right] *= -1;
 ```
 
-### Diffusion Multi-Composantes
+### Multi-Component Diffusion
 
 ```cpp
 template <class Field, DirichletEnforcement dirichlet_enfcmt = Equation>
 auto make_multi_diffusion_order2(const DiffCoeff<Field::n_comp>& K)
 ```
 
-**Structure Multi-Composantes :**
+**Multi-Component Structure:**
 
 ```mermaid
 graph TB
-    A[Champ Multi-Composantes] --> B[Composante 1]
-    A --> C[Composante 2]
-    A --> D[Composante n]
+    A[Multi-Component Field] --> B[Component 1]
+    A --> C[Component 2]
+    A --> D[Component n]
     
     B --> E[Diffusion K₁]
     C --> F[Diffusion K₂]
     D --> G[Diffusion Kₙ]
     
-    E --> H[Champ Résultant]
+    E --> H[Resulting Field]
     F --> H
     G --> H
 ```
 
-### Conditions aux Limites pour la Diffusion
+### Boundary Conditions for Diffusion
 
-#### Conditions de Dirichlet
+#### Dirichlet Conditions
 
 ```cpp
 void set_dirichlet_config()
 {
-    // Équation: (u_ghost + u_cell)/2 = dirichlet_value
+    // Equation: (u_ghost + u_cell)/2 = dirichlet_value
     // Coefficient: [1/2, 1/2] = dirichlet_value
     coeffs[cell] = -1/(h*h);
     coeffs[ghost] = -1/(h*h);
@@ -248,12 +248,12 @@ void set_dirichlet_config()
 }
 ```
 
-#### Conditions de Neumann
+#### Neumann Conditions
 
 ```cpp
 void set_neumann_config()
 {
-    // Équation: (u_ghost - u_cell)/h = neumann_value
+    // Equation: (u_ghost - u_cell)/h = neumann_value
     // Coefficient: [1/h², -1/h²] = (1/h) * neumann_value
     coeffs[cell] = -1/(h*h);
     coeffs[ghost] = 1/(h*h);
@@ -261,94 +261,94 @@ void set_neumann_config()
 }
 ```
 
-## Schémas Cell-Based
+## Cell-Based Schemes
 
-### Schémas Explicites
+### Explicit Schemes
 
 ```cpp
 template <class cfg>
 class ExplicitCellBasedScheme : public CellBasedScheme<cfg>
 ```
 
-**Workflow des Schémas Explicites :**
+**Explicit Scheme Workflow:**
 
 ```mermaid
 graph LR
-    A[État Actuel] --> B[Calcul des Flux]
-    B --> C[Intégration Temporelle]
-    C --> D[Nouvel État]
+    A[Current State] --> B[Flux Calculation]
+    B --> C[Time Integration]
+    C --> D[New State]
     
-    subgraph "Intégration"
-        E[Méthode Euler Explicite]
-        F[Méthode RK4]
-        G[Méthode Adams-Bashforth]
+    subgraph "Integration"
+        E[Explicit Euler Method]
+        F[RK4 Method]
+        G[Adams-Bashforth Method]
     end
 ```
 
-### Schémas Implicites
+### Implicit Schemes
 
 ```cpp
 template <class cfg>
 class ImplicitCellBasedScheme : public CellBasedScheme<cfg>
 ```
 
-**Workflow des Schémas Implicites :**
+**Implicit Scheme Workflow:**
 
 ```mermaid
 graph LR
-    A[État Actuel] --> B[Assemblage Matrice]
-    B --> C[Résolution Système Linéaire]
-    C --> D[Nouvel État]
+    A[Current State] --> B[Matrix Assembly]
+    B --> C[Linear System Resolution]
+    C --> D[New State]
     
-    subgraph "Résolution"
-        E[Solveur Direct]
-        F[Solveur Itératif]
-        G[Préconditionnement]
+    subgraph "Resolution"
+        E[Direct Solver]
+        F[Iterative Solver]
+        G[Preconditioning]
     end
 ```
 
-## Opérateurs Différentiels
+## Differential Operators
 
-### Opérateur Gradient
+### Gradient Operator
 
 ```cpp
 template <class Field>
 auto make_gradient()
 ```
 
-**Calcul du Gradient :**
+**Gradient Calculation:**
 
 ```mermaid
 graph TD
-    A[Champ Scalaire] --> B[Calcul ∂u/∂x]
-    A --> C[Calcul ∂u/∂y]
-    A --> D[Calcul ∂u/∂z]
+    A[Scalar Field] --> B[Calculate ∂u/∂x]
+    A --> C[Calculate ∂u/∂y]
+    A --> D[Calculate ∂u/∂z]
     
     B --> E[Gradient ∇u]
     C --> E
     D --> E
     
-    subgraph "Différences Finies"
+    subgraph "Finite Differences"
         F[∂u/∂x ≈ (uᵢ₊₁ - uᵢ₋₁)/(2h)]
         G[∂u/∂y ≈ (uⱼ₊₁ - uⱼ₋₁)/(2h)]
         H[∂u/∂z ≈ (uₖ₊₁ - uₖ₋₁)/(2h)]
     end
 ```
 
-### Opérateur Divergence
+### Divergence Operator
 
 ```cpp
 template <class Field>
 auto make_divergence()
 ```
 
-**Calcul de la Divergence :**
+**Divergence Calculation:**
 
 ```mermaid
 graph TD
-    A[Champ Vectoriel] --> B[Composante X]
-    A --> C[Composante Y]
-    A --> D[Composante Z]
+    A[Vector Field] --> B[X-Component]
+    A --> C[Y-Component]
+    A --> D[Z-Component]
     
     B --> E[∂vₓ/∂x]
     C --> F[∂vᵧ/∂y]
@@ -359,7 +359,7 @@ graph TD
     G --> H
 ```
 
-### Opérateur Laplacien
+### Laplacian Operator
 
 ```cpp
 template <class Field>
@@ -369,172 +369,172 @@ auto make_laplacian_order2()
 }
 ```
 
-## Schémas Non-Linéaires
+## Non-Linear Schemes
 
-### Convection Non-Linéaire
+### Non-Linear Convection
 
 ```cpp
 template <class Field>
 auto make_convection_nonlinear()
 ```
 
-**Gestion de la Non-Linéarité :**
+**Non-Linearity Management:**
 
 ```mermaid
 graph LR
-    A[Champ Non-Linéaire] --> B[Linéarisation]
-    B --> C[Schéma Linéaire]
-    C --> D[Correction Non-Linéaire]
-    D --> E[Résultat Final]
+    A[Non-Linear Field] --> B[Linearization]
+    B --> C[Linear Scheme]
+    C --> D[Non-Linear Correction]
+    D --> E[Final Result]
     
-    subgraph "Méthodes"
+    subgraph "Methods"
         F[Newton-Raphson]
-        G[Itération de Point Fixe]
-        H[Schéma de Relaxation]
+        G[Fixed Point Iteration]
+        H[Relaxation Scheme]
     end
 ```
 
-## Intégration Temporelle
+## Time Integration
 
-### Schémas Explicites
+### Explicit Schemes
 
 ```mermaid
 graph LR
-    A[État tₙ] --> B[Calcul Flux]
-    B --> C[Intégration]
-    C --> D[État tₙ₊₁]
+    A[State tₙ] --> B[Flux Calculation]
+    B --> C[Integration]
+    C --> D[State tₙ₊₁]
     
-    subgraph "Méthodes"
-        E[Euler Explicite]
+    subgraph "Methods"
+        E[Explicit Euler]
         F[RK2]
         G[RK4]
         H[Adams-Bashforth]
     end
 ```
 
-### Schémas Implicites
+### Implicit Schemes
 
 ```mermaid
 graph LR
-    A[État tₙ] --> B[Assemblage Système]
-    B --> C[Résolution]
-    C --> D[État tₙ₊₁]
+    A[State tₙ] --> B[System Assembly]
+    B --> C[Resolution]
+    C --> D[State tₙ₊₁]
     
-    subgraph "Méthodes"
-        E[Euler Implicite]
+    subgraph "Methods"
+        E[Implicit Euler]
         F[Crank-Nicolson]
         G[BDF]
-        H[Schémas Multi-Pas]
+        H[Multi-Step Schemes]
     end
 ```
 
-## Conditions aux Limites
+## Boundary Conditions
 
-### Types de Conditions
+### Types of Boundary Conditions
 
 ```mermaid
 graph TB
-    A[Conditions aux Limites] --> B[Dirichlet]
+    A[Boundary Conditions] --> B[Dirichlet]
     A --> C[Neumann]
-    A --> D[Périodiques]
+    A --> D[Periodic]
     A --> E[Robin]
-    A --> F[Personnalisées]
+    A --> F[Custom]
     
-    B --> G[u = g sur ∂Ω]
-    C --> H[∂u/∂n = h sur ∂Ω]
+    B --> G[u = g on ∂Ω]
+    C --> H[∂u/∂n = h on ∂Ω]
     D --> I[u(x) = u(x+L)]
     E --> J[αu + β∂u/∂n = γ]
-    F --> K[Conditions Spécifiques]
+    F --> K[Specific Conditions]
 ```
 
-### Implémentation des Conditions
+### Implementation of Boundary Conditions
 
 ```cpp
-// Configuration Dirichlet
+// Dirichlet Configuration
 scheme.set_dirichlet_config();
 
-// Configuration Neumann  
+// Neumann Configuration  
 scheme.set_neumann_config();
 
-// Configuration Périodique
+// Periodic Configuration
 scheme.set_periodic_config();
 ```
 
-## Optimisations et Performance
+## Optimizations and Performance
 
-### Optimisations Compile-Time
+### Compile-Time Optimizations
 
 ```cpp
-// Utilisation de constantes compile-time
+// Use compile-time constants
 static constexpr std::size_t stencil_size = 2;
 static constexpr std::size_t output_n_comp = n_comp;
 
-// Spécialisation des templates
+// Template specialization
 template <std::size_t dim>
 using VelocityVector = xt::xtensor_fixed<double, xt::xshape<dim>>;
 ```
 
-### Optimisations Runtime
+### Runtime Optimizations
 
 ```mermaid
 graph TB
-    A[Calcul de Flux] --> B{Optimisations}
-    B --> C[Vectorisation SIMD]
+    A[Flux Calculation] --> B{Optimizations}
+    B --> C[SIMD Vectorization]
     B --> D[Cache Locality]
-    B --> E[Parallélisation]
+    B --> E[Parallelization]
     
-    C --> F[Amélioration Performance]
+    C --> F[Performance Improvement]
     D --> F
     E --> F
 ```
 
-## Validation et Tests
+## Validation and Testing
 
-### Tests de Convergence
+### Convergence Tests
 
 ```cpp
-// Test de convergence pour un schéma
+// Test for a scheme
 auto error = compute_convergence_error(scheme, exact_solution);
 std::cout << "Convergence rate: " << error << std::endl;
 ```
 
-### Tests de Conservation
+### Conservation Tests
 
 ```mermaid
 graph LR
-    A[État Initial] --> B[Évolution]
-    B --> C[État Final]
+    A[Initial State] --> B[Evolution]
+    B --> C[Final State]
     
-    A --> D[Calcul Quantité Conservée]
-    C --> E[Calcul Quantité Conservée]
+    A --> D[Calculate Conserved Quantity]
+    C --> E[Calculate Conserved Quantity]
     
     D --> F{Conservation?}
     E --> F
-    F -->|Oui| G[Test Réussi]
-    F -->|Non| H[Test Échoué]
+    F -->|Yes| G[Test Passed]
+    F -->|No| H[Test Failed]
 ```
 
-## Exemples Complets
+## Complete Examples
 
-### Exemple 1: Équation de Convection-Diffusion
+### Example 1: Convection-Diffusion Equation
 
 ```cpp
 #include <samurai/schemes/fv.hpp>
 
 int main()
 {
-    // Configuration du maillage
+    // Mesh Configuration
     auto mesh = make_mesh();
     
-    // Création des champs
+    // Field Creation
     auto u = make_field<double, 1>("u", mesh);
     auto velocity = make_field<double, 2>("velocity", mesh);
     
-    // Schémas numériques
+    // Numerical Schemes
     auto convection = make_convection_upwind(velocity);
     auto diffusion = make_diffusion_order2(1.0);
     
-    // Combinaison des schémas
+    // Scheme Combination
     auto scheme = convection + diffusion;
     
     // Application
@@ -544,7 +544,7 @@ int main()
 }
 ```
 
-### Exemple 2: Équation de Burgers avec WENO5
+### Example 2: Burgers Equation with WENO5
 
 ```cpp
 #include <samurai/schemes/fv.hpp>
@@ -555,10 +555,10 @@ int main()
     auto mesh = make_amr_mesh();
     auto u = make_field<double, 1>("u", mesh);
     
-    // Schéma WENO5 pour l'équation de Burgers
+    // WENO5 Scheme for Burgers Equation
     auto burgers_scheme = make_convection_weno5(u);
     
-    // Intégration temporelle
+    // Time Integration
     for (std::size_t step = 0; step < n_steps; ++step)
     {
         burgers_scheme.apply(u);
@@ -569,24 +569,24 @@ int main()
 }
 ```
 
-### Exemple 3: Système Multi-Physiques
+### Example 3: Multi-Physics System
 
 ```cpp
 #include <samurai/schemes/fv.hpp>
 
 int main()
 {
-    // Champs multi-composantes
+    // Multi-Component Fields
     auto rho = make_field<double, 1>("density", mesh);
     auto v = make_field<double, 2>("velocity", mesh);
     auto p = make_field<double, 1>("pressure", mesh);
     
-    // Schémas pour chaque équation
+    // Schemes for each equation
     auto mass_equation = make_convection_upwind(v);
     auto momentum_equation = make_convection_weno5(v) + make_diffusion_order2(mu);
     auto energy_equation = make_convection_upwind(v) + make_diffusion_order2(kappa);
     
-    // Système couplé
+    // Coupled System
     mass_equation.apply(rho);
     momentum_equation.apply(v);
     energy_equation.apply(p);
@@ -595,68 +595,68 @@ int main()
 }
 ```
 
-## Monitoring et Debugging
+## Monitoring and Debugging
 
-### Monitoring des Schémas
+### Monitoring Schemes
 
 ```cpp
-// Activation du monitoring
+// Enable monitoring
 scheme.set_monitoring(true);
 
-// Affichage des statistiques
+// Display statistics
 std::cout << "Scheme statistics:" << std::endl;
 std::cout << "  - CFL number: " << scheme.get_cfl() << std::endl;
 std::cout << "  - Max eigenvalue: " << scheme.get_max_eigenvalue() << std::endl;
 std::cout << "  - Min eigenvalue: " << scheme.get_min_eigenvalue() << std::endl;
 ```
 
-### Debugging des Schémas
+### Debugging Schemes
 
 ```cpp
-// Validation des coefficients
+// Validate coefficients
 scheme.validate_coefficients();
 
-// Vérification de la stabilité
+// Check stability
 if (!scheme.check_stability())
 {
     std::cerr << "Warning: Scheme may be unstable!" << std::endl;
 }
 ```
 
-## Intégration avec AMR
+## Integration with AMR
 
-### Schémas Adaptatifs
+### Adaptive Schemes
 
 ```mermaid
 graph LR
-    A[Maillage AMR] --> B[Identification Niveaux]
-    B --> C[Application Schémas]
-    C --> D[Projection/Prédiction]
-    D --> E[Mise à Jour Solution]
+    A[AMR Mesh] --> B[Level Identification]
+    B --> C[Apply Schemes]
+    C --> D[Projection/Prediction]
+    D --> E[Update Solution]
     
-    subgraph "Gestion Multi-Niveaux"
-        F[Schémas par Niveau]
-        G[Synchronisation]
+    subgraph "Multi-Level Management"
+        F[Schemes by Level]
+        G[Synchronization]
         H[Conservation]
     end
 ```
 
-### Schémas avec Raffinement
+### Schemes with Refinement
 
 ```cpp
-// Application sur maillage AMR
+// Apply on AMR mesh
 for (std::size_t level = mesh.min_level(); level <= mesh.max_level(); ++level)
 {
     auto level_scheme = make_scheme_for_level(level);
     level_scheme.apply(field);
 }
 
-// Synchronisation entre niveaux
+// Synchronization between levels
 synchronize_levels(field);
 ```
 
 ## Conclusion
 
-Les schémas numériques de Samurai offrent une palette complète d'outils pour la résolution d'EDP sur des maillages adaptatifs. Ils combinent précision numérique, robustesse et efficacité, tout en s'intégrant parfaitement avec le système AMR.
+The numerical schemes of Samurai offer a complete palette of tools for solving PDEs on adaptive meshes. They combine numerical precision, robustness, and efficiency, seamlessly integrating with the AMR system.
 
-La modularité des schémas permet une grande flexibilité dans la conception de solveurs pour des problèmes multi-physiques complexes. 
+The modularity of the schemes allows for great flexibility in designing solvers for complex multi-physics problems. 

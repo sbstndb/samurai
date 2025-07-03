@@ -1,86 +1,86 @@
-# Cas Test : Advection 2D - Samurai
+# Test Case: 2D Advection - Samurai
 
-## Vue d'ensemble
+## Overview
 
-Le cas test d'advection 2D dans Samurai est un benchmark fondamental pour valider les schémas numériques d'advection sur des maillages adaptatifs multirésolution. Il résout l'équation d'advection 2D avec un disque initial qui se déplace selon un vecteur vitesse constant, utilisant le schéma upwind avec correction de flux aux interfaces multi-niveaux.
+The 2D advection test case in Samurai is a fundamental benchmark for validating numerical advection schemes on multiresolution adaptive meshes. It solves the 2D advection equation with an initial disk that moves according to a constant velocity vector, using the upwind scheme with flux correction at multi-level interfaces.
 
-## Équation Modélisée
+## Modeled Equation
 
-### Formulation Mathématique
+### Mathematical Formulation
 
-L'équation d'advection 2D s'écrit :
+The 2D advection equation is written as:
 
 ```
 ∂u/∂t + a₁ ∂u/∂x + a₂ ∂u/∂y = 0
 ```
 
-où :
-- `u(x,y,t)` est la variable d'état scalaire
-- `a = (a₁, a₂)` est le vecteur vitesse constant
-- `(x,y) ∈ [0,1] × [0,1]` est le domaine spatial
+where:
+- `u(x,y,t)` is the scalar state variable
+- `a = (a₁, a₂)` is the constant velocity vector
+- `(x,y) ∈ [0,1] × [0,1]` is the spatial domain
 
-### Solution Analytique
+### Analytical Solution
 
-Pour une condition initiale `u₀(x,y)`, la solution exacte est :
+For an initial condition `u₀(x,y)`, the exact solution is:
 
 ```
 u(x,y,t) = u₀(x - a₁t, y - a₂t)
 ```
 
-La solution se déplace à vitesse constante `a` sans déformation.
+The solution moves at constant velocity `a` without deformation.
 
-## Configuration du Problème
+## Problem Configuration
 
-### Paramètres de Simulation
+### Simulation Parameters
 
 ```cpp
-// Paramètres de simulation
+// Simulation parameters
 constexpr std::size_t dim = 2;
 xt::xtensor_fixed<double, xt::xshape<dim>> min_corner = {0., 0.};
 xt::xtensor_fixed<double, xt::xshape<dim>> max_corner = {1., 1.};
-std::array<double, dim> a = {1, 1};  // Vitesse diagonale
-double Tf = 0.1;                     // Temps final
-double cfl = 0.5;                    // Nombre de Courant
-double t = 0.;                       // Temps initial
-std::string restart_file;            // Fichier de redémarrage
+std::array<double, dim> a = {1, 1};  // Diagonal velocity
+double Tf = 0.1;                     // Final time
+double cfl = 0.5;                    // Courant number
+double t = 0.;                       // Initial time
+std::string restart_file;            // Restart file
 ```
 
-### Configuration du Maillage
+### Mesh Configuration
 
 ```cpp
-// Paramètres multirésolution
-std::size_t min_level = 4;           // Niveau minimum de raffinement
-std::size_t max_level = 10;          // Niveau maximum de raffinement
-double mr_epsilon = 2.e-4;           // Seuil d'adaptation multirésolution
-double mr_regularity = 1.;           // Régularité estimée pour l'adaptation
-bool correction = false;             // Activation de la correction de flux
+// Multiresolution parameters
+std::size_t min_level = 4;           // Minimum refinement level
+std::size_t max_level = 10;          // Maximum refinement level
+double mr_epsilon = 2.e-4;           // Multiresolution adaptation threshold
+double mr_regularity = 1.;           // Estimated regularity for adaptation
+bool correction = false;             // Flux correction activation
 
-// Configuration du domaine
+// Domain configuration
 const samurai::Box<double, dim> box(min_corner, max_corner);
 samurai::MRMesh<Config> mesh;
 ```
 
-### Configuration de Sortie
+### Output Configuration
 
 ```cpp
-// Paramètres de sortie
+// Output parameters
 fs::path path = fs::current_path();
 std::string filename = "FV_advection_2d";
-std::size_t nfiles = 1;  // Nombre de fichiers de sortie
+std::size_t nfiles = 1;  // Number of output files
 ```
 
-## Condition Initiale
+## Initial Condition
 
-### Définition Mathématique
+### Mathematical Definition
 
-La condition initiale est un disque centré :
+The initial condition is a centered disk:
 
 ```
-u₀(x,y) = 1  si (x - 0.3)² + (y - 0.3)² ≤ 0.2²
-u₀(x,y) = 0  sinon
+u₀(x,y) = 1  if (x - 0.3)² + (y - 0.3)² ≤ 0.2²
+u₀(x,y) = 0  otherwise
 ```
 
-### Implémentation
+### Implementation
 
 ```cpp
 template <class Field>
@@ -109,96 +109,96 @@ void init(Field& u)
 }
 ```
 
-### Visualisation de la Condition Initiale
+### Initial Condition Visualization
 
 ```mermaid
 graph LR
-    A[Condition Initiale] --> B[Disque Centré]
-    B --> C[Centre (0.3, 0.3)]
-    C --> D[Rayon 0.2]
-    D --> E[Valeur 1.0 à l'intérieur]
-    E --> F[Valeur 0.0 à l'extérieur]
+    A[Initial Condition] --> B[Centered Disk]
+    B --> C[Center (0.3, 0.3)]
+    C --> D[Radius 0.2]
+    D --> E[Value 1.0 inside]
+    E --> F[Value 0.0 outside]
     
-    subgraph "Domaine"
-        G[Domaine [0,1] × [0,1]]
-        H[Disque en position (0.3, 0.3)]
+    subgraph "Domain"
+        G[Domain [0,1] × [0,1]]
+        H[Disk at position (0.3, 0.3)]
     end
 ```
 
-## Vecteur Vitesse
+## Velocity Vector
 
 ### Configuration
 
 ```cpp
-// Vecteur vitesse de l'advection
-std::array<double, dim> a = {1, 1};  // Vitesse diagonale
+// Advection velocity vector
+std::array<double, dim> a = {1, 1};  // Diagonal velocity
 ```
 
-### Interprétation Physique
+### Physical Interpretation
 
-- **`a = (1, 1)`** : Vitesse diagonale vers le haut-droite
-- **Norme** : `|a| = √2 ≈ 1.414`
-- **Direction** : 45° par rapport aux axes x et y
-- **Trajectoire** : Le disque se déplace en diagonale vers le coin supérieur-droit
+- **`a = (1, 1)`** : Diagonal velocity toward top-right
+- **Norm** : `|a| = √2 ≈ 1.414`
+- **Direction** : 45° with respect to x and y axes
+- **Trajectory** : The disk moves diagonally toward the upper-right corner
 
-## Schéma Numérique Upwind
+## Upwind Numerical Scheme
 
-### Principe du Schéma Upwind
+### Upwind Scheme Principle
 
-Le schéma upwind est un schéma d'ordre 1 qui utilise la valeur en amont pour calculer les flux :
+The upwind scheme is a 1st-order scheme that uses the upstream value to calculate fluxes:
 
 ```cpp
-// Schéma upwind explicite
+// Explicit upwind scheme
 unp1 = u - dt * samurai::upwind(a, u);
 ```
 
-### Formulation Mathématique
+### Mathematical Formulation
 
-Pour le schéma upwind 2D :
+For the 2D upwind scheme:
 
 ```
 uᵢⱼⁿ⁺¹ = uᵢⱼⁿ - (Δt/Δx) × (Fᵢ₊₁/₂,ⱼ - Fᵢ₋₁/₂,ⱼ) - (Δt/Δy) × (Fᵢ,ⱼ₊₁/₂ - Fᵢ,ⱼ₋₁/₂)
 ```
 
-où les flux sont calculés selon la direction du vent :
+where fluxes are calculated according to wind direction:
 
 ```
 Fᵢ₊₁/₂,ⱼ = a₁⁺ uᵢ,ⱼ + a₁⁻ uᵢ₊₁,ⱼ
 Fᵢ,ⱼ₊₁/₂ = a₂⁺ uᵢ,ⱼ + a₂⁻ uᵢ,ⱼ₊₁
 ```
 
-avec `a⁺ = max(a, 0)` et `a⁻ = min(a, 0)`.
+with `a⁺ = max(a, 0)` and `a⁻ = min(a, 0)`.
 
-### Avantages du Schéma Upwind
+### Upwind Scheme Advantages
 
-- **Stabilité** : Conditionnellement stable sous condition CFL
-- **Monotonie** : Préserve la monotonie de la solution
-- **Robustesse** : Pas d'oscillations aux discontinuités
-- **Simplicité** : Implémentation directe et efficace
+- **Stability** : Conditionally stable under CFL condition
+- **Monotonicity** : Preserves solution monotonicity
+- **Robustness** : No oscillations at discontinuities
+- **Simplicity** : Direct and efficient implementation
 
-## Correction de Flux Multi-Niveaux
+## Multi-Level Flux Correction
 
-### Problématique
+### Problem
 
-Sur un maillage adaptatif, les interfaces entre niveaux de raffinement différents peuvent introduire des erreurs de conservation. La correction de flux permet de maintenir la conservation exacte.
+On an adaptive mesh, interfaces between different refinement levels can introduce conservation errors. Flux correction allows maintaining exact conservation.
 
-### Principe de la Correction
+### Correction Principle
 
 ```mermaid
 graph TD
-    A[Interface Multi-Niveaux] --> B[Calcul Flux Niveau Fin]
-    B --> C[Calcul Flux Niveau Grossier]
-    C --> D[Différence de Flux]
-    D --> E[Application Correction]
-    E --> F[Conservation Assurée]
+    A[Multi-Level Interface] --> B[Calculate Fine Level Flux]
+    B --> C[Calculate Coarse Level Flux]
+    C --> D[Flux Difference]
+    D --> E[Apply Correction]
+    E --> F[Conservation Ensured]
     
     subgraph "Directions"
-        G[Direction X: left/right]
-        H[Direction Y: up/down]
+        G[X Direction: left/right]
+        H[Y Direction: up/down]
     end
 ```
 
-### Implémentation
+### Implementation
 
 ```cpp
 template <class Field>
@@ -254,109 +254,109 @@ void flux_correction(double dt, const std::array<double, 2>& a,
 }
 ```
 
-### Formulation Mathématique
+### Mathematical Formulation
 
-La correction de flux s'écrit :
+The flux correction is written as:
 
 ```
-Correction = (Δt/Δx) × [Flux_grossier - 0.5 × (Flux_fin₁ + Flux_fin₂)]
+Correction = (Δt/Δx) × [Flux_coarse - 0.5 × (Flux_fine₁ + Flux_fine₂)]
 ```
 
-où :
-- `Flux_grossier` : Flux calculé sur le niveau grossier
-- `Flux_fin₁, Flux_fin₂` : Flux calculés sur les deux cellules fines correspondantes
+where:
+- `Flux_coarse` : Flux calculated on the coarse level
+- `Flux_fine₁, Flux_fine₂` : Flux calculated on the two corresponding fine cells
 
-## Conditions aux Limites Dirichlet
+## Dirichlet Boundary Conditions
 
 ### Configuration
 
 ```cpp
-// Conditions aux limites Dirichlet homogènes
+// Homogeneous Dirichlet boundary conditions
 samurai::make_bc<samurai::Dirichlet<1>>(u, 0.);
 ```
 
-### Implémentation
+### Implementation
 
-Les conditions Dirichlet imposent `u = 0` sur les bords du domaine :
-- **Bord gauche** : `u(0,y,t) = 0`
-- **Bord droit** : `u(1,y,t) = 0`
-- **Bord bas** : `u(x,0,t) = 0`
-- **Bord haut** : `u(x,1,t) = 0`
+Dirichlet boundary conditions impose `u = 0` on the domain boundaries:
+- **Left Boundary** : `u(0,y,t) = 0`
+- **Right Boundary** : `u(1,y,t) = 0`
+- **Bottom Boundary** : `u(x,0,t) = 0`
+- **Top Boundary** : `u(x,1,t) = 0`
 
-### Impact sur la Solution
+### Impact on Solution
 
-- **Réflexions** : La solution se reflète sur les bords
-- **Interactions** : Le disque interagit avec les bords du domaine
-- **Comportement** : Différent de la solution analytique en domaine infini
+- **Reflections** : The solution reflects on boundaries
+- **Interactions** : The disk interacts with domain boundaries
+- **Behavior** : Different from analytical solution in infinite domain
 
-## Calcul du Pas de Temps
+## Time Step Calculation
 
-### Condition CFL
+### CFL Condition
 
 ```cpp
-// Calcul du pas de temps selon la condition CFL
+// Time step calculation based on CFL condition
 double dt = cfl * mesh.cell_length(max_level);
 ```
 
-### Formulation Mathématique
+### Mathematical Formulation
 
-La condition CFL pour l'advection 2D s'écrit :
+The CFL condition for 2D advection is written as:
 
 ```
 Δt ≤ CFL × min(Δx, Δy) / (|a₁| + |a₂|)
 ```
 
-Avec les paramètres par défaut :
+With default parameters:
 - `CFL = 0.5`
 - `a = (1, 1)`
 - `|a₁| + |a₂| = 2`
 - `dt = 0.5 × Δx / 2 = 0.25 × Δx`
 
-## Adaptation de Maillage Multirésolution
+## Multiresolution Mesh Adaptation
 
-### Principe de l'Adaptation
+### Adaptation Principle
 
 ```cpp
-// Création de l'adaptateur multirésolution
+// Create multiresolution adapter
 auto MRadaptation = samurai::make_MRAdapt(u);
 
-// Adaptation initiale
+// Initial adaptation
 MRadaptation(mr_epsilon, mr_regularity);
 ```
 
-### Paramètres d'Adaptation
+### Adaptation Parameters
 
 ```cpp
-double mr_epsilon = 2.e-4;    // Seuil d'adaptation
-double mr_regularity = 1.;    // Régularité estimée
+double mr_epsilon = 2.e-4;    // Adaptation threshold
+double mr_regularity = 1.;    // Estimated regularity
 ```
 
-### Workflow d'Adaptation
+### Adaptation Workflow
 
 ```mermaid
 graph LR
-    A[Solution Actuelle] --> B[Calcul Coefficients Ondelettes]
-    B --> C[Comparaison avec Seuil]
-    C --> D[Raffinement/Déraffinement]
-    D --> E[Maillage Adapté]
+    A[Current Solution] --> B[Calculate Wavelet Coefficients]
+    B --> C[Comparison with Threshold]
+    C --> D[Refinement/Coarsening]
+    D --> E[Adapted Mesh]
     
-    subgraph "Critères"
-        F[Coefficient > 2e-4 → Raffinement]
-        G[Coefficient < 2e-4 → Déraffinement]
+    subgraph "Criteria"
+        F[Coefficient > 2e-4 → Refinement]
+        G[Coefficient < 2e-4 → Coarsening]
     end
 ```
 
-## Boucle Temporelle
+## Time Loop
 
-### Structure Générale
+### General Structure
 
 ```cpp
 while (t != Tf)
 {
-    // Adaptation du maillage
+    // Mesh adaptation
     MRadaptation(mr_epsilon, mr_regularity);
 
-    // Mise à jour du temps
+    // Update time
     t += dt;
     if (t > Tf)
     {
@@ -364,25 +364,25 @@ while (t != Tf)
         t = Tf;
     }
 
-    // Mise à jour des cellules fantômes
+    // Update ghost cells
     samurai::update_ghost_mr(u);
     
-    // Redimensionnement du champ de sortie
+    // Resize output field
     unp1.resize();
     
-    // Application du schéma upwind
+    // Apply upwind scheme
     unp1 = u - dt * samurai::upwind(a, u);
     
-    // Correction de flux (optionnelle)
+    // Flux correction (optional)
     if (correction)
     {
         flux_correction(dt, a, u, unp1);
     }
 
-    // Échange des champs
+    // Swap fields
     std::swap(u.array(), unp1.array());
 
-    // Sauvegarde périodique
+    // Periodic save
     if (t >= static_cast<double>(nsave + 1) * dt_save || t == Tf)
     {
         save(path, filename, u, suffix);
@@ -390,16 +390,16 @@ while (t != Tf)
 }
 ```
 
-### Gestion des Cellules Fantômes
+### Ghost Cell Management
 
 ```cpp
-// Mise à jour des cellules fantômes avant calcul
+// Update ghost cells before computation
 samurai::update_ghost_mr(u);
 ```
 
-## Sauvegarde et Visualisation
+## Save and Visualization
 
-### Fonction de Sauvegarde
+### Save Function
 
 ```cpp
 template <class Field>
@@ -414,7 +414,7 @@ void save(const fs::path& path, const std::string& filename,
         fs::create_directory(path);
     }
 
-    // Sauvegarde du niveau de raffinement
+    // Save refinement level
     samurai::for_each_cell(mesh, [&](const auto& cell)
     {
         level_[cell] = cell.level;
@@ -430,205 +430,205 @@ void save(const fs::path& path, const std::string& filename,
 }
 ```
 
-### Formats de Sortie
+### Output Formats
 
-- **HDF5** : Format principal pour la visualisation
-- **Restart** : Fichier de redémarrage pour continuer la simulation
-- **Niveaux** : Information sur le niveau de raffinement de chaque cellule
+- **HDF5** : Primary format for visualization
+- **Restart** : Restart file to continue simulation
+- **Levels** : Information on refinement level of each cell
 
-## Exemples d'Exécution
+## Execution Examples
 
 ### Compilation
 
 ```bash
-# Compilation du cas test
+# Compile test case
 mkdir build && cd build
 cmake ..
 make advection_2d
 ```
 
-### Exécution avec Paramètres Par Défaut
+### Execution with Default Parameters
 
 ```bash
-# Exécution avec paramètres par défaut
+# Execution with default parameters
 ./advection_2d
 
-# Exécution avec paramètres personnalisés
+# Execution with custom parameters
 ./advection_2d --min-level 4 --max-level 8 --mr-eps 1e-4 --Tf 0.1 --cfl 0.5
 ```
 
-### Paramètres de Ligne de Commande
+### Command Line Parameters
 
 ```bash
-# Paramètres de simulation
---min-corner 0 0              # Coin inférieur gauche
---max-corner 1 1              # Coin supérieur droit
---velocity 1 1                # Vecteur vitesse
---cfl 0.5                     # Nombre CFL
---Ti 0                        # Temps initial
---Tf 0.1                      # Temps final
+# Simulation parameters
+--min-corner 0 0              # Bottom-left corner
+--max-corner 1 1              # Top-right corner
+--velocity 1 1                # Velocity vector
+--cfl 0.5                     # CFL number
+--Ti 0                        # Initial time
+--Tf 0.1                      # Final time
 
-# Paramètres multirésolution
---min-level 4                 # Niveau minimum
---max-level 10                # Niveau maximum
---mr-eps 2e-4                 # Seuil d'adaptation
---mr-reg 1.0                  # Régularité estimée
---with-correction             # Activation correction flux
+# Multiresolution parameters
+--min-level 4                 # Minimum level
+--max-level 10                # Maximum level
+--mr-eps 2e-4                 # Adaptation threshold
+--mr-reg 1.0                  # Estimated regularity
+--with-correction             # Enable flux correction
 
-# Paramètres de sortie
---path ./results              # Dossier de sortie
---filename FV_advection_2d    # Préfixe des fichiers
---nfiles 10                   # Nombre de fichiers
+# Output parameters
+--path ./results              # Output directory
+--filename FV_advection_2d    # File prefix
+--nfiles 10                   # Number of files
 ```
 
-## Analyse des Résultats
+## Result Analysis
 
-### Métriques de Performance
+### Performance Metrics
 
 ```mermaid
 graph LR
-    A[Métriques] --> B[Précision Numérique]
+    A[Metrics] --> B[Numerical Accuracy]
     A --> C[Conservation]
-    A --> D[Efficacité]
+    A --> D[Efficiency]
     
-    B --> E[Préservation de la Forme]
-    B --> F[Minimisation de la Diffusion]
-    B --> G[Précision de la Position]
+    B --> E[Shape Preservation]
+    B --> F[Diffusion Minimization]
+    B --> G[Position Accuracy]
     
-    C --> H[Conservation de Masse]
-    C --> I[Conservation d'Énergie]
-    C --> J[Stabilité Numérique]
+    C --> H[Mass Conservation]
+    C --> I[Energy Conservation]
+    C --> J[Numerical Stability]
     
-    D --> K[Temps de Calcul]
-    D --> L[Utilisation Mémoire]
-    D --> M[Efficacité Adaptation]
+    D --> K[Computation Time]
+    D --> L[Memory Usage]
+    D --> M[Adaptation Efficiency]
 ```
 
-### Validation Numérique
+### Numerical Validation
 
-**Tests de Conservation :**
+**Conservation Tests:**
 ```cpp
-// Calcul de la masse totale
+// Calculate total mass
 double mass_initial = compute_total_mass(u_initial);
 double mass_final = compute_total_mass(u_final);
 double conservation_error = std::abs(mass_final - mass_initial);
 ```
 
-**Tests de Position :**
+**Position Tests:**
 ```cpp
-// Calcul du centre de masse
+// Calculate center of mass
 auto center_initial = compute_center_of_mass(u_initial);
 auto center_final = compute_center_of_mass(u_final);
 auto expected_center = center_initial + a * Tf;
 double position_error = norm(center_final - expected_center);
 ```
 
-## Cas d'Usage Avancés
+## Advanced Use Cases
 
-### Étude de Convergence
+### Convergence Study
 
 ```bash
-# Étude de convergence en espace
+# Spatial convergence study
 for level in 4 5 6 7 8; do
     ./advection_2d --min-level $level --max-level $level --Tf 0.1
 done
 ```
 
-### Étude de Stabilité
+### Stability Study
 
 ```bash
-# Étude de stabilité CFL
+# CFL stability study
 for cfl in 0.1 0.3 0.5 0.7 0.9; do
     ./advection_2d --cfl $cfl --Tf 0.1
 done
 ```
 
-### Comparaison avec Correction de Flux
+### Flux Correction Comparison
 
 ```bash
-# Sans correction de flux
+# Without flux correction
 ./advection_2d --Tf 0.1
 
-# Avec correction de flux
+# With flux correction
 ./advection_2d --Tf 0.1 --with-correction
 ```
 
-### Étude de Vecteurs Vitesse
+### Velocity Vector Study
 
 ```bash
-# Vitesse diagonale
+# Diagonal velocity
 ./advection_2d --velocity 1 1 --Tf 0.1
 
-# Vitesse horizontale
+# Horizontal velocity
 ./advection_2d --velocity 1 0 --Tf 0.1
 
-# Vitesse verticale
+# Vertical velocity
 ./advection_2d --velocity 0 1 --Tf 0.1
 ```
 
-## Optimisations et Performance
+## Optimizations and Performance
 
-### Optimisations Compile-Time
+### Compile-Time Optimizations
 
 ```cpp
-// Utilisation de constantes compile-time
+// Use compile-time constants
 constexpr std::size_t dim = 2;
 using Config = samurai::MRConfig<dim>;
 
-// Spécialisation des templates
+// Template specialization
 using mesh_t = typename Config::mesh_t;
 using field_t = samurai::Field<double, 1, mesh_t>;
 ```
 
-### Optimisations Runtime
+### Runtime Optimizations
 
 ```mermaid
 graph TB
-    A[Optimisations] --> B[Adaptation de Maillage]
-    A --> C[Calcul de Flux]
-    A --> D[Correction de Flux]
+    A[Optimizations] --> B[Mesh Adaptation]
+    A --> C[Flux Calculation]
+    A --> D[Flux Correction]
     
-    B --> E[Seuil d'Adaptation Optimal]
-    B --> F[Régularité Estimée]
-    B --> G[Cache des Coefficients]
+    B --> E[Optimal Adaptation Threshold]
+    B --> F[Estimated Regularity]
+    B --> G[Coefficient Cache]
     
-    C --> H[Vectorisation SIMD]
+    C --> H[SIMD Vectorization]
     C --> I[Cache Locality]
-    C --> J[Parallélisation]
+    C --> J[Parallelization]
     
-    D --> K[Optimisation des Interfaces]
-    D --> L[Cache des Stencils]
-    D --> M[Réduction des Calculs]
+    D --> K[Interface Optimization]
+    D --> L[Stencil Cache]
+    D --> M[Computation Reduction]
 ```
 
-### Monitoring de Performance
+### Performance Monitoring
 
 ```cpp
-// Monitoring du temps de calcul
+// Monitor computation time
 auto start_time = std::chrono::high_resolution_clock::now();
 
-// ... calcul ...
+// ... computation ...
 
 auto end_time = std::chrono::high_resolution_clock::now();
 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 std::cout << "Computation time: " << duration.count() << " ms" << std::endl;
 ```
 
-## Comparaison avec la Solution Analytique
+## Comparison with Analytical Solution
 
-### Solution Analytique
+### Analytical Solution
 
-Pour un disque initial de rayon `r` centré en `(x₀, y₀)`, la solution analytique est :
+For an initial disk of radius `r` centered at `(x₀, y₀)`, the analytical solution is:
 
 ```
-u(x,y,t) = 1  si (x - x₀ - a₁t)² + (y - y₀ - a₂t)² ≤ r²
-u(x,y,t) = 0  sinon
+u(x,y,t) = 1  if (x - x₀ - a₁t)² + (y - y₀ - a₂t)² ≤ r²
+u(x,y,t) = 0  otherwise
 ```
 
-### Calcul d'Erreur
+### Error Calculation
 
 ```cpp
-// Calcul de l'erreur L2 par rapport à la solution analytique
+// Calculate L2 error with respect to analytical solution
 double error = samurai::L2_error(u, [&](const auto& coords, double t)
 {
     double x = coords(0);
@@ -651,11 +651,11 @@ double error = samurai::L2_error(u, [&](const auto& coords, double t)
 
 ## Conclusion
 
-Le cas test d'advection 2D dans Samurai fournit :
+The 2D advection test case in Samurai provides:
 
-- **Validation complète** des schémas upwind sur maillages adaptatifs
-- **Test de robustesse** de la correction de flux multi-niveaux
-- **Benchmark de performance** pour l'adaptation multirésolution
-- **Référence numérique** pour les problèmes d'advection
+- **Complete validation** of upwind schemes on adaptive meshes
+- **Robustness test** of multi-level flux correction
+- **Performance benchmark** for multiresolution adaptation
+- **Numerical reference** for advection problems
 
-Ce cas test constitue une base solide pour valider et optimiser les méthodes numériques de Samurai sur des problèmes d'advection, avec une attention particulière portée à la conservation, la précision et l'efficacité des schémas implémentés sur des maillages adaptatifs. 
+This test case constitutes a solid foundation for validating and optimizing Samurai's numerical methods on advection problems, with particular attention to conservation, accuracy, and efficiency of implemented schemes on adaptive meshes. 

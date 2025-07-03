@@ -114,14 +114,14 @@ void init(Field& u)
 ```mermaid
 graph LR
     A[Initial Condition] --> B[Centered Disk]
-    B --> C[Center (0.3, 0.3)]
+    B --> C[Center 0.3, 0.3]
     C --> D[Radius 0.2]
     D --> E[Value 1.0 inside]
     E --> F[Value 0.0 outside]
     
-    subgraph "Domain"
-        G[Domain [0,1] × [0,1]]
-        H[Disk at position (0.3, 0.3)]
+    subgraph Domain
+        G[Domain 0,1 x 0,1]
+        H[Disk at position 0.3, 0.3]
     end
 ```
 

@@ -44,7 +44,7 @@ graph TD
 
 ```mermaid
 graph TD
-    A[Subset] --> B[Translation by (dx, dy)]
+    A[Subset] --> B["Translation by dx, dy"]
     B --> C[Shifted Subset]
 ```
 

@@ -33,7 +33,7 @@ double cfl = 0.5;                    // Courant number
 ```mermaid
 graph LR
     A[Centered Disk] --> B[Radius 0.2]
-    B --> C[Center (0.3, 0.3)]
+    B --> C[Center 0.3, 0.3]
     C --> D[Value 1.0 inside]
     D --> E[Value 0.0 outside]
 ```
@@ -136,8 +136,8 @@ if constexpr (dim == 2)
 
 ```mermaid
 graph LR
-    A[Step Function] --> B[1D: Interval [-0.8, -0.3]]
-    A --> C[2D: Rectangle [-0.8, -0.3] × [0.3, 0.8]]
+    A[Step Function] --> B[1D: Interval -0.8, -0.3]
+    A --> C[2D: Rectangle -0.8, -0.3 × 0.3, 0.8]
 ```
 
 **Implementation:**
@@ -407,7 +407,7 @@ graph TD
     H --> I[Numerical Scheme Calculation]
     I --> J[Time Integration]
     J --> K[Save Results]
-    K --> L{End Simulation?}
+    K --> L{End Simulation}
     L -->|No| F
     L -->|Yes| M[Finalization]
 ```

@@ -51,17 +51,20 @@ graph TD
 ## Example Code
 
 ```cpp
+// Include the subset utilities
+using namespace samurai;
+
 // Union
-auto union_subset = subsetA | subsetB;
+auto union_subset = union_(subsetA, subsetB);
 
 // Intersection
-auto inter_subset = subsetA & subsetB;
+auto inter_subset = intersection(subsetA, subsetB);
 
 // Difference
-auto diff_subset = subsetA - subsetB;
+auto diff_subset = difference(subsetA, subsetB);
 
-// Translation
-auto shifted = translate(subsetA, {1, 0});
+// Translation (shift by +1 in x, 0 in y)
+auto shifted = translate(subsetA, xt::xtensor_fixed<int, xt::xshape<2>>{1, 0});
 ```
 
 ## Use Cases in AMR

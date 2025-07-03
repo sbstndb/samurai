@@ -45,14 +45,14 @@ class Intersection : public Subset<Intersection<Left, Right>>
 The `self` operation creates a subset representing the complete mesh at a specific level:
 
 ```cpp
-// Create subset for entire mesh at level
-auto subset = samurai::self(mesh);
+// Create subset for entire mesh (all active cells at current levels)
+auto subset = samurai::self(mesh[samurai::MRMeshId::cells]);
 
-// Create subset for specific level
-auto level_subset = samurai::self(mesh[level]);
+// Create subset for specific level (complete mesh at that level)
+auto level_subset = samurai::self(mesh[samurai::MRMeshId::cells][level]);
 
-// Create subset for specific mesh region
-auto region_subset = samurai::self(mesh[samurai::MRMeshID::cells]);
+// Create subset for a specific region (ghost cells, projection cells, ...)
+auto region_subset = samurai::self(mesh[samurai::MRMeshId::ghosts]);
 ```
 
 ### 2. Intersection Operation
@@ -65,8 +65,8 @@ auto fine_cells = samurai::intersection(mesh[level], mesh[level+1]).on(level);
 
 // Intersection of different mesh regions
 auto active_ghosts = samurai::intersection(
-    mesh[samurai::MRMeshID::cells], 
-    mesh[samurai::MRMeshID::ghosts]
+    mesh[samurai::MRMeshId::cells], 
+    mesh[samurai::MRMeshId::ghosts]
 ).on(level);
 ```
 
@@ -80,8 +80,8 @@ auto coarse_cells = samurai::difference(mesh[level], mesh[level+1]).on(level);
 
 // Active cells that are not ghosts
 auto interior_cells = samurai::difference(
-    mesh[samurai::MRMeshID::cells], 
-    mesh[samurai::MRMeshID::ghosts]
+    mesh[samurai::MRMeshId::cells], 
+    mesh[samurai::MRMeshId::ghosts]
 ).on(level);
 ```
 
@@ -95,8 +95,8 @@ auto all_cells = samurai::union_(mesh[level], mesh[level+1]).on(level);
 
 // Combine different mesh regions
 auto all_active = samurai::union_(
-    mesh[samurai::MRMeshID::cells], 
-    mesh[samurai::MRMeshID::ghosts]
+    mesh[samurai::MRMeshId::cells], 
+    mesh[samurai::MRMeshId::ghosts]
 ).on(level);
 ```
 
@@ -110,9 +110,9 @@ The `translate` operation shifts a subset by a specified offset:
 // Translate subset by offset
 auto shifted = samurai::translate(subset, offset);
 
-// Translate in specific direction
-auto shifted_x = samurai::translate(subset, {1, 0});
-auto shifted_y = samurai::translate(subset, {0, 1});
+// Translate in specific direction (x+1, y unchanged)
+auto shifted_x = samurai::translate(subset, xt::xtensor_fixed<int, xt::xshape<2>>{1, 0});
+auto shifted_y = samurai::translate(subset, xt::xtensor_fixed<int, xt::xshape<2>>{0, 1});
 ```
 
 ### 2. Level Specification
@@ -200,7 +200,7 @@ fine_cells([&](const auto& interval, const auto& index) {
 
 ```cpp
 // Update ghost cells from neighboring cells
-auto ghost_cells = samurai::self(mesh[samurai::MRMeshID::ghosts]).on(level);
+auto ghost_cells = samurai::self(mesh[samurai::MRMeshId::ghosts]).on(level);
 ghost_cells([&](const auto& interval, const auto& index) {
     // Copy values from interior cells to ghost cells
     for (auto i = interval.start; i < interval.end; i += interval.step) {
@@ -214,8 +214,8 @@ ghost_cells([&](const auto& interval, const auto& index) {
 ```cpp
 // Apply boundary conditions on boundary cells
 auto boundary_cells = samurai::difference(
-    mesh[samurai::MRMeshID::cells], 
-    mesh[samurai::MRMeshID::ghosts]
+    mesh[samurai::MRMeshId::cells], 
+    mesh[samurai::MRMeshId::ghosts]
 ).on(level);
 
 boundary_cells([&](const auto& interval, const auto& index) {
@@ -231,8 +231,8 @@ boundary_cells([&](const auto& interval, const auto& index) {
 ```cpp
 // Apply stencil operation with neighbor access
 auto interior_cells = samurai::difference(
-    mesh[samurai::MRMeshID::cells], 
-    mesh[samurai::MRMeshID::ghosts]
+    mesh[samurai::MRMeshId::cells], 
+    mesh[samurai::MRMeshId::ghosts]
 ).on(level);
 
 interior_cells([&](const auto& interval, const auto& index) {
@@ -273,7 +273,7 @@ Complex operations can be composed efficiently:
 // Efficient composition
 auto complex_subset = samurai::intersection(
     samurai::difference(mesh[level], mesh[level+1]),
-    samurai::self(mesh[samurai::MRMeshID::cells])
+    samurai::self(mesh[samurai::MRMeshId::cells])
 ).on(level);
 ```
 
@@ -345,7 +345,7 @@ for (std::size_t level = mesh.max_level() - 1; level >= mesh.min_level(); --leve
 ```cpp
 // Find cells that are active but not ghosts and have neighbors
 auto interior_cells = samurai::difference(
-    samurai::difference(mesh[samurai::MRMeshID::cells], mesh[samurai::MRMeshID::ghosts]),
+    samurai::difference(mesh[samurai::MRMeshId::cells], mesh[samurai::MRMeshId::ghosts]),
     samurai::intersection(mesh[level], mesh[level+1])
 ).on(level);
 
@@ -364,8 +364,8 @@ interior_cells([&](const auto& interval, const auto& index) {
 ```cpp
 // Apply stencil with translation
 auto interior = samurai::difference(
-    mesh[samurai::MRMeshID::cells], 
-    mesh[samurai::MRMeshID::ghosts]
+    mesh[samurai::MRMeshId::cells], 
+    mesh[samurai::MRMeshId::ghosts]
 ).on(level);
 
 // Apply 5-point stencil

@@ -468,9 +468,9 @@ static const auto coeffs = prediction_coeffs<order>();
 
 ```mermaid
 graph TD
-    A[Order 1] --> B[Precision O(h)]
-    C[Order 3] --> D[Precision O(h³)]
-    E[Order 5] --> F[Precision O(h⁵)]
+    A[Order 1] --> B[Precision O h]
+    C[Order 3] --> D[Precision O h3]
+    E[Order 5] --> F[Precision O h5]
     
     B --> G[Simple but less precise]
     D --> H[Balanced]

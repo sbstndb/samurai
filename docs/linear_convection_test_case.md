@@ -183,14 +183,14 @@ graph TD
     E --> F[Final Flux]
     
     subgraph "Smoothness Indicators"
-        G[β₀ = (uᵢ₊₁ - uᵢ)² + (uᵢ - uᵢ₋₁)²]
-        H[β₁ = (uᵢ₊₂ - uᵢ₊₁)² + (uᵢ₊₁ - uᵢ)²]
-        I[β₂ = (uᵢ₊₃ - uᵢ₊₂)² + (uᵢ₊₂ - uᵢ₊₁)²]
+        G[beta0 = (u_i+1 - u_i)^2 + (u_i - u_i-1)^2]
+        H[beta1 = (u_i+2 - u_i+1)^2 + (u_i+1 - u_i)^2]
+        I[beta2 = (u_i+3 - u_i+2)^2 + (u_i+2 - u_i+1)^2]
     end
     
     subgraph "WENO Weights"
-        J[ωᵢ = αᵢ / Σαⱼ]
-        K[αᵢ = Cᵢ / (ε + βᵢ)²]
+        J[omega_i = alpha_i / sum_alpha_j]
+        K[alpha_i = C_i / (epsilon + beta_i)^2]
     end
 ```
 

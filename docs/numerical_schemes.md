@@ -167,8 +167,8 @@ graph LR
     D --> E[Resulting Flux]
     
     subgraph "Evaluation"
-        F[Calculate v(x,t)]
-        G[Test v ≥ 0]
+        F["Calculate v(x,t)"]
+        G["Test v ≥ 0"]
         H[Stencil Selection]
     end
 ```
@@ -188,12 +188,12 @@ auto make_diffusion_order2(const DiffCoeff<Field::dim>& K)
 graph TD
     A[Discrete Laplacian] --> B[Centered Finite Differences]
     B --> C[Diffusion Flux]
-    C --> D[Operator -∇·(K∇u)]
+    C --> D["Operator -∇·(K∇u)"]
     
     subgraph "1D Stencil"
-        E[uᵢ₋₁] --> F[uᵢ] --> G[uᵢ₊₁]
-        H[Flux i-1/2] --> F
-        F --> I[Flux i+1/2]
+        E["uᵢ₋₁"] --> F["uᵢ"] --> G["uᵢ₊₁"]
+        H["Flux i-1/2"] --> F
+        F --> I["Flux i+1/2"]
     end
 ```
 
@@ -320,18 +320,18 @@ auto make_gradient()
 
 ```mermaid
 graph TD
-    A[Scalar Field] --> B[Calculate ∂u/∂x]
-    A --> C[Calculate ∂u/∂y]
-    A --> D[Calculate ∂u/∂z]
+    A[Scalar Field] --> B["Calculate ∂u/∂x"]
+    A --> C["Calculate ∂u/∂y"]
+    A --> D["Calculate ∂u/∂z"]
     
-    B --> E[Gradient ∇u]
+    B --> E["Gradient ∇u"]
     C --> E
     D --> E
     
     subgraph "Finite Differences"
-        F[∂u/∂x ≈ (uᵢ₊₁ - uᵢ₋₁)/(2h)]
-        G[∂u/∂y ≈ (uⱼ₊₁ - uⱼ₋₁)/(2h)]
-        H[∂u/∂z ≈ (uₖ₊₁ - uₖ₋₁)/(2h)]
+        F["∂u/∂x ≈ (uᵢ₊₁ - uᵢ₋₁)/(2h)"]
+        G["∂u/∂y ≈ (uⱼ₊₁ - uⱼ₋₁)/(2h)"]
+        H["∂u/∂z ≈ (uₖ₊₁ - uₖ₋₁)/(2h)"]
     end
 ```
 
@@ -440,10 +440,10 @@ graph TB
     A --> E[Robin]
     A --> F[Custom]
     
-    B --> G[u = g on ∂Ω]
-    C --> H[∂u/∂n = h on ∂Ω]
-    D --> I[u(x) = u(x+L)]
-    E --> J[αu + β∂u/∂n = γ]
+    B --> G["u = g on ∂Ω"]
+    C --> H["∂u/∂n = h on ∂Ω"]
+    D --> I["u(x) = u(x+L)"]
+    E --> J["αu + β∂u/∂n = γ"]
     F --> K[Specific Conditions]
 ```
 

@@ -144,9 +144,9 @@ graph TD
     E --> F[Final Flux]
     
     subgraph "Smoothness Indicators"
-        G[β₀ = (uᵢ₊₁ - uᵢ)² + (uᵢ - uᵢ₋₁)²]
-        H[β₁ = (uᵢ₊₂ - uᵢ₊₁)² + (uᵢ₊₁ - uᵢ)²]
-        I[β₂ = (uᵢ₊₃ - uᵢ₊₂)² + (uᵢ₊₂ - uᵢ₊₁)²]
+        G["β₀ = (uᵢ₊₁ - uᵢ)² + (uᵢ - uᵢ₋₁)²"]
+        H["β₁ = (uᵢ₊₂ - uᵢ₊₁)² + (uᵢ₊₁ - uᵢ)²"]
+        I["β₂ = (uᵢ₊₃ - uᵢ₊₂)² + (uᵢ₊₂ - uᵢ₊₁)²"]
     end
 ```
 

@@ -92,6 +92,7 @@ void flux_correction(double dt, const std::array<double, 2>& a,
             
         subset_right([&](const auto& i, const auto& index)
         {
+            auto j = index[0];
             const double dx = mesh.cell_length(level);
             unp1(level, i, j) = unp1(level, i, j) + dt/dx * 
                 (samurai::upwind_op<dim, interval_t>(level, i, j).right_flux(a, u)

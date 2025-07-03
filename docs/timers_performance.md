@@ -21,14 +21,26 @@ samurai::times::timers.start("assembly");
 // ... code to time ...
 samurai::times::timers.stop("assembly");
 
-auto stats = samurai::times::timers.get("assembly");
-std::cout << "Time: " << stats.total_time << "s" << std::endl;
+// Afficher les statistiques détaillées sur toutes les timers
+samurai::times::timers.print();
+
+// Récupérer la durée d'un timer en particulier (en micro-secondes)
+#ifdef SAMURAI_WITH_MPI
+// getElapsedTime retourne un double en secondes (MPI_Wtime)
+double elapsed = samurai::times::timers.getElapsedTime("assembly");
+#else
+// getElapsedTime retourne std::chrono::microseconds
+auto elapsed_us = samurai::times::timers.getElapsedTime("assembly");
+double elapsed  = std::chrono::duration<double>(elapsed_us).count();
+#endif
+std::cout << "Elapsed time (assembly): " << elapsed << " s" << std::endl;
 ```
 
 ## Visualizing Timer Data
 
 - Timers can be nested for hierarchical profiling.
-- Reports include total time, average, min/max, and call count.
+- `print()` génère un tableau récapitulatif (par processus ou global MPI).
+- `getElapsedTime(name)` permet de récupérer la durée d’un timer unique.
 
 ### Example Timer Report
 

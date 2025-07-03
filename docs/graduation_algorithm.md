@@ -48,6 +48,8 @@ Level l-1:  [G][G][G][G]      G = Very coarse cells
 
 ## Algorithm Architecture
 
+> **Note sur l'implémentation :** Ce document décrit la fonction `samurai::graduation`, qui opère sur un champ de `tag` pour marquer les cellules à raffiner ou à dé-raffiner. C'est un mécanisme de bas niveau basé sur des marqueurs. Le moteur d'adaptation principal de Samurai, `samurai::make_MRAdapt`, utilise une fonction de plus haut niveau, `samurai::make_graduation`, qui opère itérativement sur un `CellArray` et n'utilise pas ce schéma de marquage. Les concepts expliqués ici restent fondamentaux pour comprendre la mise en application de la condition d'équilibre 2:1 dans Samurai.
+
 ### General Structure
 
 ```mermaid
@@ -284,34 +286,38 @@ graph TD
 
 ### Code Integration
 
-```cpp
-// Complete adaptation workflow
-auto adaptation = samurai::make_MRAdapt(field);
+La fonction `graduation` est typiquement utilisée après une étape initiale de marquage des cellules basée sur certains critères (par exemple, l'estimation de l'erreur). Elle modifie un champ de `tag` pour s'assurer que le maillage résultant sera gradué.
 
-for (std::size_t iter = 0; iter < max_iterations; ++iter)
-{
-    // 1. Update ghost cells
-    samurai::update_ghost_mr(field);
-    
-    // 2. Apply numerical scheme
-    auto rhs = scheme(field);
-    field = field + dt * rhs;
-    
-    // 3. Adapt mesh with graduation
-    adaptation(epsilon, regularity);
-}
+```cpp
+// 1. Créer un champ de tags initialisé avec des indicateurs de dé-raffinement/raffinement
+auto tag = samurai::make_field<int>("tag", mesh);
+// ... marquer les cellules en fonction de l'estimation de l'erreur ...
+// (par exemple, marquer les champs avec CellFlag::coarsen ou CellFlag::refine)
+
+// 2. Appliquer la graduation sur le champ de tags
+// Cela garantit que la balance 2:1 est respectée
+auto stencil = samurai::stencil_graduation::call(samurai::Dim<dim>{});
+samurai::graduation(tag, stencil);
+
+// 3. Créer le nouveau tableau de cellules à partir des tags corrigés
+auto new_cell_array = samurai::update_cell_array_from_tag(mesh.cells(), tag);
+
+// Puis créer le nouveau maillage
+samurai::Mesh<Config> new_mesh(new_cell_array, mesh);
 ```
 
 ## Advanced Features
 
-### Multi-level Graduation
+### `make_graduation`
 
-The graduation algorithm naturally handles multi-level operations by processing levels from maximum to minimum:
+Bien que ce document se concentre sur la fonction `samurai::graduation` basée sur les tags, la bibliothèque fournit également une fonction de plus haut niveau, `samurai::make_graduation`.
 
 ```cpp
-// Graduation is automatically applied across all levels
+// Exemple d'utilisation
 samurai::make_graduation(cell_array);
 ```
+
+Cette fonction opère directement sur un `samurai::CellArray` plutôt que sur un champ de `tag`. Elle ajoute ou supprime itérativement des cellules au `CellArray` jusqu'à ce que le maillage soit entièrement gradué. C'est la fonction utilisée par la routine d'adaptation principale, `make_MRAdapt`, car son implémentation est plus directe à cette fin.
 
 ## Conclusion
 

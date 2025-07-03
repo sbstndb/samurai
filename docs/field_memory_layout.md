@@ -42,7 +42,7 @@ graph TD
 auto velocity_soa = samurai::make_vector_field<double, 3, true>("velocity", mesh);
 
 // AOS example (default)
-auto velocity_aos = samurai::make_vector_field<double, 3, false>("velocity", mesh);
+auto velocity_aos = samurai::make_vector_field<double, 3>("velocity", mesh); // SOA == false par défaut
 ```
 
 ### Performance Considerations
@@ -64,9 +64,10 @@ graph LR
 
 ### Memory Allocation and Management
 
-- Fields are allocated per mesh level and per cell interval.
-- Memory is released when mesh levels are coarsened or fields are destroyed.
-- Samurai uses efficient storage containers (Eigen or xtensor) for alignment and performance.
+- Les données d’un `Field` sont stockées dans un tableau contigu dont la taille est égale au nombre total de mailles du maillage (`mesh.nb_cells()`).
+- Ce tableau est (re)dimensionné automatiquement via `Field::resize()` lorsque le maillage est raffiné ou coarsené.
+- La mémoire est libérée automatiquement lors de la destruction de l’objet `Field`.
+- Le stockage s’appuie sur des conteneurs performants : xtensor par défaut, ou Eigen si la macro `SAMURAI_FIELD_CONTAINER_EIGEN3` est définie.
 
 ### Example: Memory Usage Monitoring
 
@@ -96,6 +97,8 @@ enum class layout_type
     column_major = 0x01
 };
 ```
+
+> La disposition par défaut est `layout_type::row_major`, sauf si la macro de compilation `SAMURAI_CONTAINER_LAYOUT_COL_MAJOR` est définie.
 
 ## Conclusion
 

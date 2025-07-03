@@ -73,7 +73,7 @@ The graduation algorithm ensures mesh consistency by maintaining the 2:1 balance
 
 ```cpp
 // Apply graduation to ensure 2:1 balance
-samurai::graduation(mesh);
+samurai::make_graduation(ca);
 
 // Graduation with specific parameters
 samurai::make_graduation(ca, grad_width);
@@ -82,11 +82,11 @@ samurai::make_graduation(ca, grad_width);
 ### 2. Prediction and Projection
 
 ```cpp
-// Predict solution on fine levels
-samurai::prediction(field);
-
-// Project solution to coarse levels
+// Projection: coarse ← fine (cell averaging)
 samurai::projection(field);
+
+// Prediction (order 1): fine ← coarse (interpolation)
+samurai::prediction<1, true>(field);
 ```
 
 ### 3. Ghost Cell Update
@@ -94,9 +94,6 @@ samurai::projection(field);
 ```cpp
 // Update ghost cells after adaptation
 samurai::update_ghost_mr(field);
-
-// Update specific mesh regions
-samurai::update_ghost(mesh[samurai::MRMeshID::ghosts]);
 ```
 
 ## Adaptation Workflow

@@ -20,8 +20,7 @@ graph TB
     A --> A3[Metadata]
     
     C --> C1[Binary Data]
-    C --> C2[Compression]
-    C --> C3[Parallel I/O]
+    C --> C2[Parallel I/O]
     
     D --> D1[Grid Structure]
     D --> D2[Field Info]
@@ -31,8 +30,7 @@ graph TB
 ### Supported Formats
 
 - **HDF5** : Primary format for binary data
-- **XML** : Metadata and grid structure
-- **VTK** : Paraview/VTK compatibility
+- **XML** : Metadata and grid structure (XDMF format)
 - **CGAL** : Import of complex geometries
 
 ## HDF5 System
@@ -136,9 +134,9 @@ template <class Config, class... T>
 void save(const fs::path& path, const std::string& filename, 
           const UniformMesh<Config>& mesh, const T&... fields)
 {
-    Hdf5_mesh_base<UniformMesh<Config>, T...> h5(path, filename, 
-                                                 Hdf5Options<UniformMesh<Config>>(), 
-                                                 mesh, fields...);
+    Hdf5_mesh_base_level<UniformMesh<Config>, T...> h5(path, filename, 
+                                                       Hdf5Options<UniformMesh<Config>>(), 
+                                                       mesh, fields...);
     h5.save();
 }
 ```
@@ -268,7 +266,7 @@ void save_field(pugi::xml_node& grid, const std::string& prefix,
                const Submesh& submesh, const Field& field)
 {
     // Extract field values
-    auto values = extract_field_values(field, submesh);
+    auto values = extract_data(field, submesh);
     
     // Save to HDF5
     std::string dataset_name = prefix + "_values";
@@ -400,65 +398,55 @@ int main() {
 #endif
 ```
 
-## Alternative Output Formats
+## CGAL Import
 
-### VTK Format
-
-```cpp
-template <class Mesh, class... Fields>
-void save_vtk(const std::string& filename, const Mesh& mesh, const Fields&... fields)
-{
-    // Generate VTK file
-    std::ofstream file(filename);
-    
-    // VTK header
-    file << "# vtk DataFile Version 3.0\n";
-    file << "Samurai Simulation Output\n";
-    file << "ASCII\n";
-    file << "DATASET UNSTRUCTURED_GRID\n";
-    
-    // Coordinates and connectivity
-    auto [coords, connectivity] = extract_coords_and_connectivity(mesh);
-    write_vtk_coordinates(file, coords);
-    write_vtk_connectivity(file, connectivity);
-    
-    // Fields
-    write_vtk_fields(file, fields...);
-}
-```
-
-### CGAL Import
+### Geometry Import
 
 ```cpp
-#include <samurai/io/cgal.hpp>
+#include <samurai/io/from_geometry.hpp>
 
 template <class Mesh>
 void import_from_cgal(const std::string& filename, Mesh& mesh)
 {
     // Import CGAL geometry
-    auto geometry = samurai::cgal::load_geometry(filename);
+    auto geometry = samurai::from_geometry<3>(filename, start_level, max_level);
     
     // Mesh adaptation
     samurai::adapt_mesh_to_geometry(mesh, geometry);
 }
 ```
 
-## Performance Optimizations
+## Restart System
 
-### HDF5 Compression
+### Save Restart
 
 ```cpp
-HighFive::File create_h5file(const fs::path& path, const std::string& filename)
+#include <samurai/io/restart.hpp>
+
+template <class Mesh, class... Fields>
+void save_restart(const std::string& filename, const Mesh& mesh, const Fields&... fields)
 {
-    HighFive::FileCreateProps fcprops;
-    fcprops.add(HighFive::Chunking(std::vector<hsize_t>{1000, 1000}));
-    fcprops.add(HighFive::Deflate(9)); // Maximum compression
-    
-    return HighFive::File((path / filename).string(), HighFive::File::Create, fcprops);
+    // Save simulation state for restart
+    samurai::dump(filename, mesh, fields...);
 }
 ```
 
-### Parallel I/O
+### Load Restart
+
+```cpp
+#include <samurai/io/restart.hpp>
+
+template <class Mesh, class... Fields>
+void load_restart(const std::string& filename, Mesh& mesh, Fields&... fields)
+{
+    // Load simulation state
+    samurai::load(filename, mesh, fields...);
+}
+```
+
+## Parallel I/O
+
+### MPI Support
 
 ```mermaid
 graph TD
@@ -471,95 +459,34 @@ graph TD
     A --> A3[Async I/O]
 ```
 
-### Streaming for Large Datasets
+### Parallel Save Example
 
 ```cpp
-template <class Field>
-void save_field_streaming(const std::string& filename, const Field& field)
+#ifdef SAMURAI_WITH_MPI
+template <class Mesh, class... Fields>
+void parallel_save(const std::string& filename, const Mesh& mesh, const Fields&... fields)
 {
-    // Save by blocks to avoid memory overhead
-    const std::size_t block_size = 10000;
+    mpi::communicator world;
     
-    for (std::size_t block = 0; block < field.size() / block_size; ++block) {
-        auto block_data = extract_field_block(field, block, block_size);
-        append_to_hdf5(filename, block_data, block);
-    }
+    // Parallel save with collective operations
+    samurai::save(filename, mesh, fields...);
 }
+#endif
 ```
 
-## Monitoring and Validation
+## Performance Monitoring
 
-### Integrity Verification
-
-```cpp
-bool verify_hdf5_file(const std::string& filename)
-{
-    try {
-        HighFive::File file(filename, HighFive::File::ReadOnly);
-        
-        // Check structure
-        if (!file.exist("Grid")) return false;
-        if (!file.exist("Fields")) return false;
-        
-        // Check data
-        auto grid_group = file.getGroup("Grid");
-        auto fields_group = file.getGroup("Fields");
-        
-        return true;
-    } catch (...) {
-        return false;
-    }
-}
-```
-
-### I/O Performance Analysis
+### Built-in Timers
 
 ```cpp
-void benchmark_io_performance()
+void monitor_io_performance()
 {
-    samurai::times::timers.start("io_write");
+    // I/O operations are automatically timed
     samurai::save("output", "benchmark.h5", mesh, field1, field2);
-    samurai::times::timers.stop("io_write");
     
-    auto stats = samurai::times::timers.get("io_write");
+    // Access timing information
+    auto stats = samurai::times::timers.get("data saving");
     std::cout << "I/O Write time: " << stats.total_time << "s" << std::endl;
-    std::cout << "File size: " << get_file_size("output/benchmark.h5") << " bytes" << std::endl;
-}
-```
-
-## Advanced Use Cases
-
-### 1. Incremental Save
-
-```cpp
-template <class Mesh, class... Fields>
-void save_incremental(const std::string& base_filename, int iteration, 
-                     const Mesh& mesh, const Fields&... fields)
-{
-    std::string filename = fmt::format("{}_{:06d}.h5", base_filename, iteration);
-    samurai::save("output", filename, mesh, fields...);
-}
-```
-
-### 2. Simulation Restart
-
-```cpp
-template <class Mesh, class... Fields>
-void load_restart(const std::string& filename, Mesh& mesh, Fields&... fields)
-{
-    // Load simulation state
-    samurai::load(filename, mesh, fields...);
-}
-```
-
-### 3. Real-time Visualization
-
-```cpp
-template <class Mesh, class... Fields>
-void setup_realtime_visualization(const Mesh& mesh, const Fields&... fields)
-{
-    // Configuration for real-time visualization
-    samurai::setup_vtk_pipeline(mesh, fields...);
 }
 ```
 
@@ -567,10 +494,10 @@ void setup_realtime_visualization(const Mesh& mesh, const Fields&... fields)
 
 Samurai's I/O system offers:
 
-- **Flexibility** with support for multiple formats
-- **Performance** through HDF5 optimizations and parallel I/O
-- **Interoperability** with standard visualization tools
-- **Robustness** with validation and error handling
-- **Extensibility** for custom formats
+- **Flexibility** with HDF5 format and XML metadata
+- **Performance** through parallel I/O and MPI support
+- **Interoperability** with standard visualization tools via XDMF
+- **Robustness** with comprehensive restart capabilities
+- **Extensibility** for custom data formats
 
 This system enables seamless integration into simulation and post-processing workflows, facilitating result analysis and visualization. 

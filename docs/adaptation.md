@@ -2,25 +2,22 @@
 
 ## Introduction
 
-Mesh adaptation is a core feature of Samurai, enabling dynamic refinement and coarsening of the computational mesh based on solution characteristics. The adaptation system supports various strategies including multiresolution analysis, error indicators, and user-defined criteria, allowing for efficient computation by concentrating computational effort where it's most needed.
+Mesh adaptation is a core feature of Samurai, enabling dynamic refinement and coarsening of the computational mesh based on solution characteristics. The adaptation system uses multiresolution analysis to determine where refinement is needed, allowing for efficient computation by concentrating computational effort where it's most needed.
 
 ## Core Concepts
 
 ### 1. Adaptation Types
 
-Samurai supports several adaptation strategies:
+Samurai supports multiresolution adaptation:
 
-- **Multiresolution Adaptation**: Based on wavelet analysis
-- **Error-based Adaptation**: Using error indicators
-- **Gradient-based Adaptation**: Based on solution gradients
-- **User-defined Adaptation**: Custom refinement criteria
+- **Multiresolution Adaptation**: Based on wavelet analysis using the Harten algorithm
 
 ### 2. Adaptation Process
 
 The adaptation process typically involves:
 
-1. **Analysis**: Evaluate the current solution
-2. **Criterion**: Determine which cells need refinement/coarsening
+1. **Analysis**: Evaluate the current solution using wavelet coefficients
+2. **Criterion**: Determine which cells need refinement/coarsening based on detail coefficients
 3. **Modification**: Refine or coarsen cells
 4. **Update**: Update mesh connectivity and ghost cells
 
@@ -53,7 +50,7 @@ double regularity = 1.0;  // Higher values = smoother solutions
 ```cpp
 // Complete multiresolution adaptation workflow
 for (std::size_t iter = 0; iter < max_iterations; ++iter) {
-    // 1. Predict solution on fine levels
+    // 1. Update ghost cells
     samurai::update_ghost_mr(field);
     
     // 2. Apply numerical scheme
@@ -68,47 +65,18 @@ for (std::size_t iter = 0; iter < max_iterations; ++iter) {
 }
 ```
 
-## Error-based Adaptation
-
-### 1. Error Indicators
-
-Error-based adaptation uses various error indicators:
-
-```cpp
-// Gradient-based error indicator
-auto error_indicator = samurai::make_gradient_indicator(field);
-
-// Residual-based error indicator
-auto residual_indicator = samurai::make_residual_indicator(field, scheme);
-
-// User-defined error indicator
-auto custom_indicator = [&](const auto& cell) {
-    return std::abs(field[cell] - exact_solution(cell.center()));
-};
-```
-
-### 2. Adaptation with Error Indicators
-
-```cpp
-// Create adaptation based on error indicator
-auto adaptation = samurai::make_adaptation(field, error_indicator);
-
-// Apply adaptation with threshold
-adaptation(threshold, min_level, max_level);
-```
-
 ## Adaptation Algorithms
 
 ### 1. Graduation Algorithm
 
-The graduation algorithm ensures mesh consistency:
+The graduation algorithm ensures mesh consistency by maintaining the 2:1 balance condition:
 
 ```cpp
 // Apply graduation to ensure 2:1 balance
 samurai::graduation(mesh);
 
 // Graduation with specific parameters
-samurai::graduation(mesh, min_level, max_level);
+samurai::make_graduation(ca, grad_width);
 ```
 
 ### 2. Prediction and Projection
@@ -129,43 +97,6 @@ samurai::update_ghost_mr(field);
 
 // Update specific mesh regions
 samurai::update_ghost(mesh[samurai::MRMeshID::ghosts]);
-```
-
-## Adaptation Criteria
-
-### 1. Built-in Criteria
-
-```cpp
-// Multiresolution criterion
-auto mr_criterion = samurai::make_MRCriterion(field, epsilon, regularity);
-
-// Gradient criterion
-auto gradient_criterion = samurai::make_gradient_criterion(field, threshold);
-
-// Jump criterion (for discontinuous solutions)
-auto jump_criterion = samurai::make_jump_criterion(field, threshold);
-```
-
-### 2. Custom Criteria
-
-```cpp
-// Define custom adaptation criterion
-auto custom_criterion = [&](const auto& cell) {
-    auto center = cell.center();
-    auto value = field[cell];
-    
-    // Refine if solution is large
-    if (std::abs(value) > threshold) {
-        return true;
-    }
-    
-    // Refine if near discontinuity
-    if (is_near_discontinuity(center)) {
-        return true;
-    }
-    
-    return false;
-};
 ```
 
 ## Adaptation Workflow
@@ -196,11 +127,10 @@ for (std::size_t iter = 0; iter < max_iterations; ++iter) {
 ### 2. Advanced Adaptation Loop
 
 ```cpp
-// Create multiple adaptation criteria
+// Create multiresolution adaptation
 auto mr_adapt = samurai::make_MRAdapt(u);
-auto error_adapt = samurai::make_adaptation(u, error_indicator);
 
-// Time loop with multiple adaptation strategies
+// Time loop with adaptation
 for (std::size_t iter = 0; iter < max_iterations; ++iter) {
     // Update ghost cells
     samurai::update_ghost_mr(u);
@@ -211,9 +141,6 @@ for (std::size_t iter = 0; iter < max_iterations; ++iter) {
     
     // Apply multiresolution adaptation
     mr_adapt(epsilon, regularity);
-    
-    // Apply error-based adaptation
-    error_adapt(error_threshold, min_level, max_level);
     
     // Ensure mesh consistency
     samurai::graduation(mesh);
@@ -238,7 +165,7 @@ if (iter % adaptation_frequency == 0) {
 
 ```cpp
 // Limit adaptation to specific levels
-adaptation(epsilon, regularity, min_level, max_level);
+// This is handled internally by the multiresolution algorithm
 ```
 
 ### 3. Threshold Tuning
@@ -286,27 +213,10 @@ int main() {
 }
 ```
 
-### 2. Error-based Adaptation
+### 2. Custom Adaptation Criterion
 
 ```cpp
-// Create error indicator
-auto error_indicator = [&](const auto& cell) {
-    auto center = cell.center();
-    auto exact = exact_solution(center);
-    return std::abs(u[cell] - exact);
-};
-
-// Create adaptation
-auto adaptation = samurai::make_adaptation(u, error_indicator);
-
-// Apply adaptation
-adaptation(1e-3, min_level, max_level);
-```
-
-### 3. Custom Adaptation Criterion
-
-```cpp
-// Define custom criterion
+// Define custom criterion for initial mesh setup
 auto custom_criterion = [&](const auto& cell) {
     auto center = cell.center();
     
@@ -316,38 +226,31 @@ auto custom_criterion = [&](const auto& cell) {
         return true;
     }
     
-    // Refine if gradient is large
-    auto gradient = compute_gradient(cell);
-    if (xt::norm(gradient) > gradient_threshold) {
-        return true;
-    }
-    
     return false;
 };
 
-// Create adaptation with custom criterion
-auto adaptation = samurai::make_adaptation(u, custom_criterion);
-adaptation(threshold, min_level, max_level);
+// Apply custom criterion to create initial adaptive mesh
+samurai::for_each_cell(mesh, [&](const auto& cell) {
+    if (custom_criterion(cell)) {
+        // Mark for refinement
+    }
+});
 ```
 
-### 4. Multi-criteria Adaptation
+### 3. Multi-level Adaptation
 
 ```cpp
-// Create multiple adaptation strategies
+// Create multiresolution adaptation
 auto mr_adapt = samurai::make_MRAdapt(u);
-auto gradient_adapt = samurai::make_gradient_adaptation(u);
-auto error_adapt = samurai::make_adaptation(u, error_indicator);
 
-// Apply different adaptations
+// Apply adaptation with different parameters
 mr_adapt(1e-4, 1.0);
-gradient_adapt(gradient_threshold);
-error_adapt(error_threshold, min_level, max_level);
 
 // Ensure mesh consistency
 samurai::graduation(mesh);
 ```
 
-### 5. Adaptive Threshold
+### 4. Adaptive Threshold
 
 ```cpp
 // Compute adaptive threshold
@@ -366,17 +269,7 @@ adaptation(threshold, regularity);
 
 ## Monitoring and Statistics
 
-### 1. Adaptation Statistics
-
-```cpp
-// Get adaptation statistics
-auto stats = adaptation.get_statistics();
-std::cout << "Refined cells: " << stats.refined_cells << std::endl;
-std::cout << "Coarsened cells: " << stats.coarsened_cells << std::endl;
-std::cout << "Total cells: " << stats.total_cells << std::endl;
-```
-
-### 2. Mesh Quality Monitoring
+### 1. Mesh Quality Monitoring
 
 ```cpp
 // Monitor mesh quality
@@ -386,4 +279,12 @@ for (std::size_t level = mesh.min_level(); level <= mesh.max_level(); ++level) {
 }
 ```
 
-The mesh adaptation system in Samurai provides powerful and flexible tools for dynamic mesh management, enabling efficient numerical simulations by concentrating computational effort where it's most needed while maintaining solution accuracy. 
+### 2. Adaptation Monitoring
+
+```cpp
+// Monitor adaptation process
+std::cout << "Mesh levels: " << mesh.min_level() << " to " << mesh.max_level() << std::endl;
+std::cout << "Total cells: " << mesh.nb_cells() << std::endl;
+```
+
+The mesh adaptation system in Samurai provides powerful tools for dynamic mesh management using multiresolution analysis, enabling efficient numerical simulations by concentrating computational effort where it's most needed while maintaining solution accuracy. 

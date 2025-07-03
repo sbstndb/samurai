@@ -39,10 +39,10 @@ graph TD
 
 ```cpp
 // SOA example
-samurai::Field<double, 3, samurai::layout::soa> velocity("velocity", mesh);
+auto velocity_soa = samurai::make_vector_field<double, 3, true>("velocity", mesh);
 
-// AOS example
-samurai::Field<double, 3, samurai::layout::aos> velocity("velocity", mesh);
+// AOS example (default)
+auto velocity_aos = samurai::make_vector_field<double, 3, false>("velocity", mesh);
 ```
 
 ### Performance Considerations
@@ -66,18 +66,36 @@ graph LR
 
 - Fields are allocated per mesh level and per cell interval.
 - Memory is released when mesh levels are coarsened or fields are destroyed.
-- Samurai uses custom allocators for alignment and performance.
+- Samurai uses efficient storage containers (Eigen or xtensor) for alignment and performance.
 
 ### Example: Memory Usage Monitoring
 
 ```cpp
-std::cout << "Field memory usage: " << field.memory_usage() << " bytes" << std::endl;
+// Monitor mesh memory usage
+auto mesh_memory = samurai::memory_usage(mesh, true);
+std::cout << "Mesh memory usage: " << mesh_memory << " bytes" << std::endl;
 ```
 
-## Advanced: Hybrid Layouts and Custom Allocators
+## Implementation Details
 
-- Samurai allows hybrid layouts for advanced use-cases.
-- Custom allocators can be plugged for GPU or NUMA architectures.
+### Storage Containers
+
+Samurai supports two storage backends:
+
+- **Eigen**: When `SAMURAI_FIELD_CONTAINER_EIGEN3` is defined
+- **xtensor**: Default backend for field storage
+
+### Layout Configuration
+
+The layout type is configured through the `layout_type` enum:
+
+```cpp
+enum class layout_type
+{
+    row_major = 0x00,
+    column_major = 0x01
+};
+```
 
 ## Conclusion
 

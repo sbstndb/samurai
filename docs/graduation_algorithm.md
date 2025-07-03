@@ -80,7 +80,7 @@ public:
     template <std::size_t d, class T, class Stencil>
     inline void operator()(Dim<d>, T& tag, const Stencil& s) const
     {
-        // Graduation logic
+        // Graduation logic implementation
     }
 };
 ```
@@ -91,9 +91,9 @@ public:
 enum class CellFlag : int
 {
     keep = 1,      // Keep the cell
-    refine = 2,    // Refine the cell
-    coarsen = 4,   // Coarsen the cell
-    // ...
+    coarsen = 2,   // Coarsen the cell
+    refine = 4,    // Refine the cell
+    enlarge = 8    // Enlarge the cell
 };
 ```
 
@@ -209,7 +209,7 @@ auto graduate_subset = intersection(
     mesh[mesh_id_t::cells][level]
 ).on(level - 1);
 
-graduate_subset.apply_op(graduate_op(tag));
+graduate_subset.apply_op(graduate(tag, s));
 ```
 
 **Visual Scheme:**
@@ -223,26 +223,7 @@ Result:     [G][G][G][G]  G = Graduated cells
 
 ### Stencil Operations
 
-The graduation algorithm uses stencils to propagate information between mesh levels:
-
-```cpp
-template <std::size_t dim, class TInterval>
-class graduate_stencil
-{
-public:
-    static constexpr std::size_t size = 2 * ghost_width + 1;
-    
-    template <std::size_t d, class T>
-    inline void operator()(Dim<d>, T& tag, const Stencil& s) const
-    {
-        // Stencil-based graduation logic
-        for (std::size_t i = 0; i < size; ++i)
-        {
-            // Apply graduation rules
-        }
-    }
-};
-```
+The graduation algorithm uses stencils to propagate information between mesh levels. The stencil is defined as a set of translation vectors that determine which neighboring cells to consider during the graduation process.
 
 ### Ghost Width Management
 
@@ -275,17 +256,13 @@ constexpr std::size_t ghost_width = 1;  // Default value
 2. **Memory Issues:** Insufficient memory for large meshes
 3. **Convergence Problems:** Graduation fails to converge
 
-### Debugging Tools
+### Validation
+
+The graduation result can be validated using the `is_graduated()` function:
 
 ```cpp
-// Enable debug output
-samurai::set_debug_level(samurai::DebugLevel::Detailed);
-
-// Check mesh consistency
-bool is_consistent = samurai::check_mesh_consistency(mesh);
-
-// Validate graduation result
-samurai::validate_graduation(mesh, tag);
+// Check if mesh is graduated
+bool is_graduated = samurai::is_graduated(mesh);
 ```
 
 ## Integration with Adaptation
@@ -327,33 +304,13 @@ for (std::size_t iter = 0; iter < max_iterations; ++iter)
 
 ## Advanced Features
 
-### Custom Graduation Rules
-
-Users can define custom graduation rules:
-
-```cpp
-template <class T>
-class custom_graduation_op
-{
-public:
-    template <std::size_t d, class Stencil>
-    inline void operator()(Dim<d>, T& tag, const Stencil& s) const
-    {
-        // Custom graduation logic
-    }
-};
-```
-
 ### Multi-level Graduation
 
-Support for multi-level graduation operations:
+The graduation algorithm naturally handles multi-level operations by processing levels from maximum to minimum:
 
 ```cpp
-// Graduation across multiple levels
-for (std::size_t level = max_level; level > min_level; --level)
-{
-    samurai::graduate_level(mesh, level, tag);
-}
+// Graduation is automatically applied across all levels
+samurai::make_graduation(cell_array);
 ```
 
 ## Conclusion
@@ -365,4 +322,4 @@ Key benefits:
 - **Scheme Accuracy:** Maintains accuracy of numerical schemes
 - **Implementation Ease:** Simplifies the implementation of complex schemes
 - **Performance:** Efficient algorithm with linear complexity
-- **Flexibility:** Supports custom graduation rules and multi-level operations 
+- **Reliability:** Standardized algorithm ensures consistent results 

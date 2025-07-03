@@ -31,11 +31,6 @@ where:
 ∂u/∂t + v₁ ∂u/∂x + v₂ ∂u/∂y = 0
 ```
 
-**In 3D:**
-```
-∂u/∂t + v₁ ∂u/∂x + v₂ ∂u/∂y + v₃ ∂u/∂z = 0
-```
-
 ## Problem Configuration
 
 ### Simulation Parameters
@@ -158,14 +153,11 @@ if constexpr (dim == 2)
 **In 2D:**
 - `v = (1, -1)` : Diagonal convection (top-right to bottom-left)
 
-**In 3D:**
-- `v = (1, 1, 1)` : Diagonal convection in all directions
-
 ## WENO5 Numerical Scheme
 
 ### WENO5 Scheme Principle
 
-The WENO5 (Weighted Essentially Non-Oscillatory) scheme is a 5th-order scheme that combines multiple stencils to obtain a non-oscillatory reconstruction.
+The WENO5 (Weighted Essentially Non-Oscillatory) scheme is a 5th-order scheme that combines multiple stencils to obtain a non-oscillatory reconstruction. **Note:** WENO5 requires at least 3 ghost cells for proper operation.
 
 ```cpp
 // Create WENO5 convection operator
@@ -197,4 +189,117 @@ graph TD
 ### WENO5 Scheme Advantages
 
 - **5th order accuracy** in space
-- **Oscillation limiting** at discontinuities 
+- **Oscillation limiting** at discontinuities
+- **Non-oscillatory reconstruction** at shocks and discontinuities
+- **Automatic stencil selection** based on smoothness indicators
+
+## Time Integration
+
+### TVD-RK3 (SSPRK3) Scheme
+
+The test case uses a third-order Total Variation Diminishing Runge-Kutta scheme (SSPRK3):
+
+```cpp
+// TVD-RK3 (SSPRK3) time integration
+u1 = u - dt * conv(u);
+samurai::update_ghost_mr(u1);
+
+u2 = 3./4 * u + 1./4 * (u1 - dt * conv(u1));
+samurai::update_ghost_mr(u2);
+
+unp1 = 1./3 * u + 2./3 * (u2 - dt * conv(u2));
+```
+
+### Time Step Calculation
+
+```cpp
+// Automatic time step calculation based on CFL condition
+if (dt == 0)
+{
+    double dx = mesh.cell_length(max_level);
+    auto a = xt::abs(velocity);
+    double sum_velocities = xt::sum(xt::abs(velocity))();
+    dt = cfl * dx / sum_velocities;
+}
+```
+
+## Mesh Adaptation
+
+### Multiresolution Adaptation
+
+The test case uses multiresolution adaptation to dynamically refine and coarsen the mesh:
+
+```cpp
+// Multiresolution adaptation
+auto MRadaptation = samurai::make_MRAdapt(u);
+MRadaptation(mr_epsilon, mr_regularity);
+
+// Update ghost cells after adaptation
+samurai::update_ghost_mr(u);
+```
+
+### Adaptation Parameters
+
+- **`mr_epsilon`**: Threshold for adaptation (default: 1e-4)
+- **`mr_regularity`**: Estimated regularity for adaptation (default: 1.0)
+
+## Boundary Conditions
+
+### Periodic Boundary Conditions
+
+The test case uses periodic boundary conditions in all directions:
+
+```cpp
+// Periodic boundary conditions
+std::array<bool, dim> periodic;
+periodic.fill(true);
+mesh = {box, min_level, max_level, periodic};
+```
+
+This ensures that the solution wraps around the domain boundaries, making it suitable for testing numerical schemes without boundary effects.
+
+## Output and Visualization
+
+### Solution Output
+
+```cpp
+// Save solution at regular intervals
+if (nfiles == 0 || t >= static_cast<double>(nsave + 1) * dt_save || t == Tf)
+{
+    std::string suffix = (nfiles != 1) ? fmt::format("_ite_{}", nsave++) : "";
+    save(path, filename, u, suffix);
+}
+```
+
+### Expected Results
+
+- **1D**: The step function should convect to the right at unit velocity
+- **2D**: The rectangular pulse should convect diagonally (top-right to bottom-left)
+- **Periodic**: The solution should wrap around the domain boundaries
+- **Adaptive**: The mesh should refine around discontinuities and coarsen in smooth regions
+
+## Performance Considerations
+
+### WENO5 Requirements
+
+- **Ghost cells**: Minimum 3 ghost cells required
+- **Stencil size**: 6-point stencil in each direction
+- **Memory**: Higher memory usage compared to lower-order schemes
+
+### Adaptation Benefits
+
+- **Efficiency**: Computational effort concentrated where needed
+- **Accuracy**: Fine resolution around discontinuities
+- **Memory**: Reduced memory usage in smooth regions
+
+## Conclusion
+
+The linear convection test case demonstrates:
+
+- **High-order accuracy** with WENO5 scheme
+- **Adaptive mesh refinement** with multiresolution analysis
+- **Periodic boundary conditions** for clean numerical testing
+- **TVD time integration** for stability
+- **Efficient implementation** with interval-based processing
+
+This test case serves as a fundamental benchmark for validating numerical convection schemes in Samurai. 

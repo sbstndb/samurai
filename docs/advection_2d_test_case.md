@@ -2,7 +2,7 @@
 
 ## Overview
 
-The 2D advection test case in Samurai is a fundamental benchmark for validating numerical advection schemes on multiresolution adaptive meshes. It solves the 2D advection equation with an initial disk that moves according to a constant velocity vector, using the upwind scheme with flux correction at multi-level interfaces.
+The 2D advection test case in Samurai is a fundamental benchmark for validating numerical advection schemes on multiresolution adaptive meshes. It solves the 2D advection equation with an initial disk that moves according to a constant velocity vector, using the upwind scheme with optional flux correction at multi-level interfaces.
 
 ## Modeled Equation
 
@@ -612,41 +612,6 @@ auto start_time = std::chrono::high_resolution_clock::now();
 auto end_time = std::chrono::high_resolution_clock::now();
 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 std::cout << "Computation time: " << duration.count() << " ms" << std::endl;
-```
-
-## Comparison with Analytical Solution
-
-### Analytical Solution
-
-For an initial disk of radius `r` centered at `(x₀, y₀)`, the analytical solution is:
-
-```
-u(x,y,t) = 1  if (x - x₀ - a₁t)² + (y - y₀ - a₂t)² ≤ r²
-u(x,y,t) = 0  otherwise
-```
-
-### Error Calculation
-
-```cpp
-// Calculate L2 error with respect to analytical solution
-double error = samurai::L2_error(u, [&](const auto& coords, double t)
-{
-    double x = coords(0);
-    double y = coords(1);
-    double x_center = 0.3 + a[0] * t;
-    double y_center = 0.3 + a[1] * t;
-    double radius = 0.2;
-    
-    if (((x - x_center) * (x - x_center) + 
-         (y - y_center) * (y - y_center)) <= radius * radius)
-    {
-        return 1.0;
-    }
-    else
-    {
-        return 0.0;
-    }
-});
 ```
 
 ## Conclusion

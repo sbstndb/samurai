@@ -437,14 +437,12 @@ graph TB
     A[Boundary Conditions] --> B[Dirichlet]
     A --> C[Neumann]
     A --> D[Periodic]
-    A --> E[Robin]
-    A --> F[Custom]
+    A --> E[Custom]
     
     B --> G["u = g on ∂Ω"]
     C --> H["∂u/∂n = h on ∂Ω"]
     D --> I["u(x) = u(x+L)"]
-    E --> J["αu + β∂u/∂n = γ"]
-    F --> K[Specific Conditions]
+    E --> K[Specific Conditions]
 ```
 
 ### Implementation of Boundary Conditions
@@ -592,34 +590,6 @@ int main()
     energy_equation.apply(p);
     
     return 0;
-}
-```
-
-## Monitoring and Debugging
-
-### Monitoring Schemes
-
-```cpp
-// Enable monitoring
-scheme.set_monitoring(true);
-
-// Display statistics
-std::cout << "Scheme statistics:" << std::endl;
-std::cout << "  - CFL number: " << scheme.get_cfl() << std::endl;
-std::cout << "  - Max eigenvalue: " << scheme.get_max_eigenvalue() << std::endl;
-std::cout << "  - Min eigenvalue: " << scheme.get_min_eigenvalue() << std::endl;
-```
-
-### Debugging Schemes
-
-```cpp
-// Validate coefficients
-scheme.validate_coefficients();
-
-// Check stability
-if (!scheme.check_stability())
-{
-    std::cerr << "Warning: Scheme may be unstable!" << std::endl;
 }
 ```
 

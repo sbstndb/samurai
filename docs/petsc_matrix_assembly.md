@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Samurai supports the assembly of sparse matrices for linear solvers, with optional integration with PETSc for scalable parallel computations.
+Samurai supports the assembly of sparse matrices for linear solvers, with integration with PETSc for scalable parallel computations. The PETSc integration provides efficient linear and nonlinear solvers with support for various preconditioners and iterative methods.
 
 ## Matrix Assembly Workflow
 
@@ -16,31 +16,33 @@ graph TD
 
 ## Memory Structure
 
-- Matrices are stored in compressed sparse row (CSR) or block formats.
+- Matrices are stored in compressed sparse row (CSR) format.
 - Each mesh cell or interval contributes local entries to the global matrix.
 - PETSc integration allows distributed storage and parallel assembly.
 
 ## Example Code
 
 ```cpp
-// Assemble a matrix
-samurai::petsc::Matrix A(mesh);
-samurai::assemble_matrix(A, mesh, scheme);
+// Create a solver for a scheme
+auto solver = samurai::petsc::make_solver(scheme);
 
-// Solve with PETSc
-samurai::petsc::Solver solver;
-solver.solve(A, x, b);
+// Set the unknown field
+solver.set_unknown(u);
+
+// Solve the system
+solver.solve(rhs);
 ```
 
 ## PETSc Integration
 
-- PETSc objects (Mat, Vec, KSP) are wrapped for C++ use.
+- PETSc objects (Mat, Vec, KSP, SNES) are wrapped for C++ use.
 - Communication and assembly are handled transparently for the user.
+- Support for both linear and nonlinear solvers.
 
 ## Advanced: Block and Nonlinear Assembly
 
-- Block matrices for systems of equations.
-- Nonlinear operator assembly for advanced solvers.
+- Block matrices for systems of equations using `LinearBlockSolver`.
+- Nonlinear operator assembly for advanced solvers using `NonLinearSolver`.
 
 ## Conclusion
 

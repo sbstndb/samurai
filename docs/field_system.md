@@ -140,9 +140,9 @@ samurai::for_each_interval(mesh, [&](std::size_t level, const auto& interval, co
 
 ```cpp
 // Access specific component of vector field
-samurai::for_each_interval(mesh, [&](std::size_t level, const auto& interval, const auto& index) {
-    auto u_component = velocity(0, level, interval, index);  // x-component
-    auto v_component = velocity(1, level, interval, index);  // y-component
+samurai::for_each_cell(mesh, [&](const auto& cell) {
+    auto u_component = velocity[cell][0];  // x-component
+    auto v_component = velocity[cell][1];  // y-component
 });
 ```
 
@@ -163,24 +163,16 @@ auto ratio = field1 / field2;
 auto result = field1 + field2 * 3.0 - field3 / 2.0;
 ```
 
-### 2. Function Applications
+### 2. Expression Templates
+
+Field operations use expression templates to avoid unnecessary temporaries:
 
 ```cpp
-// Apply mathematical functions
-auto abs_field = xt::abs(field);
-auto sqrt_field = xt::sqrt(field);
-auto exp_field = xt::exp(field);
-auto log_field = xt::log(field);
-```
+// This creates an expression, not a temporary field
+auto result = field1 + field2 * 2.0;
 
-### 3. Reduction Operations
-
-```cpp
-// Global reductions
-double max_val = xt::amax(field.array())[0];
-double min_val = xt::amin(field.array())[0];
-double sum_val = xt::sum(field.array())[0];
-double mean_val = xt::mean(field.array())[0];
+// The actual computation happens when the expression is assigned
+field3 = result;
 ```
 
 ## Boundary Conditions
@@ -193,9 +185,6 @@ samurai::make_bc<samurai::Dirichlet<1>>(field, 0.0);
 
 // Neumann boundary condition
 samurai::make_bc<samurai::Neumann<1>>(field, 1.0);
-
-// Periodic boundary condition
-samurai::make_bc<samurai::Periodic<1>>(field);
 ```
 
 ### 2. Boundary Condition Management
@@ -304,28 +293,6 @@ Fields use contiguous memory layouts for cache efficiency:
 [cell0_comp0, cell1_comp0, cell2_comp0, ..., cell0_comp1, cell1_comp1, ...]
 ```
 
-## Field I/O
-
-### 1. HDF5 Support
-
-```cpp
-// Save field to HDF5
-samurai::save(path, "field_name", mesh, field);
-
-// Load field from HDF5
-samurai::load(filename, mesh, field);
-```
-
-### 2. Restart Capabilities
-
-```cpp
-// Dump field for restart
-samurai::dump(path, "restart_name", mesh, field);
-
-// Load field from restart
-samurai::load(restart_file, mesh, field);
-```
-
 ## Examples
 
 ### 1. Basic Field Usage
@@ -386,15 +353,13 @@ samurai::for_each_cell(mesh, [&](const auto& cell) {
 });
 
 // Access components
-samurai::for_each_interval(mesh, [&](std::size_t level, const auto& interval, const auto& index) {
-    auto u_comp = velocity(0, level, interval, index);
-    auto v_comp = velocity(1, level, interval, index);
+samurai::for_each_cell(mesh, [&](const auto& cell) {
+    auto u_comp = velocity[cell][0];
+    auto v_comp = velocity[cell][1];
     
     // Process components
-    for (std::size_t i = 0; i < u_comp.size(); ++i) {
-        double magnitude = std::sqrt(u_comp[i] * u_comp[i] + v_comp[i] * v_comp[i]);
-        // Use magnitude
-    }
+    double magnitude = std::sqrt(u_comp * u_comp + v_comp * v_comp);
+    // Use magnitude
 });
 ```
 

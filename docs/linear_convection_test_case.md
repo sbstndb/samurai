@@ -127,10 +127,10 @@ graph LR
     A[Initial Condition] --> B[1D: Step Function]
     A --> C[2D: Rectangle]
     
-    B --> D[Interval [-0.8, -0.3]]
+    B --> D["Interval [-0.8, -0.3]"]
     B --> E[Value 1.0]
     
-    C --> F[Rectangle [-0.8, -0.3] × [0.3, 0.8]]
+    C --> F["Rectangle [-0.8, -0.3] × [0.3, 0.8]"]
     C --> G[Value 1.0 inside]
     C --> H[Value 0.0 outside]
 ```

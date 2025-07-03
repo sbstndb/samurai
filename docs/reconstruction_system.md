@@ -84,7 +84,7 @@ graph TD
     B -->|Yes| C[Return Map with coefficient 1.0]
     B -->|No| D[Calculate ig = i >> 1]
     D --> E[Check if i is odd]
-    E --> F[Recursion: prediction(level-1, ig)]
+    E --> F[Recursion: prediction level-1, ig]
     F --> G[Calculate interpolation coefficients]
     G --> H[Apply interpolation]
     H --> I[Return resulting Map]

@@ -83,7 +83,7 @@ graph TD
     A[Level L, Index i] --> B{Level == 0?}
     B -->|Yes| C[Return Map with coefficient 1.0]
     B -->|No| D[Calculate ig = i >> 1]
-    D --> E[Calculate sign = (i et 1) ? -1 : 1]
+    D --> E[Calculate sign = [i & 1] ? -1 : 1]
     E --> F[Recursion: prediction(level-1, ig)]
     F --> G[Calculate interpolation coefficients]
     G --> H[Apply interpolation]

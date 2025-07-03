@@ -290,20 +290,6 @@ graph TD
     C --> D
 ```
 
-### 2. Non-uniform Stencils
-
-```cpp
-// Stencil with variable spacing
-auto non_uniform_stencil = create_non_uniform_stencil(spacing);
-```
-
-### 3. Anisotropic Stencils
-
-```cpp
-// Stencil with different resolution in different directions
-auto anisotropic_stencil = create_anisotropic_stencil(resolution);
-```
-
 ## Practical Examples
 
 ### Example 1: Simple Stencil
@@ -374,9 +360,6 @@ samurai::for_each_stencil(mesh, custom_stencil, [&](const auto& cells) {
 ### Stencil Validation
 
 ```cpp
-// Check if a stencil is valid
-bool is_valid = samurai::is_valid_stencil(stencil);
-
 // Check if it's a linear stencil
 bool is_line = samurai::is_line_stencil(stencil);
 ```
@@ -418,13 +401,6 @@ graph TD
 samurai::for_each_stencil(mesh, stencil, [&](const auto& cells) {
     // Parallel processing
 });
-```
-
-### 3. Stencils and GPU
-
-```cpp
-// Optimized stencil for GPU
-auto gpu_stencil = create_gpu_optimized_stencil(stencil);
 ```
 
 ## Conclusion

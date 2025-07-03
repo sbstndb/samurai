@@ -360,51 +360,39 @@ Qs_ij = Qs_i + Qs_j
 ### Example 1: Simple Projection
 
 ```cpp
-#include <samurai/numeric/projection.hpp>
+// Create fields on different levels
+auto fine_field = samurai::make_scalar_field<double>("fine", fine_mesh);
+auto coarse_field = samurai::make_scalar_field<double>("coarse", coarse_mesh);
 
-int main() {
-    // Create fields on different levels
-    auto fine_field = samurai::make_scalar_field<double>("fine", fine_mesh);
-    auto coarse_field = samurai::make_scalar_field<double>("coarse", coarse_mesh);
-    
-    // Initialize the fine field
-    samurai::for_each_cell(fine_mesh, [&](const auto& cell) {
-        fine_field[cell] = initial_condition(cell.center());
-    });
-    
-    // Project from fine to coarse
-    auto proj_op = samurai::projection(coarse_field, fine_field);
-    samurai::for_each_interval(fine_mesh, [&](std::size_t level, const auto& interval, const auto& index) {
-        proj_op(level, interval, index);
-    });
-    
-    return 0;
-}
+// Initialize the fine field
+samurai::for_each_cell(fine_mesh, [&](const auto& cell) {
+    fine_field[cell] = initial_condition(cell.center());
+});
+
+// Project from fine to coarse
+auto proj_op = samurai::projection(coarse_field, fine_field);
+samurai::for_each_interval(fine_mesh, [&](std::size_t level, const auto& interval, const auto& index) {
+    proj_op(level, interval, index);
+});
 ```
 
 ### Example 2: Prediction with Variable Order
 
 ```cpp
-#include <samurai/numeric/prediction.hpp>
+// Create fields
+auto fine_field = samurai::make_scalar_field<double>("fine", fine_mesh);
+auto coarse_field = samurai::make_scalar_field<double>("coarse", coarse_mesh);
 
-int main() {
-    // Create fields
-    auto fine_field = samurai::make_scalar_field<double>("fine", fine_mesh);
-    auto coarse_field = samurai::make_scalar_field<double>("coarse", coarse_mesh);
-    
-    // Initialize the coarse field
-    samurai::for_each_cell(coarse_mesh, [&](const auto& cell) {
-        coarse_field[cell] = initial_condition(cell.center());
-    });
-    
-    // Predict from coarse to fine (order 3)
-    auto pred_op = samurai::prediction<3, false>(fine_field, coarse_field);
-    samurai::for_each_interval(coarse_mesh, [&](std::size_t level, const auto& interval, const auto& index) {
-        pred_op(level, interval, index);
-    });
-    
-    return 0;
-}
+// Initialize the coarse field
+samurai::for_each_cell(coarse_mesh, [&](const auto& cell) {
+    coarse_field[cell] = initial_condition(cell.center());
+});
+
+// Predict from coarse to fine (order 3)
+auto pred_op = samurai::prediction<3, false>(fine_field, coarse_field);
+samurai::for_each_interval(coarse_mesh, [&](std::size_t level, const auto& interval, const auto& index) {
+    pred_op(level, interval, index);
+});
 ```
 
 ### Example 3: Multilevel Operations
@@ -544,44 +532,6 @@ void boundary_conditions() {
     
     // 3. Project with boundary conditions
     samurai::projection(coarse_field, fine_field);
-}
-```
-
-## Monitoring and Validation
-
-### Mass Conservation Check
-
-```cpp
-// Check mass conservation
-double check_mass_conservation() {
-    double mass_fine = 0.0, mass_coarse = 0.0;
-    
-    samurai::for_each_cell(fine_mesh, [&](const auto& cell) {
-        mass_fine += fine_field[cell] * cell.volume();
-    });
-    
-    samurai::for_each_cell(coarse_mesh, [&](const auto& cell) {
-        mass_coarse += coarse_field[cell] * cell.volume();
-    });
-    
-    return std::abs(mass_fine - mass_coarse) / mass_fine;
-}
-```
-
-### Error Analysis
-
-```cpp
-// Compute projection/prediction error
-double compute_error() {
-    double error = 0.0;
-    
-    samurai::for_each_cell(fine_mesh, [&](const auto& cell) {
-        auto exact = exact_solution(cell.center());
-        auto computed = fine_field[cell];
-        error += std::pow(exact - computed, 2) * cell.volume();
-    });
-    
-    return std::sqrt(error);
 }
 ```
 

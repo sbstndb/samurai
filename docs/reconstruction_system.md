@@ -304,26 +304,6 @@ for (std::size_t level = min_level; level <= max_level; ++level)
 }
 ```
 
-### Reconstruction with Boundary Conditions
-
-```cpp
-// Reconstruction with boundary condition handling
-auto reconstruction_op = make_reconstruction(level, dest_field, source_field);
-reconstruction_op.set_bc(boundary_conditions);
-reconstruction_op.apply();
-```
-
-### Parallel Reconstruction
-
-```cpp
-#ifdef SAMURAI_WITH_MPI
-// Reconstruction with MPI synchronization
-auto reconstruction_op = make_reconstruction(level, dest_field, source_field);
-reconstruction_op.apply();
-mpi::synchronize_ghosts(dest_field);
-#endif
-```
-
 ## Monitoring and Debugging
 
 ### Display Prediction Maps
@@ -338,17 +318,6 @@ prediction_map.to_stream(std::cout);
 //         (6): 0.5
 ```
 
-### Result Validation
-
-```cpp
-// Validate reconstruction
-auto error = compute_reconstruction_error(source_field, reconstructed_field);
-std::cout << "Reconstruction error: " << error << std::endl;
-
-// Check conservation
-auto conservation_error = check_conservation(source_field, reconstructed_field);
-```
-
 ## AMR Integration
 
 ### Reconstruction in AMR Cycle
@@ -360,15 +329,6 @@ graph LR
     C --> D[Numerical Computation]
     D --> E[Refinement Criteria]
     E --> A
-```
-
-### Reconstruction with Graduation
-
-```cpp
-// Reconstruction after graduation
-graduation(mesh);
-auto reconstruction_op = make_reconstruction(level, dest_field, source_field);
-reconstruction_op.apply();
 ```
 
 ## Complete Examples

@@ -2,10 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
-#include <fstream>
 #include <iostream>
 #include <vector>
-#include <sstream>
 
 #include "algorithm.hpp"
 #include "algorithm/utils.hpp"
@@ -22,44 +20,11 @@ namespace samurai
 {
     enum BalanceElement_t
     {
-        CELL,
-        INTERVAL
+        CELL
     };
 
     namespace weight
     {
-        template <class Mesh>
-        auto from_level(const Mesh& mesh)
-        {
-            using mesh_id_t = typename Mesh::mesh_id_t;
-            auto weight     = samurai::make_scalar_field<double>("weight", mesh);
-            weight.fill(0.);
-
-            auto min_level = mesh.min_level();
-            samurai::for_each_cell(mesh[mesh_id_t::cells],
-                                   [&](auto cell)
-                                   {
-                                       weight[cell] = 1.0 + static_cast<double>(cell.level - min_level);
-                                   });
-            return weight;
-        }
-
-        template <class Mesh>
-        auto from_level_exp(const Mesh& mesh, double base = 1.1)
-        {
-            using mesh_id_t = typename Mesh::mesh_id_t;
-            auto weight     = samurai::make_scalar_field<double>("weight", mesh);
-            weight.fill(0.);
-
-            auto min_level = mesh.min_level();
-            samurai::for_each_cell(mesh[mesh_id_t::cells],
-                                   [&](auto cell)
-                                   {
-                                       weight[cell] = std::pow(base, static_cast<double>(cell.level - min_level));
-                                   });
-            return weight;
-        }
-
         template <class Field>
         auto from_field(const Field& f)
         {
@@ -109,83 +74,83 @@ namespace samurai
     }
 
     /**
-     * Compute fluxes based on load computing stategy based on graph with label
-     * propagation algorithm. Return, for the current process, the flux in term of
+     * Compute fluxes based on load computing strategy using graph with label
+     * propagation algorithm. Returns, for the current process, the flux in terms of
      * load, i.e. the quantity of "load" to transfer to its neighbours. If the load
      * is negative, it means that the process (current) must send load to neighbour,
      * if positive it means that it must receive load.
      *
-     * This function use 2 MPI all_gather calls.
+     * This function uses 2 MPI all_gather calls.
      *
      */
     template <BalanceElement_t elem, class Mesh_t, class Field_t>
     std::vector<double> cmptFluxes(Mesh_t& mesh, const Field_t& weight, int niterations)
     {
-        // Démarrer le timer pour le calcul des flux
+        // Start timer for flux computation
         samurai::times::timers.start("load_balancing_flux_computation");
         
         using mpi_subdomain_t = typename Mesh_t::mpi_subdomain_t;
         boost::mpi::communicator world;
-        // give access to geometricaly neighbour process rank and mesh
+        // Give access to geometrically neighbouring process rank and mesh
         std::vector<mpi_subdomain_t>& neighbourhood = mesh.mpi_neighbourhood();
         size_t n_neighbours                         = neighbourhood.size();
 
-        // load of current process
+        // Load of current process
         double my_load = cmptLoad<elem>(mesh, weight);
-        // fluxes between processes
+        // Fluxes between processes
         std::vector<double> fluxes(n_neighbours, 0.);
-        // load of each process (all processes not only neighbours)
+        // Load of each process (all processes not only neighbours)
         std::vector<double> loads;
-        int nt = 0;
-        while (nt < niterations)
+        int iteration_count = 0;
+        while (iteration_count < niterations)
         {
             boost::mpi::all_gather(world, my_load, loads);
 
-            // compute updated my_load for current process based on its neighbourhood
+            // Compute updated my_load for current process based on its neighbourhood
             double my_load_new = my_load;
             bool all_fluxes_zero = true;
-            for (std::size_t n_i = 0; n_i < n_neighbours; ++n_i)
-            // get "my_load" from other processes
+            for (std::size_t neighbour_idx = 0; neighbour_idx < n_neighbours; ++neighbour_idx)
+            // Get "my_load" from other processes
             {
-                std::size_t neighbour_rank = static_cast<std::size_t>(neighbourhood[n_i].rank);
+                std::size_t neighbour_rank = static_cast<std::size_t>(neighbourhood[neighbour_idx].rank);
                 double neighbour_load         = loads[neighbour_rank];
                 double diff_load = neighbour_load - my_load_new;
 
-                // if transferLoad < 0 -> need to send data, if transferLoad > 0 need to receive data
-                // Utilise le facteur diffusion 1/(deg+1) pour la stabilité
+                // If transferLoad < 0 -> need to send data, if transferLoad > 0 need to receive data
+                // Use diffusion factor 1/(deg+1) for stability
                 double transfertLoad = 0.5* diff_load;
 
 
-                // Accumule le flux total sur l'arête courante
-                fluxes[n_i] += transfertLoad;
+                // Accumulate total flux on current edge
+                fluxes[neighbour_idx] += transfertLoad;
 
-                // Marque si un transfert non nul a été effectué
+                // Mark if a non-zero transfer was performed
                 if (transfertLoad != 0)
                 {
                     all_fluxes_zero = false;
                 }
 
-                // Met à jour la charge locale intermédiaire avant de traiter le voisin suivant
+                // Update intermediate local load before processing next neighbour
                 my_load_new += transfertLoad;
             }
             
-            // Met à jour la charge de référence pour l'itération suivante
+            // Update reference load for next iteration
             my_load = my_load_new;
 
-            // Vérifier si tous les processus ont atteint la convergence
+            // Check if all processes have reached convergence
             bool global_convergence = boost::mpi::all_reduce(world, all_fluxes_zero, std::logical_and<bool>());
 
-            // Si tous les processus ont leurs flux à zéro, l'état ne changera plus
+            // If all processes have zero fluxes, state will no longer change
             if (global_convergence)
             {
-                std::cout << "Processus " << world.rank() << " : Convergence globale atteinte à l'itération " << nt << std::endl;
+                std::cout << "Process " << world.rank() << " : Global convergence reached at iteration " << iteration_count << std::endl;
                 break;
             }
             
-            nt++;
+            iteration_count++;
         }
         
-        // Arrêter le timer pour le calcul des flux
+        // Stop timer for flux computation
         samurai::times::timers.stop("load_balancing_flux_computation");
         
         return fluxes;
@@ -194,8 +159,6 @@ namespace samurai
     template <class Flavor>
     class LoadBalancer
     {
-      private:
-
       public:
 
         int nloadbalancing;
@@ -211,12 +174,10 @@ namespace samurai
             new_field.fill(0);
 
             auto& old_mesh = field.mesh();
-            // auto min_level = boost::mpi::all_reduce(world, mesh[mesh_id_t::cells].min_level(), boost::mpi::minimum<std::size_t>());
-            // auto max_level = boost::mpi::all_reduce(world, mesh[mesh_id_t::cells].max_level(), boost::mpi::maximum<std::size_t>());
             auto min_level = old_mesh.min_level();
             auto max_level = old_mesh.max_level();
 
-            // copy data of intervals that are didn't move
+            // Copy data of intervals that didn't move
             for (std::size_t level = min_level; level <= max_level; ++level)
             {
                 auto intersect_old_new = intersection(old_mesh[mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
@@ -226,7 +187,7 @@ namespace samurai
             std::vector<boost::mpi::request> req, reqs;
             std::vector<std::vector<value_t>> to_send(static_cast<size_t>(world.size()));
 
-            // here we have to define all_* at size n_neighbours...
+            // Here we have to define all_* at size n_neighbours...
             std::vector<Mesh_t> all_new_meshes, all_old_meshes;
             Mesh_t recv_old_mesh, recv_new_mesh;
             for (auto& neighbour : new_mesh.mpi_neighbourhood())
@@ -242,13 +203,10 @@ namespace samurai
             }
             boost::mpi::wait_all(reqs.begin(), reqs.end());
 
-            // build payload of field that has been sent to neighbour, so compare old mesh with new neighbour mesh
-            // for (auto& neighbour : new_mesh.mpi_neighbourhood())
-            //            for (auto& neighbour : new_mesh.mpi_neighbourhood()){
-            for (size_t ni = 0; ni < all_new_meshes.size(); ++ni)
+            // Build payload of field that has been sent to neighbour, so compare old mesh with new neighbour mesh
+            for (size_t neighbour_idx = 0; neighbour_idx < all_new_meshes.size(); ++neighbour_idx)
             {
-                // auto & neighbour_new_mesh = neighbour.mesh;
-                auto& neighbour_new_mesh = all_new_meshes[ni];
+                auto& neighbour_new_mesh = all_new_meshes[neighbour_idx];
 
                 for (std::size_t level = min_level; level <= max_level; ++level)
                 {
@@ -261,30 +219,29 @@ namespace samurai
                             {
                                 std::copy(field(level, interval, index).begin(),
                                           field(level, interval, index).end(),
-                                          std::back_inserter(to_send[ni]));
+                                          std::back_inserter(to_send[neighbour_idx]));
                             });
                     }
                 }
 
-                if (to_send[ni].size() != 0)
+                if (to_send[neighbour_idx].size() != 0)
                 {
-                    // neighbour_rank = neighbour.rank;
-                    auto neighbour_rank = new_mesh.mpi_neighbourhood()[ni].rank;
-                    req.push_back(world.isend(neighbour_rank, neighbour_rank, to_send[ni]));
+                    auto neighbour_rank = new_mesh.mpi_neighbourhood()[neighbour_idx].rank;
+                    req.push_back(world.isend(neighbour_rank, neighbour_rank, to_send[neighbour_idx]));
                 }
             }
 
-            // build payload of field that I need to receive from neighbour, so compare NEW mesh with OLD neighbour mesh
-            for (size_t ni = 0; ni < all_old_meshes.size(); ++ni)
+            // Build payload of field that I need to receive from neighbour, so compare NEW mesh with OLD neighbour mesh
+            for (size_t neighbour_idx = 0; neighbour_idx < all_old_meshes.size(); ++neighbour_idx)
             {
                 bool isintersect = false;
                 for (std::size_t level = min_level; level <= max_level; ++level)
                 {
-                    if (!new_mesh[mesh_id_t::cells][level].empty() && !all_old_meshes[ni][mesh_id_t::cells][level].empty())
+                    if (!new_mesh[mesh_id_t::cells][level].empty() && !all_old_meshes[neighbour_idx][mesh_id_t::cells][level].empty())
                     {
                         std::vector<value_t> to_recv;
 
-                        auto in_interface = intersection(all_old_meshes[ni][mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
+                        auto in_interface = intersection(all_old_meshes[neighbour_idx][mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
 
                         in_interface(
                             [&]([[maybe_unused]] const auto& i, [[maybe_unused]] const auto& index)
@@ -303,13 +260,13 @@ namespace samurai
                 {
                     std::ptrdiff_t count = 0;
                     std::vector<value_t> to_recv;
-                    world.recv(new_mesh.mpi_neighbourhood()[ni].rank, world.rank(), to_recv);
+                    world.recv(new_mesh.mpi_neighbourhood()[neighbour_idx].rank, world.rank(), to_recv);
 
                     for (std::size_t level = min_level; level <= max_level; ++level)
                     {
-                        if (!new_mesh[mesh_id_t::cells][level].empty() && !all_old_meshes[ni][mesh_id_t::cells][level].empty())
+                        if (!new_mesh[mesh_id_t::cells][level].empty() && !all_old_meshes[neighbour_idx][mesh_id_t::cells][level].empty())
                         {
-                            auto in_interface = intersection(all_old_meshes[ni][mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
+                            auto in_interface = intersection(all_old_meshes[neighbour_idx][mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
 
                             in_interface(
                                 [&](const auto& i, const auto& index)
@@ -318,8 +275,6 @@ namespace samurai
                                               to_recv.begin() + count + static_cast<ptrdiff_t>(i.size() * field.n_comp),
                                               new_field(level, i, index).begin());
                                     count += static_cast<ptrdiff_t>(i.size() * field.n_comp);
-
-                                    //    logs << fmt::format("Process {}, recv interval {}", world.rank(), i) << std::endl;
                                 });
                         }
                     }
@@ -367,13 +322,9 @@ namespace samurai
             boost::mpi::communicator world;
 
             CellList_t new_cl;
-            // TODO why wolrd size ? scaliility ???
             std::vector<CellList_t> payload(static_cast<size_t>(world.size()));
-            std::vector<size_t> payload_size(static_cast<size_t>(world.size()), 0);
 
-            std::map<int, bool> comm;
-
-            // build cell list for the current process && cells lists of cells for other processes
+            // Build cell list for the current process && cells lists of cells for other processes
             samurai::for_each_cell(
                 mesh[Mesh_t::mesh_id_t::cells],
                 [&](const auto& cell)
@@ -390,18 +341,12 @@ namespace samurai
                         }
                         if constexpr (Mesh_t::dim == 3)
                         {
-                            // TODO : it works ??
                             new_cl[cell.level][{cell.indices[1], cell.indices[2]}].add_point(cell.indices[0]);
                         }
                     }
                     else
                     {
                         assert(static_cast<size_t>(flags[cell]) < payload.size());
-
-                        if (comm.find(flags[cell]) == comm.end())
-                        {
-                            comm[flags[cell]] = true;
-                        }
 
                         if constexpr (Mesh_t::dim == 1)
                         {
@@ -416,32 +361,30 @@ namespace samurai
                             payload[static_cast<size_t>(flags[cell])][cell.level][{cell.indices[1], cell.indices[2]}].add_point(
                                 cell.indices[0]);
                         }
-
-                        payload_size[static_cast<size_t>(flags[cell])]++;
                     }
                 });
 
             std::vector<mpi::request> req;
 
-            // actual data echange between processes that need to exchange data
-            for (int iproc = 0; iproc < world.size(); ++iproc)
+            // Actual data exchange between processes that need to exchange data
+            for (int process_rank = 0; process_rank < world.size(); ++process_rank)
             {
-                if (iproc == world.rank())
+                if (process_rank == world.rank())
                 {
                     continue;
                 }
-                CellArray_t to_send = {payload[static_cast<size_t>(iproc)], false};
-                req.push_back(world.isend(iproc, 17, to_send));
+                CellArray_t to_send = {payload[static_cast<size_t>(process_rank)], false};
+                req.push_back(world.isend(process_rank, 17, to_send));
             }
 
-            for (int iproc = 0; iproc < world.size(); ++iproc)
+            for (int process_rank = 0; process_rank < world.size(); ++process_rank)
             {
-                if (iproc == world.rank())
+                if (process_rank == world.rank())
                 {
                     continue;
                 }
                 CellArray_t to_rcv;
-                world.recv(iproc, 17, to_rcv);
+                world.recv(process_rank, 17, to_rcv);
 
                 samurai::for_each_interval(to_rcv,
                                            [&](std::size_t level, const auto& interval, const auto& index)
@@ -452,7 +395,7 @@ namespace samurai
             boost::mpi::wait_all(req.begin(), req.end());
             Mesh_t new_mesh(new_cl, mesh);
             
-            // Arrêter le timer pour la mise à jour du maillage
+            // Stop timer for mesh update
             samurai::times::timers.stop("load_balancing_mesh_update");
             
             return new_mesh;
@@ -461,40 +404,40 @@ namespace samurai
         template <class Mesh_t, class Weight_t, class Field_t, class... Fields>
         void load_balance(Mesh_t& mesh, Weight_t& weight, Field_t& field, Fields&... kw)
         {
-            // Vérification précoce : pas de load balancing avec un seul processus
+            // Early check: no load balancing with single process
             boost::mpi::communicator world;
             if (world.size() <= 1)
             {
-                std::cout << "Processus " << world.rank() << " : Un seul processus MPI détecté, load balancing ignoré" << std::endl;
+                std::cout << "Process " << world.rank() << " : Single MPI process detected, load balancing ignored" << std::endl;
                 return;
             }
 
-            // Démarrer le timer pour le load balancing
+            // Start timer for load balancing
             samurai::times::timers.start("load_balancing");
 
-            // Calcul des flags pour cette unique passe
+            // Compute flags for this single pass
             auto flags = static_cast<Flavor*>(this)->load_balance_impl(mesh, weight);
 
-            // Mise à jour du maillage
+            // Update mesh
             auto new_mesh = update_mesh(mesh, flags);
 
-            // Mise à jour des champs physiques
+            // Update physical fields
             update_fields(new_mesh, weight, field, kw...);
 
-            // On remplace le maillage de référence
+            // Replace reference mesh
             mesh.swap(new_mesh);
 
             nloadbalancing += 1;
 
-            // Arrêter le timer
+            // Stop timer
             samurai::times::timers.stop("load_balancing");
 
-            // Affichage final du nombre de cellules après load balancing
+            // Final display of cell count after load balancing
             {
                 using mesh_id_t = typename Mesh_t::mesh_id_t;
                 double total_weight = cmptLoad<BalanceElement_t::CELL>(field.mesh(), weight);
                 auto nb_cells = field.mesh().nb_cells(mesh_id_t::cells);
-                std::cout << "Processus " << world.rank() << " : " << nb_cells << " cellules (poids total " << total_weight << ") après load balancing" << std::endl;
+                std::cout << "Process " << world.rank() << " : " << nb_cells << " cells (total weight " << total_weight << ") after load balancing" << std::endl;
             }
         }
     };

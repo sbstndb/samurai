@@ -24,7 +24,7 @@ namespace Load_balancing
             auto flags = samurai::make_scalar_field<int>("diffusion_flag", mesh);
             flags.fill(world.rank());
 
-            // compute fluxes in terms of load to transfer/receive
+            // Compute fluxes in terms of load to transfer/receive
             std::vector<double> fluxes = samurai::cmptFluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 100);
 
             using cell_t = typename Mesh_t::cell_t;
@@ -40,18 +40,18 @@ namespace Load_balancing
                 return flags;
             }
 
-            // Tri des cellules du "haut" vers le "bas", puis de "gauche" à "droite"
+            // Sort cells from "top" to "bottom", then from "left" to "right"
             std::sort(cells.begin(),
                       cells.end(),
                       [](const cell_t& a, const cell_t& b)
                       {
-                          auto ca = a.center();
-                          auto cb = b.center();
-                          if (ca(1) != cb(1))
+                          auto center_a = a.center();
+                          auto center_b = b.center();
+                          if (center_a(1) != center_b(1))
                           {
-                              return ca(1) > cb(1); // En premier, les cellules avec la plus grande coordonnée y
+                              return center_a(1) > center_b(1); // First, cells with highest y coordinate
                           }
-                          return ca(0) < cb(0); // Ensuite, les cellules avec la plus petite coordonnée x
+                          return center_a(0) < center_b(0); // Then, cells with lowest x coordinate
                       });
 
             auto& neighbourhood = mesh.mpi_neighbourhood();

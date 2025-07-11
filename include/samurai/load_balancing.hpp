@@ -70,37 +70,18 @@ namespace samurai
 
         int nloadbalancing;
 
-
-
-        template <class Mesh_t, class Field_t>
-        void update_field(Mesh_t& new_mesh, Field_t& field)
+        // Nouvelle méthode pour échanger les mesh une seule fois
+        template <class Mesh_t>
+        auto exchange_meshes(const Mesh_t& new_mesh, const Mesh_t& old_mesh)
         {
-
-            samurai::times::timers.start("load_balancing_update_field");
-            using mesh_id_t = typename Mesh_t::mesh_id_t;
-            using value_t   = typename Field_t::value_type;
+            samurai::times::timers.start("load_balancing_exchange_meshes");
+            
             boost::mpi::communicator world;
-
-            Field_t new_field("new_f", new_mesh);
-            new_field.fill(0);
-
-            auto& old_mesh = field.mesh();
-            auto min_level = old_mesh.min_level();
-            auto max_level = old_mesh.max_level();
-
-            // Copy data of intervals that didn't move
-            for (std::size_t level = min_level; level <= max_level; ++level)
-            {
-                auto intersect_old_new = intersection(old_mesh[mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
-                intersect_old_new.apply_op(samurai::copy(new_field, field));
-            }
-
-            std::vector<boost::mpi::request> req, reqs;
-            std::vector<std::vector<value_t>> to_send(static_cast<size_t>(world.size()));
-
-            // Here we have to define all_* at size n_neighbours...
+            
             std::vector<Mesh_t> all_new_meshes, all_old_meshes;
+            std::vector<boost::mpi::request> reqs;
             Mesh_t recv_old_mesh, recv_new_mesh;
+            
             for (auto& neighbour : new_mesh.mpi_neighbourhood())
             {
                 reqs.push_back(world.isend(neighbour.rank, 0, new_mesh));
@@ -113,6 +94,39 @@ namespace samurai
                 all_old_meshes.push_back(recv_old_mesh);
             }
             boost::mpi::wait_all(reqs.begin(), reqs.end());
+            
+            samurai::times::timers.stop("load_balancing_exchange_meshes");
+            
+            return std::make_pair(std::move(all_new_meshes), std::move(all_old_meshes));
+        }
+
+        template <class Mesh_t, class Field_t>
+        void update_field(Mesh_t& new_mesh, Field_t& field, 
+                         const std::vector<Mesh_t>& all_new_meshes,
+                         const std::vector<Mesh_t>& all_old_meshes)
+        {
+            samurai::times::timers.start("load_balancing_update_field");
+            using mesh_id_t = typename Mesh_t::mesh_id_t;
+            using value_t   = typename Field_t::value_type;
+            boost::mpi::communicator world;
+
+            Field_t new_field("new_f", new_mesh);
+            new_field.fill(0);
+
+            auto& old_mesh = field.mesh();
+            //TODO : check if this is correct
+            auto min_level = old_mesh.min_level();
+            auto max_level = old_mesh.max_level();
+
+            // Copy data of intervals that didn't move
+            for (std::size_t level = min_level; level <= max_level; ++level)
+            {
+                auto intersect_old_new = intersection(old_mesh[mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
+                intersect_old_new.apply_op(samurai::copy(new_field, field));
+            }
+
+            std::vector<boost::mpi::request> req;
+            std::vector<std::vector<value_t>> to_send(static_cast<size_t>(world.size()));
 
             // Build payload of field that has been sent to neighbour, so compare old mesh with new neighbour mesh
             for (size_t neighbour_idx = 0; neighbour_idx < all_new_meshes.size(); ++neighbour_idx)
@@ -197,20 +211,35 @@ namespace samurai
                 mpi::wait_all(req.begin(), req.end());
             }
 
-            std::swap(field.array(), new_field.array());
+                        std::swap(field.array(), new_field.array());
             samurai::times::timers.stop("load_balancing_update_field");
         }
 
         template <class Mesh_t, class Field_t, class... Fields_t>
         void update_fields(Mesh_t& new_mesh, Field_t& field, Fields_t&... kw)
-
         {
-            update_field(new_mesh, field);
-            update_fields(new_mesh, kw...);
+            // Échanger les mesh une seule fois pour tous les champs
+            auto [all_new_meshes, all_old_meshes] = exchange_meshes(new_mesh, field.mesh());
+            
+            // Mettre à jour tous les champs en utilisant les mesh déjà échangés
+            update_field(new_mesh, field, all_new_meshes, all_old_meshes);
+            update_fields_impl(new_mesh, all_new_meshes, all_old_meshes, kw...);
+        }
+
+        template <class Mesh_t, class Field_t, class... Fields_t>
+        void update_fields_impl(Mesh_t& new_mesh, 
+                                const std::vector<Mesh_t>& all_new_meshes,
+                                const std::vector<Mesh_t>& all_old_meshes,
+                                Field_t& field, Fields_t&... kw)
+        {
+            update_field(new_mesh, field, all_new_meshes, all_old_meshes);
+            update_fields_impl(new_mesh, all_new_meshes, all_old_meshes, kw...);
         }
 
         template <class Mesh_t>
-        void update_fields([[maybe_unused]] Mesh_t& new_mesh)
+        void update_fields_impl([[maybe_unused]] Mesh_t& new_mesh,
+                                [[maybe_unused]] const std::vector<Mesh_t>& all_new_meshes,
+                                [[maybe_unused]] const std::vector<Mesh_t>& all_old_meshes)
         {
         }
 

@@ -267,7 +267,7 @@ int main(int argc, char* argv[])
     std::size_t nt    = 0;
 
 #ifdef SAMURAI_WITH_MPI
-    Load_balancing::Diffusion balancer;
+    samurai::DiffusionLoadBalancer balancer;
 #endif
 
     while (t != Tf)
@@ -277,7 +277,7 @@ int main(int argc, char* argv[])
         {
 		if (active_loadbalance == 1){
 		//	auto weight = samurai::weight::from_level_exp(mesh, 1.4);
-			auto weight = samurai::weight::uniform(mesh);
+			auto weight = samurai::Weight::uniform(mesh);
 			balancer.load_balance(mesh, weight, u);
 		}
 

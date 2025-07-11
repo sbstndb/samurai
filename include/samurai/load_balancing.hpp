@@ -75,28 +75,36 @@ namespace samurai
         auto exchange_meshes(const Mesh_t& new_mesh, const Mesh_t& old_mesh)
         {
             samurai::times::timers.start("load_balancing_exchange_meshes");
-            
+
             boost::mpi::communicator world;
-            
-            std::vector<Mesh_t> all_new_meshes, all_old_meshes;
-            std::vector<boost::mpi::request> reqs;
-            Mesh_t recv_old_mesh, recv_new_mesh;
-            
-            for (auto& neighbour : new_mesh.mpi_neighbourhood())
+
+            const auto& neighbours = new_mesh.mpi_neighbourhood();
+            std::size_t nb_neigh   = neighbours.size();
+
+            std::vector<Mesh_t> all_new_meshes(nb_neigh);
+            std::vector<Mesh_t> all_old_meshes(nb_neigh);
+            std::vector<mpi::request> reqs;
+
+            // Phase 1 : poster toutes les réceptions non bloquantes
+            for (std::size_t idx = 0; idx < nb_neigh; ++idx)
             {
-                reqs.push_back(world.isend(neighbour.rank, 0, new_mesh));
-                reqs.push_back(world.isend(neighbour.rank, 1, old_mesh));
-
-                world.recv(neighbour.rank, 0, recv_new_mesh);
-                world.recv(neighbour.rank, 1, recv_old_mesh);
-
-                all_new_meshes.push_back(recv_new_mesh);
-                all_old_meshes.push_back(recv_old_mesh);
+                const auto& nbr = neighbours[idx];
+                reqs.push_back(world.irecv(nbr.rank, 0, all_new_meshes[idx]));
+                reqs.push_back(world.irecv(nbr.rank, 1, all_old_meshes[idx]));
             }
-            boost::mpi::wait_all(reqs.begin(), reqs.end());
-            
+
+            // Phase 2 : poster tous les envois non bloquants
+            for (const auto& nbr : neighbours)
+            {
+                reqs.push_back(world.isend(nbr.rank, 0, new_mesh));
+                reqs.push_back(world.isend(nbr.rank, 1, old_mesh));
+            }
+
+            // Attendre la complétion de toutes les communications
+            mpi::wait_all(reqs.begin(), reqs.end());
+
             samurai::times::timers.stop("load_balancing_exchange_meshes");
-            
+
             return std::make_pair(std::move(all_new_meshes), std::move(all_old_meshes));
         }
 
@@ -362,8 +370,8 @@ namespace samurai
             // Update mesh
             auto new_mesh = update_mesh(mesh, flags);
 
-            // Update physical fields
-            update_fields(new_mesh, weight, field, kw...);
+            // Update physical fields (excluding weights)
+            update_fields(new_mesh, field, kw...);
 
             // Replace reference mesh
             mesh.swap(new_mesh);

@@ -109,7 +109,7 @@ namespace Load_balancing
             flags.fill(world.rank());
 
             // Compute fluxes in terms of load to transfer/receive
-            std::vector<double> fluxes = cmptFluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 100);
+            std::vector<double> fluxes = cmptFluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 50);
 
             using cell_t = typename Mesh_t::cell_t;
             std::vector<cell_t> cells;

@@ -70,48 +70,51 @@ namespace samurai
 
         int nloadbalancing;
 
-        // Nouvelle méthode pour échanger les mesh une seule fois
+        // Échange uniquement les CellArray des maillages (partie « cells »)
         template <class Mesh_t>
         auto exchange_meshes(const Mesh_t& new_mesh, const Mesh_t& old_mesh)
         {
             samurai::times::timers.start("load_balancing_exchange_meshes");
+
+            using CellArray_t = typename Mesh_t::ca_type;
 
             boost::mpi::communicator world;
 
             const auto& neighbours = new_mesh.mpi_neighbourhood();
             std::size_t nb_neigh   = neighbours.size();
 
-            std::vector<Mesh_t> all_new_meshes(nb_neigh);
-            std::vector<Mesh_t> all_old_meshes(nb_neigh);
+            std::vector<CellArray_t> all_new_cells(nb_neigh);
+            std::vector<CellArray_t> all_old_cells(nb_neigh);
             std::vector<mpi::request> reqs;
 
-            // Phase 1 : poster toutes les réceptions non bloquantes
+            // Phase 1 : réceptions non bloquantes des CellArray
             for (std::size_t idx = 0; idx < nb_neigh; ++idx)
             {
                 const auto& nbr = neighbours[idx];
-                reqs.push_back(world.irecv(nbr.rank, 0, all_new_meshes[idx]));
-                reqs.push_back(world.irecv(nbr.rank, 1, all_old_meshes[idx]));
+                reqs.push_back(world.irecv(nbr.rank, 0, all_new_cells[idx]));
+                reqs.push_back(world.irecv(nbr.rank, 1, all_old_cells[idx]));
             }
 
-            // Phase 2 : poster tous les envois non bloquants
+            // Phase 2 : envois non bloquants des CellArray
             for (const auto& nbr : neighbours)
             {
-                reqs.push_back(world.isend(nbr.rank, 0, new_mesh));
-                reqs.push_back(world.isend(nbr.rank, 1, old_mesh));
+                reqs.push_back(world.isend(nbr.rank, 0, new_mesh[Mesh_t::mesh_id_t::cells]));
+                reqs.push_back(world.isend(nbr.rank, 1, old_mesh[Mesh_t::mesh_id_t::cells]));
             }
 
-            // Attendre la complétion de toutes les communications
+            // Finalisation des communications
             mpi::wait_all(reqs.begin(), reqs.end());
 
             samurai::times::timers.stop("load_balancing_exchange_meshes");
 
-            return std::make_pair(std::move(all_new_meshes), std::move(all_old_meshes));
+            return std::make_pair(std::move(all_new_cells), std::move(all_old_cells));
         }
 
         template <class Mesh_t, class Field_t>
-        void update_field(Mesh_t& new_mesh, Field_t& field, 
-                         const std::vector<Mesh_t>& all_new_meshes,
-                         const std::vector<Mesh_t>& all_old_meshes)
+        void update_field(Mesh_t& new_mesh,
+                          Field_t& field,
+                          const std::vector<typename Mesh_t::ca_type>& all_new_cells,
+                          const std::vector<typename Mesh_t::ca_type>& all_old_cells)
         {
             samurai::times::timers.start("load_balancing_update_field");
             using mesh_id_t = typename Mesh_t::mesh_id_t;
@@ -137,16 +140,16 @@ namespace samurai
             std::vector<std::vector<value_t>> to_send(static_cast<size_t>(world.size()));
 
             // Build payload of field that has been sent to neighbour, so compare old mesh with new neighbour mesh
-            for (size_t neighbour_idx = 0; neighbour_idx < all_new_meshes.size(); ++neighbour_idx)
+            for (size_t neighbour_idx = 0; neighbour_idx < all_new_cells.size(); ++neighbour_idx)
             {
-                auto& neighbour_new_mesh = all_new_meshes[neighbour_idx];
+                auto& neighbour_new_cells = all_new_cells[neighbour_idx];
 
                 for (std::size_t level = min_level; level <= max_level; ++level)
                 {
-                    if (!old_mesh[mesh_id_t::cells][level].empty() && !neighbour_new_mesh[mesh_id_t::cells][level].empty())
+                    if (!old_mesh[mesh_id_t::cells][level].empty() && !neighbour_new_cells[level].empty())
                     {
                         auto intersect_old_mesh_new_neigh = intersection(old_mesh[mesh_id_t::cells][level],
-                                                                         neighbour_new_mesh[mesh_id_t::cells][level]);
+                                                                         neighbour_new_cells[level]);
                         intersect_old_mesh_new_neigh(
                             [&](const auto& interval, const auto& index)
                             {
@@ -165,16 +168,16 @@ namespace samurai
             }
 
             // Build payload of field that I need to receive from neighbour, so compare NEW mesh with OLD neighbour mesh
-            for (size_t neighbour_idx = 0; neighbour_idx < all_old_meshes.size(); ++neighbour_idx)
+            for (size_t neighbour_idx = 0; neighbour_idx < all_old_cells.size(); ++neighbour_idx)
             {
                 bool isintersect = false;
                 for (std::size_t level = min_level; level <= max_level; ++level)
                 {
-                    if (!new_mesh[mesh_id_t::cells][level].empty() && !all_old_meshes[neighbour_idx][mesh_id_t::cells][level].empty())
+                    if (!new_mesh[mesh_id_t::cells][level].empty() && !all_old_cells[neighbour_idx][level].empty())
                     {
                         std::vector<value_t> to_recv;
 
-                        auto in_interface = intersection(all_old_meshes[neighbour_idx][mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
+                        auto in_interface = intersection(all_old_cells[neighbour_idx][level], new_mesh[mesh_id_t::cells][level]);
 
                         in_interface(
                             [&]([[maybe_unused]] const auto& i, [[maybe_unused]] const auto& index)
@@ -197,9 +200,9 @@ namespace samurai
 
                     for (std::size_t level = min_level; level <= max_level; ++level)
                     {
-                        if (!new_mesh[mesh_id_t::cells][level].empty() && !all_old_meshes[neighbour_idx][mesh_id_t::cells][level].empty())
+                        if (!new_mesh[mesh_id_t::cells][level].empty() && !all_old_cells[neighbour_idx][level].empty())
                         {
-                            auto in_interface = intersection(all_old_meshes[neighbour_idx][mesh_id_t::cells][level], new_mesh[mesh_id_t::cells][level]);
+                            auto in_interface = intersection(all_old_cells[neighbour_idx][level], new_mesh[mesh_id_t::cells][level]);
 
                             in_interface(
                                 [&](const auto& i, const auto& index)
@@ -227,27 +230,28 @@ namespace samurai
         void update_fields(Mesh_t& new_mesh, Field_t& field, Fields_t&... kw)
         {
             // Échanger les mesh une seule fois pour tous les champs
-            auto [all_new_meshes, all_old_meshes] = exchange_meshes(new_mesh, field.mesh());
-            
-            // Mettre à jour tous les champs en utilisant les mesh déjà échangés
-            update_field(new_mesh, field, all_new_meshes, all_old_meshes);
-            update_fields_impl(new_mesh, all_new_meshes, all_old_meshes, kw...);
+            auto [all_new_cells, all_old_cells] = exchange_meshes(new_mesh, field.mesh());
+
+            // Mettre à jour tous les champs en utilisant les CellArray déjà échangés
+            update_field(new_mesh, field, all_new_cells, all_old_cells);
+            update_fields_impl(new_mesh, all_new_cells, all_old_cells, kw...);
         }
 
         template <class Mesh_t, class Field_t, class... Fields_t>
-        void update_fields_impl(Mesh_t& new_mesh, 
-                                const std::vector<Mesh_t>& all_new_meshes,
-                                const std::vector<Mesh_t>& all_old_meshes,
-                                Field_t& field, Fields_t&... kw)
+        void update_fields_impl(Mesh_t& new_mesh,
+                                const std::vector<typename Mesh_t::ca_type>& all_new_cells,
+                                const std::vector<typename Mesh_t::ca_type>& all_old_cells,
+                                Field_t& field,
+                                Fields_t&... kw)
         {
-            update_field(new_mesh, field, all_new_meshes, all_old_meshes);
-            update_fields_impl(new_mesh, all_new_meshes, all_old_meshes, kw...);
+            update_field(new_mesh, field, all_new_cells, all_old_cells);
+            update_fields_impl(new_mesh, all_new_cells, all_old_cells, kw...);
         }
 
         template <class Mesh_t>
         void update_fields_impl([[maybe_unused]] Mesh_t& new_mesh,
-                                [[maybe_unused]] const std::vector<Mesh_t>& all_new_meshes,
-                                [[maybe_unused]] const std::vector<Mesh_t>& all_old_meshes)
+                                [[maybe_unused]] const std::vector<typename Mesh_t::ca_type>& all_new_cells,
+                                [[maybe_unused]] const std::vector<typename Mesh_t::ca_type>& all_old_cells)
         {
         }
 
@@ -273,7 +277,10 @@ namespace samurai
             CellList_t new_cl;
             std::vector<CellList_t> payload(static_cast<size_t>(world.size()));
 
-            // Build cell list for the current process && cells lists of cells for other processes
+            // ----------------------------------------------
+            // Phase 1 : construction du payload (tri des cellules)
+            // ----------------------------------------------
+            samurai::times::timers.start("load_balancing_build_payload");
             samurai::for_each_cell(
                 mesh[Mesh_t::mesh_id_t::cells],
                 [&](const auto& cell)
@@ -312,28 +319,46 @@ namespace samurai
                         }
                     }
                 });
+            samurai::times::timers.stop("load_balancing_build_payload");
 
             std::vector<mpi::request> req;
 
-            // Actual data exchange between processes that need to exchange data
-            for (int process_rank = 0; process_rank < world.size(); ++process_rank)
-            {
-                if (process_rank == world.rank())
-                {
-                    continue;
-                }
-                CellArray_t to_send = {payload[static_cast<size_t>(process_rank)], false};
-                req.push_back(world.isend(process_rank, 17, to_send));
-            }
+            // Actual data exchange **only** with known neighbours of the mesh
+            const auto& neighbours = mesh.mpi_neighbourhood();
 
-            for (int process_rank = 0; process_rank < world.size(); ++process_rank)
+            // ----------------------------------------------
+            // Phase 2 : envoi non bloquant des cellules
+            // ----------------------------------------------
+            samurai::times::timers.start("load_balancing_send_cells");
+            // Envoi non bloquant vers chaque voisin (message éventuellement vide)
+            for (const auto& nbr : neighbours)
             {
-                if (process_rank == world.rank())
+                int rank = nbr.rank;
+                if (rank == world.rank())
                 {
                     continue;
                 }
+
+                CellArray_t to_send = {payload[static_cast<size_t>(rank)], false};
+                req.push_back(world.isend(rank, 17, to_send));
+            }
+            samurai::times::timers.stop("load_balancing_send_cells");
+
+            // ----------------------------------------------
+            // Phase 3 : réception des cellules
+            // ----------------------------------------------
+            samurai::times::timers.start("load_balancing_recv_cells");
+            // Réception bloquante correspondante depuis chaque voisin
+            for (const auto& nbr : neighbours)
+            {
+                int rank = nbr.rank;
+                if (rank == world.rank())
+                {
+                    continue;
+                }
+
                 CellArray_t to_rcv;
-                world.recv(process_rank, 17, to_rcv);
+                world.recv(rank, 17, to_rcv);
 
                 samurai::for_each_interval(to_rcv,
                                            [&](std::size_t level, const auto& interval, const auto& index)
@@ -341,8 +366,15 @@ namespace samurai
                                                new_cl[level][index].add_interval(interval);
                                            });
             }
+            samurai::times::timers.stop("load_balancing_recv_cells");
+
+            samurai::times::timers.start("load_balancing_wait");
             boost::mpi::wait_all(req.begin(), req.end());
+            samurai::times::timers.stop("load_balancing_wait");
+
+            samurai::times::timers.start("load_balancing_construct_mesh");
             Mesh_t new_mesh(new_cl, mesh);
+            samurai::times::timers.stop("load_balancing_construct_mesh");
             
             // Stop timer for mesh update
             samurai::times::timers.stop("load_balancing_mesh_update");

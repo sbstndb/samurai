@@ -23,10 +23,11 @@ namespace samurai
         CELL
     };
 
-    namespace weight
+    class Weight
     {
+      public:
         template <class Field>
-        auto from_field(const Field& f)
+        static auto from_field(const Field& f)
         {
             auto weight = samurai::make_scalar_field<double>("weight", f.mesh());
             weight.fill(0.);
@@ -39,29 +40,29 @@ namespace samurai
         }
 
         template <class Mesh>
-        auto uniform(const Mesh& mesh)
+        static auto uniform(const Mesh& mesh)
         {
             auto weight = samurai::make_scalar_field<double>("weight", mesh);
             weight.fill(1.);
 
             return weight;
         }
-    }
 
-    template <BalanceElement_t elem, class Mesh_t, class Field_t>
-    static double cmptLoad(const Mesh_t& mesh, const Field_t& weight)
-    {
-        using mesh_id_t                  = typename Mesh_t::mesh_id_t;
-        const auto& current_mesh         = mesh[mesh_id_t::cells];
-        double current_process_load = 0.;
-        // cell-based load with weight.
-        samurai::for_each_cell(current_mesh,
-                                   [&](const auto& cell)
-                                   {
-                                       current_process_load += weight[cell];
-                                   });
-        return current_process_load;
-    }
+        template <BalanceElement_t elem, class Mesh_t, class Field_t>
+        static double compute_load(const Mesh_t& mesh, const Field_t& weight)
+        {
+            using mesh_id_t                  = typename Mesh_t::mesh_id_t;
+            const auto& current_mesh         = mesh[mesh_id_t::cells];
+            double current_process_load = 0.;
+            // cell-based load with weight.
+            samurai::for_each_cell(current_mesh,
+                                       [&](const auto& cell)
+                                       {
+                                           current_process_load += weight[cell];
+                                       });
+            return current_process_load;
+        }
+    };
 
     template <class Flavor>
     class LoadBalancer
@@ -406,7 +407,7 @@ namespace samurai
             // Final display of cell count after load balancing
             {
                 using mesh_id_t = typename Mesh_t::mesh_id_t;
-                double total_weight = cmptLoad<BalanceElement_t::CELL>(field.mesh(), weight);
+                double total_weight = Weight::compute_load<BalanceElement_t::CELL>(field.mesh(), weight);
                 auto nb_cells = field.mesh().nb_cells(mesh_id_t::cells);
                 std::cout << "Process " << world.rank() << " : " << nb_cells << " cells (total weight " << total_weight << ") after load balancing" << std::endl;
             }

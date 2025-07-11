@@ -9,6 +9,90 @@
 namespace Load_balancing
 {
 
+
+
+    /**
+     * Compute fluxes based on load computing strategy using graph with label
+     * propagation algorithm. Returns, for the current process, the flux in terms of
+     * load, i.e. the quantity of "load" to transfer to its neighbours. If the load
+     * is negative, it means that the process (current) must send load to neighbour,
+     * if positive it means that it must receive load.
+     *
+     * This function uses 2 MPI all_gather calls.
+     *
+     */
+    template <samurai::BalanceElement_t elem, class Mesh_t, class Field_t>
+    std::vector<double> cmptFluxes(Mesh_t& mesh, const Field_t& weight, int niterations)
+    {
+        // Start timer for flux computation
+        samurai::times::timers.start("load_balancing_flux_computation");
+        
+        using mpi_subdomain_t = typename Mesh_t::mpi_subdomain_t;
+        boost::mpi::communicator world;
+        // Give access to geometrically neighbouring process rank and mesh
+        std::vector<mpi_subdomain_t>& neighbourhood = mesh.mpi_neighbourhood();
+        size_t n_neighbours                         = neighbourhood.size();
+
+        // Load of current process
+        double my_load = samurai::cmptLoad<elem>(mesh, weight);
+        // Fluxes between processes
+        std::vector<double> fluxes(n_neighbours, 0.);
+        // Load of each process (all processes not only neighbours)
+        std::vector<double> loads;
+        int iteration_count = 0;
+        while (iteration_count < niterations)
+        {
+            boost::mpi::all_gather(world, my_load, loads);
+
+            // Compute updated my_load for current process based on its neighbourhood
+            double my_load_new = my_load;
+            bool all_fluxes_zero = true;
+            for (std::size_t neighbour_idx = 0; neighbour_idx < n_neighbours; ++neighbour_idx)
+            // Get "my_load" from other processes
+            {
+                std::size_t neighbour_rank = static_cast<std::size_t>(neighbourhood[neighbour_idx].rank);
+                double neighbour_load         = loads[neighbour_rank];
+                double diff_load = neighbour_load - my_load_new;
+
+                // If transferLoad < 0 -> need to send data, if transferLoad > 0 need to receive data
+                // Use diffusion factor 1/(deg+1) for stability
+                double transfertLoad = 0.5* diff_load;
+
+                // Accumulate total flux on current edge
+                fluxes[neighbour_idx] += transfertLoad;
+
+                // Mark if a non-zero transfer was performed
+                if (transfertLoad != 0)
+                {
+                    all_fluxes_zero = false;
+                }
+
+                // Update intermediate local load before processing next neighbour
+                my_load_new += transfertLoad;
+            }
+            
+            // Update reference load for next iteration
+            my_load = my_load_new;
+
+            // Check if all processes have reached convergence
+            bool global_convergence = boost::mpi::all_reduce(world, all_fluxes_zero, std::logical_and<bool>());
+
+            // If all processes have zero fluxes, state will no longer change
+            if (global_convergence)
+            {
+                std::cout << "Process " << world.rank() << " : Global convergence reached at iteration " << iteration_count << std::endl;
+                break;
+            }
+            
+            iteration_count++;
+        }
+        
+        // Stop timer for flux computation
+        samurai::times::timers.stop("load_balancing_flux_computation");
+        
+        return fluxes;
+    }
+
     class Diffusion : public samurai::LoadBalancer<Diffusion>
     {
       public:
@@ -25,7 +109,7 @@ namespace Load_balancing
             flags.fill(world.rank());
 
             // Compute fluxes in terms of load to transfer/receive
-            std::vector<double> fluxes = samurai::cmptFluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 100);
+            std::vector<double> fluxes = cmptFluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 100);
 
             using cell_t = typename Mesh_t::cell_t;
             std::vector<cell_t> cells;

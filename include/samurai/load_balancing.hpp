@@ -70,7 +70,7 @@ namespace samurai
 
         int nloadbalancing;
 
-        // Échange uniquement les CellArray des maillages (partie « cells »)
+        // Exchange only the CellArray of meshes (cells part)
         template <class Mesh_t>
         auto exchange_meshes(const Mesh_t& new_mesh, const Mesh_t& old_mesh)
         {
@@ -87,7 +87,7 @@ namespace samurai
             std::vector<CellArray_t> all_old_cells(nb_neigh);
             std::vector<mpi::request> reqs;
 
-            // Phase 1 : réceptions non bloquantes des CellArray
+            // Phase 1: non-blocking receptions of CellArrays
             for (std::size_t idx = 0; idx < nb_neigh; ++idx)
             {
                 const auto& nbr = neighbours[idx];
@@ -95,14 +95,14 @@ namespace samurai
                 reqs.push_back(world.irecv(nbr.rank, 1, all_old_cells[idx]));
             }
 
-            // Phase 2 : envois non bloquants des CellArray
+            // Phase 2: non-blocking sends of CellArrays
             for (const auto& nbr : neighbours)
             {
                 reqs.push_back(world.isend(nbr.rank, 0, new_mesh[Mesh_t::mesh_id_t::cells]));
                 reqs.push_back(world.isend(nbr.rank, 1, old_mesh[Mesh_t::mesh_id_t::cells]));
             }
 
-            // Finalisation des communications
+            // Finalize communications
             mpi::wait_all(reqs.begin(), reqs.end());
 
             samurai::times::timers.stop("load_balancing_exchange_meshes");
@@ -229,10 +229,10 @@ namespace samurai
         template <class Mesh_t, class Field_t, class... Fields_t>
         void update_fields(Mesh_t& new_mesh, Field_t& field, Fields_t&... kw)
         {
-            // Échanger les mesh une seule fois pour tous les champs
+            // Exchange meshes once for all fields
             auto [all_new_cells, all_old_cells] = exchange_meshes(new_mesh, field.mesh());
 
-            // Mettre à jour tous les champs en utilisant les CellArray déjà échangés
+            // Update all fields using already exchanged CellArrays
             update_field(new_mesh, field, all_new_cells, all_old_cells);
             update_fields_impl(new_mesh, all_new_cells, all_old_cells, kw...);
         }
@@ -266,7 +266,6 @@ namespace samurai
         template <class Mesh_t, class Field_t>
         Mesh_t update_mesh(Mesh_t& mesh, const Field_t& flags)
         {
-            // Démarrer le timer pour la mise à jour du maillage
             samurai::times::timers.start("load_balancing_mesh_update");
             
             using CellList_t  = typename Mesh_t::cl_type;
@@ -277,9 +276,7 @@ namespace samurai
             CellList_t new_cl;
             std::vector<CellList_t> payload(static_cast<size_t>(world.size()));
 
-            // ----------------------------------------------
-            // Phase 1 : construction du payload (tri des cellules)
-            // ----------------------------------------------
+            // Phase 1: build payload (cell sorting)
             samurai::times::timers.start("load_balancing_build_payload");
             samurai::for_each_cell(
                 mesh[Mesh_t::mesh_id_t::cells],
@@ -326,11 +323,9 @@ namespace samurai
             // Actual data exchange **only** with known neighbours of the mesh
             const auto& neighbours = mesh.mpi_neighbourhood();
 
-            // ----------------------------------------------
-            // Phase 2 : envoi non bloquant des cellules
-            // ----------------------------------------------
+            // Phase 2: non-blocking cell sends
             samurai::times::timers.start("load_balancing_send_cells");
-            // Envoi non bloquant vers chaque voisin (message éventuellement vide)
+            // Non-blocking send to each neighbour (possibly empty message)
             for (const auto& nbr : neighbours)
             {
                 int rank = nbr.rank;
@@ -344,11 +339,9 @@ namespace samurai
             }
             samurai::times::timers.stop("load_balancing_send_cells");
 
-            // ----------------------------------------------
-            // Phase 3 : réception des cellules
-            // ----------------------------------------------
+            // Phase 3: cell reception
             samurai::times::timers.start("load_balancing_recv_cells");
-            // Réception bloquante correspondante depuis chaque voisin
+            // Blocking reception from each neighbour
             for (const auto& nbr : neighbours)
             {
                 int rank = nbr.rank;
@@ -376,7 +369,6 @@ namespace samurai
             Mesh_t new_mesh(new_cl, mesh);
             samurai::times::timers.stop("load_balancing_construct_mesh");
             
-            // Stop timer for mesh update
             samurai::times::timers.stop("load_balancing_mesh_update");
             
             return new_mesh;
@@ -393,7 +385,6 @@ namespace samurai
                 return;
             }
 
-            // Start timer for load balancing
             samurai::times::timers.start("load_balancing");
 
             // Compute flags for this single pass
@@ -410,7 +401,6 @@ namespace samurai
 
             nloadbalancing += 1;
 
-            // Stop timer
             samurai::times::timers.stop("load_balancing");
 
             // Final display of cell count after load balancing

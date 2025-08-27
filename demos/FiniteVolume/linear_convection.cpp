@@ -7,6 +7,8 @@
 #include <samurai/mr/mesh.hpp>
 #include <samurai/samurai.hpp>
 #include <samurai/schemes/fv.hpp>
+// Explicit for clarity when switching to Dirichlet BCs
+#include <samurai/bc.hpp>
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -91,14 +93,13 @@ int main(int argc, char* argv[])
     box_corner1.fill(left_box);
     box_corner2.fill(right_box);
     Box box(box_corner1, box_corner2);
-    std::array<bool, dim> periodic;
-    periodic.fill(true);
     samurai::MRMesh<Config> mesh;
     auto u = samurai::make_scalar_field<double>("u", mesh);
 
     if (restart_file.empty())
     {
-        mesh = {box, min_level, max_level, periodic};
+        // Non-periodic mesh; we will impose Dirichlet BCs
+        mesh = {box, min_level, max_level};
         // Initial solution
         u = samurai::make_scalar_field<double>("u",
                                                mesh,
@@ -122,10 +123,16 @@ int main(int argc, char* argv[])
         samurai::load(restart_file, mesh, u);
     }
 
+    // Boundary conditions: Dirichlet (compatible with WENO5 -> width 3)
+    samurai::make_bc<samurai::Dirichlet<3>>(u, 0.0);
+
     auto unp1 = samurai::make_scalar_field<double>("unp1", mesh);
     // Intermediary fields for the RK3 scheme
     auto u1 = samurai::make_scalar_field<double>("u1", mesh);
     auto u2 = samurai::make_scalar_field<double>("u2", mesh);
+    // Ensure stages inherit the same BCs
+    u1.copy_bc_from(u);
+    u2.copy_bc_from(u);
 
     // Convection operator
     samurai::VelocityVector<dim> velocity;
@@ -179,6 +186,8 @@ int main(int argc, char* argv[])
         // unp1 = u - dt * conv(u);
 
         // TVD-RK3 (SSPRK3)
+        // Update ghosts to apply Dirichlet BCs on current mesh
+        samurai::update_ghost_mr(u);
         u1   = u - dt * conv(u);
         u2   = 3. / 4 * u + 1. / 4 * (u1 - dt * conv(u1));
         unp1 = 1. / 3 * u + 2. / 3 * (u2 - dt * conv(u2));

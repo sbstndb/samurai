@@ -1076,8 +1076,19 @@ namespace samurai
         {
             std::size_t n_cells               = m_domain.nb_cells();
             std::size_t n_cells_per_subdomain = n_cells / static_cast<std::size_t>(size);
-            subdomain_start                   = n_cells_per_subdomain * static_cast<std::size_t>(rank);
-            subdomain_end                     = n_cells_per_subdomain * (static_cast<std::size_t>(rank) + 1);
+
+            // Temporary bias: give rank 0 extra N cells and shift others
+            constexpr std::size_t extra_cells = 40;
+            if (rank == 0)
+            {
+                subdomain_start = 0;
+                subdomain_end   = std::min(n_cells, n_cells_per_subdomain + extra_cells);
+            }
+            else
+            {
+                subdomain_start = std::min(n_cells, n_cells_per_subdomain * static_cast<std::size_t>(rank) + extra_cells);
+                subdomain_end   = std::min(n_cells, n_cells_per_subdomain * (static_cast<std::size_t>(rank) + 1) + extra_cells);
+            }
             // for the last rank, we have to take all the last cells;
             if (rank == size - 1)
             {
@@ -1097,22 +1108,49 @@ namespace samurai
         }
         else if (dim >= 2)
         {
-            auto subdomain_nb_intervals = m_domain.nb_intervals() / static_cast<std::size_t>(size);
-            subdomain_start             = static_cast<std::size_t>(rank) * subdomain_nb_intervals;
-            subdomain_end               = (static_cast<std::size_t>(rank) + 1) * subdomain_nb_intervals;
+            // Partition by number of CELLS (not intervals) also in 2D+
+            std::size_t n_cells               = m_domain.nb_cells();
+            std::size_t n_cells_per_subdomain = n_cells / static_cast<std::size_t>(size);
+
+            // Temporary bias: give rank 0 extra N cells and shift others
+            constexpr std::size_t extra_cells = 500;
+            if (rank == 0)
+            {
+                subdomain_start = 0;
+                subdomain_end   = std::min(n_cells, n_cells_per_subdomain + extra_cells);
+            }
+            else
+            {
+                subdomain_start = std::min(n_cells, n_cells_per_subdomain * static_cast<std::size_t>(rank) + extra_cells);
+                subdomain_end   = std::min(n_cells, n_cells_per_subdomain * (static_cast<std::size_t>(rank) + 1) + extra_cells);
+            }
             if (rank == size - 1)
             {
-                subdomain_end = m_domain.nb_intervals();
+                subdomain_end = n_cells;
             }
-            std::size_t k = 0;
+
+            // Walk intervals and select the slice of cells [subdomain_start, subdomain_end)
+            std::size_t cum_cells = 0;
             for_each_meshinterval(m_domain,
                                   [&](auto mi)
                                   {
-                                      if (k >= subdomain_start && k < subdomain_end)
+                                      const std::size_t len = static_cast<std::size_t>(mi.i.size());
+                                      const std::size_t seg_start = cum_cells;
+                                      const std::size_t seg_end   = cum_cells + len;
+
+                                      if (seg_end > subdomain_start && seg_start < subdomain_end)
                                       {
-                                          subdomain_cells[mi.index].add_interval(mi.i);
+                                          auto inter_start = std::max(subdomain_start, seg_start);
+                                          auto inter_end   = std::min(subdomain_end, seg_end);
+
+                                          using val_t = typename interval_t::value_t;
+                                          val_t local_start = static_cast<val_t>(mi.i.start + static_cast<val_t>(inter_start - seg_start));
+                                          val_t local_end   = static_cast<val_t>(mi.i.start + static_cast<val_t>(inter_end - seg_start));
+
+                                          subdomain_cells[mi.index].add_interval({local_start, local_end});
                                       }
-                                      ++k;
+
+                                      cum_cells += len;
                                   });
         }
 

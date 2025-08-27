@@ -1,0 +1,1 @@
+mpirun -np 3 demos/FiniteVolume/finite-volume-linear-convection --max-level 9 --min-level 7 --Tf 1.5 --timers --nfiles 10000 --dont-redirect-output

@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <iterator>
+#include <map>
+#include <unordered_map>
 
 #ifdef SAMURAI_WITH_MPI
 namespace samurai
@@ -95,7 +97,9 @@ namespace samurai
             flags.fill(world.rank());
 
             // Compute fluxes in terms of load to transfer/receive
-            std::vector<double> fluxes = compute_fluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 50);
+            // Start with uniform weights to enforce row-based snapping reliably
+            auto uniform_weight       = samurai::Weight::uniform(mesh);
+            std::vector<double> fluxes = compute_fluxes<samurai::BalanceElement_t::CELL>(mesh, uniform_weight, 50);
 
             using cell_t = typename Mesh_t::cell_t;
             std::vector<cell_t> cells;
@@ -110,60 +114,125 @@ namespace samurai
                 return flags;
             }
 
-            // Sort cells from "top" to "bottom", then from "left" to "right"
-            std::sort(cells.begin(),
-                      cells.end(),
-                      [](const cell_t& a, const cell_t& b)
-                      {
-                          auto center_a = a.center();
-                          auto center_b = b.center();
-                          if (center_a(1) != center_b(1))
-                          {
-                              return center_a(1) > center_b(1); // First, cells with highest y coordinate
-                          }
-                          return center_a(0) < center_b(0); // Then, cells with lowest x coordinate
-                      });
+            // Build row-based aggregation at the coarsest level to enforce a straight horizontal boundary
+            static_assert(Mesh_t::dim == 2, "Row-based snapping implemented for 2D only");
+
+            const std::size_t snap_level = mesh.min_level();
+
+            // Aggregate cells per coarse row id
+            using row_id_t = std::size_t;
+            std::map<row_id_t, double> row_weight;                     // total weight per row (uniform here)
+            std::unordered_map<row_id_t, std::vector<std::size_t>> row_cells; // indices of cells belonging to the row
+
+            for (std::size_t idx = 0; idx < cells.size(); ++idx)
+            {
+                const auto& c   = cells[idx];
+                const auto  lvl = c.level;
+                const auto  jy  = static_cast<row_id_t>(c.indices[1]);
+                const auto  d   = static_cast<unsigned>(lvl - snap_level);
+                const row_id_t row_id = (d == 0) ? jy : (jy >> d);
+
+                row_weight[row_id] += 1.0; // uniform for now
+                row_cells[row_id].push_back(idx);
+            }
+
+            if (row_weight.empty())
+            {
+                return flags;
+            }
+
+            // Sorted unique rows (ascending: bottom -> top)
+            std::vector<row_id_t> rows;
+            rows.reserve(row_weight.size());
+            for (const auto& kv : row_weight)
+            {
+                rows.push_back(kv.first);
+            }
+
+            std::size_t bottom_row = 0;
+            std::size_t top_row    = rows.size() - 1;
+
+            // Assignment of whole rows to neighbours to keep boundary strictly horizontal
+            std::unordered_map<row_id_t, int> row_assignment; // row -> neighbour rank
 
             auto& neighbourhood = mesh.mpi_neighbourhood();
-
-            std::size_t top_index    = 0;
-            std::size_t bottom_index = cells.size() - 1;
 
             for (std::size_t i = 0; i < neighbourhood.size(); ++i)
             {
                 double flux         = fluxes[i];
-                auto neighbour_rank = neighbourhood[i].rank;
+                const int nbr_rank  = neighbourhood[i].rank;
 
-                if (flux < 0) // We must send cells
+                if (flux < 0) // We must send rows
                 {
-                    double weight_to_send     = -flux;
-                    double accumulated_weight = 0;
+                    double target = -flux;
+                    double acc    = 0.0;
 
-                    // Send from the "top" to higher ranks, and from the "bottom" to lower ranks
-                    if (neighbour_rank > world.rank())
+                    if (nbr_rank > world.rank())
                     {
-                        while (top_index <= bottom_index && accumulated_weight < weight_to_send)
+                        // Send from the top: pick rows from the top down
+                        while (acc < target && top_row >= bottom_row)
                         {
-                            accumulated_weight += weight[cells[top_index]];
-                            flags[cells[top_index]] = neighbour_rank;
-                            top_index++;
+                            // Skip if already assigned (in case of prior bottom assignment)
+                            while (top_row >= bottom_row && row_assignment.find(rows[top_row]) != row_assignment.end())
+                            {
+                                if (top_row == 0)
+                                {
+                                    break;
+                                }
+                                --top_row;
+                            }
+                            if (top_row < bottom_row)
+                            {
+                                break;
+                            }
+
+                            const row_id_t rid = rows[top_row];
+                            row_assignment[rid] = nbr_rank;
+                            acc += row_weight[rid];
+
+                            if (top_row == 0)
+                            {
+                                break;
+                            }
+                            --top_row;
                         }
                     }
                     else
                     {
-                        while (bottom_index >= top_index && accumulated_weight < weight_to_send)
+                        // Send from the bottom: pick rows from the bottom up
+                        while (acc < target && bottom_row <= top_row)
                         {
-                            accumulated_weight += weight[cells[bottom_index]];
-                            flags[cells[bottom_index]] = neighbour_rank;
-                            if (bottom_index == 0)
+                            // Skip if already assigned (in case of prior top assignment)
+                            while (bottom_row <= top_row && row_assignment.find(rows[bottom_row]) != row_assignment.end())
                             {
-                                break; // Éviter l'underflow
+                                ++bottom_row;
                             }
-                            bottom_index--;
+                            if (bottom_row > top_row)
+                            {
+                                break;
+                            }
+
+                            const row_id_t rid = rows[bottom_row];
+                            row_assignment[rid] = nbr_rank;
+                            acc += row_weight[rid];
+                            ++bottom_row;
                         }
                     }
                 }
             }
+
+            // Apply row assignments to flags
+            for (const auto& ra : row_assignment)
+            {
+                const row_id_t rid = ra.first;
+                const int      dst = ra.second;
+                const auto&    idxs = row_cells[rid];
+                for (std::size_t pos : idxs)
+                {
+                    flags[cells[pos]] = dst;
+                }
+            }
+
             return flags;
         }
     };

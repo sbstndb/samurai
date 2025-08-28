@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <map>
 
 #ifdef SAMURAI_WITH_MPI
 namespace samurai
@@ -97,74 +98,170 @@ namespace samurai
             // Compute fluxes in terms of load to transfer/receive
             std::vector<double> fluxes = compute_fluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 50);
 
-            using cell_t = typename Mesh_t::cell_t;
-            std::vector<cell_t> cells;
-            samurai::for_each_cell(mesh[mesh_id_t::cells],
-                                   [&](auto cell)
-                                   {
-                                       cells.emplace_back(cell);
-                                   });
-
-            if (cells.empty())
+            // 2D specialization: aggregate by coarse y rows and exchange whole rows
+            if constexpr (Mesh_t::dim == 2)
             {
-                return flags;
-            }
+                using cell_t = typename Mesh_t::cell_t;
 
-            // Sort cells from "top" to "bottom", then from "left" to "right"
-            std::sort(cells.begin(),
-                      cells.end(),
-                      [](const cell_t& a, const cell_t& b)
-                      {
-                          auto center_a = a.center();
-                          auto center_b = b.center();
-                          if (center_a(1) != center_b(1))
-                          {
-                              return center_a(1) > center_b(1); // First, cells with highest y coordinate
-                          }
-                          return center_a(0) < center_b(0); // Then, cells with lowest x coordinate
-                      });
-
-            auto& neighbourhood = mesh.mpi_neighbourhood();
-
-            std::size_t top_index    = 0;
-            std::size_t bottom_index = cells.size() - 1;
-
-            for (std::size_t i = 0; i < neighbourhood.size(); ++i)
-            {
-                double flux         = fluxes[i];
-                auto neighbour_rank = neighbourhood[i].rank;
-
-                if (flux < 0) // We must send cells
+                struct Row
                 {
-                    double weight_to_send     = -flux;
-                    double accumulated_weight = 0;
+                    std::ptrdiff_t j_coarse;
+                    double total_weight = 0.0;
+                    std::vector<cell_t> cells;
+                };
 
-                    // Send from the "top" to higher ranks, and from the "bottom" to lower ranks
-                    if (neighbour_rank > world.rank())
+                const std::size_t min_level = mesh.min_level();
+
+                // Build rows aggregated on the coarsest y coordinate
+                std::map<std::ptrdiff_t, Row, std::greater<>> rows_map; // sorted from top (high j) to bottom (low j)
+                samurai::for_each_cell(
+                    mesh[mesh_id_t::cells],
+                    [&](auto cell)
                     {
-                        while (top_index <= bottom_index && accumulated_weight < weight_to_send)
-                        {
-                            accumulated_weight += weight[cells[top_index]];
-                            flags[cells[top_index]] = neighbour_rank;
-                            top_index++;
-                        }
-                    }
-                    else
+                        std::ptrdiff_t j     = static_cast<std::ptrdiff_t>(cell.indices[1]);
+                        std::size_t level    = static_cast<std::size_t>(cell.level);
+                        std::ptrdiff_t jbase = (level >= min_level) ? (j >> static_cast<std::ptrdiff_t>(level - min_level)) : j;
+
+                        auto& row = rows_map[jbase];
+                        row.j_coarse = jbase;
+                        row.cells.emplace_back(cell);
+                        row.total_weight += weight[cell];
+                    });
+
+                if (rows_map.empty())
+                {
+                    return flags;
+                }
+
+                // Flatten rows into a vector to support two-ended selection (top/bottom)
+                std::vector<Row> rows;
+                rows.reserve(rows_map.size());
+                for (auto& kv : rows_map)
+                {
+                    rows.emplace_back(std::move(kv.second));
+                }
+
+                auto& neighbourhood = mesh.mpi_neighbourhood();
+
+                std::size_t top_row    = 0;                       // highest y first
+                std::size_t bottom_row = rows.size() - 1;         // lowest y last
+
+                for (std::size_t i = 0; i < neighbourhood.size(); ++i)
+                {
+                    double flux         = fluxes[i];
+                    auto neighbour_rank = neighbourhood[i].rank;
+
+                    if (flux < 0) // We must send load, in coarse y-row chunks
                     {
-                        while (bottom_index >= top_index && accumulated_weight < weight_to_send)
+                        double weight_to_send     = -flux;
+                        double accumulated_weight = 0.0;
+
+                        // Send from the "top" to higher ranks, and from the "bottom" to lower ranks
+                        if (neighbour_rank > world.rank())
                         {
-                            accumulated_weight += weight[cells[bottom_index]];
-                            flags[cells[bottom_index]] = neighbour_rank;
-                            if (bottom_index == 0)
+                            while (top_row <= bottom_row && accumulated_weight < weight_to_send)
                             {
-                                break; // Éviter l'underflow
+                                accumulated_weight += rows[top_row].total_weight;
+                                for (const auto& c : rows[top_row].cells)
+                                {
+                                    flags[c] = neighbour_rank;
+                                }
+                                ++top_row;
                             }
-                            bottom_index--;
+                        }
+                        else
+                        {
+                            while (bottom_row >= top_row && accumulated_weight < weight_to_send)
+                            {
+                                accumulated_weight += rows[bottom_row].total_weight;
+                                for (const auto& c : rows[bottom_row].cells)
+                                {
+                                    flags[c] = neighbour_rank;
+                                }
+
+                                if (bottom_row == 0)
+                                {
+                                    break; // avoid underflow
+                                }
+                                --bottom_row;
+                            }
                         }
                     }
                 }
+                return flags;
             }
-            return flags;
+            else
+            {
+                // Fallback: previous cell-based selection for non-2D
+                using cell_t = typename Mesh_t::cell_t;
+                std::vector<cell_t> cells;
+                samurai::for_each_cell(mesh[mesh_id_t::cells],
+                                       [&](auto cell)
+                                       {
+                                           cells.emplace_back(cell);
+                                       });
+
+                if (cells.empty())
+                {
+                    return flags;
+                }
+
+                // Sort cells from "top" to "bottom", then from "left" to "right"
+                std::sort(cells.begin(),
+                          cells.end(),
+                          [](const cell_t& a, const cell_t& b)
+                          {
+                              auto center_a = a.center();
+                              auto center_b = b.center();
+                              if (center_a(1) != center_b(1))
+                              {
+                                  return center_a(1) > center_b(1); // First, cells with highest y coordinate
+                              }
+                              return center_a(0) < center_b(0); // Then, cells with lowest x coordinate
+                          });
+
+                auto& neighbourhood = mesh.mpi_neighbourhood();
+
+                std::size_t top_index    = 0;
+                std::size_t bottom_index = cells.size() - 1;
+
+                for (std::size_t i = 0; i < neighbourhood.size(); ++i)
+                {
+                    double flux         = fluxes[i];
+                    auto neighbour_rank = neighbourhood[i].rank;
+
+                    if (flux < 0) // We must send cells
+                    {
+                        double weight_to_send     = -flux;
+                        double accumulated_weight = 0;
+
+                        // Send from the "top" to higher ranks, and from the "bottom" to lower ranks
+                        if (neighbour_rank > world.rank())
+                        {
+                            while (top_index <= bottom_index && accumulated_weight < weight_to_send)
+                            {
+                                accumulated_weight += weight[cells[top_index]];
+                                flags[cells[top_index]] = neighbour_rank;
+                                top_index++;
+                            }
+                        }
+                        else
+                        {
+                            while (bottom_index >= top_index && accumulated_weight < weight_to_send)
+                            {
+                                accumulated_weight += weight[cells[bottom_index]];
+                                flags[cells[bottom_index]] = neighbour_rank;
+                                if (bottom_index == 0)
+                                {
+                                    break; // Éviter l'underflow
+                                }
+                                bottom_index--;
+                            }
+                        }
+                    }
+                }
+                return flags;
+            }
         }
     };
 }

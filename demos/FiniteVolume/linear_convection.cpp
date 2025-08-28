@@ -7,6 +7,9 @@
 #include <samurai/mr/mesh.hpp>
 #include <samurai/samurai.hpp>
 #include <samurai/schemes/fv.hpp>
+#include <samurai/bc.hpp>
+#include <samurai/load_balancing.hpp>
+#include <samurai/load_balancing_diffusion.hpp>
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -68,6 +71,9 @@ int main(int argc, char* argv[])
     fs::path path        = fs::current_path();
     std::string filename = "linear_convection_" + std::to_string(dim) + "D";
     std::size_t nfiles   = 0;
+#ifdef SAMURAI_WITH_MPI
+    std::size_t nt_loadbalance = 1;
+#endif
 
     app.add_option("--left", left_box, "The left border of the box")->capture_default_str()->group("Simulation parameters");
     app.add_option("--right", right_box, "The right border of the box")->capture_default_str()->group("Simulation parameters");
@@ -90,6 +96,11 @@ int main(int argc, char* argv[])
     app.add_option("--path", path, "Output path")->capture_default_str()->group("Output");
     app.add_option("--filename", filename, "File name prefix")->capture_default_str()->group("Output");
     app.add_option("--nfiles", nfiles, "Number of output files")->capture_default_str()->group("Output");
+#ifdef SAMURAI_WITH_MPI
+    app.add_option("--nt-loadbalance", nt_loadbalance, "load balance each nt steps")
+        ->capture_default_str()
+        ->group("Multiresolution");
+#endif
     app.allow_extras();
     SAMURAI_PARSE(argc, argv);
 
@@ -101,14 +112,13 @@ int main(int argc, char* argv[])
     box_corner1.fill(left_box);
     box_corner2.fill(right_box);
     Box box(box_corner1, box_corner2);
-    std::array<bool, dim> periodic;
-    periodic.fill(true);
     samurai::MRMesh<Config> mesh;
     auto u = samurai::make_scalar_field<double>("u", mesh);
 
     if (restart_file.empty())
     {
-        mesh = {box, min_level, max_level, periodic};
+        // Non-periodic domain to avoid non-local neighbour wrap-around during load balancing
+        mesh = {box, min_level, max_level};
         // Initial solution
         u = samurai::make_scalar_field<double>("u",
                                                mesh,
@@ -123,7 +133,7 @@ int main(int argc, char* argv[])
                                                    {
                                                        const auto& x = coords(0);
                                                        const auto& y = coords(1);
-                                                       return (x >= -0.8 && x <= -0.3 && y >= 0.3 && y <= 0.8) ? 1. : 0.;
+                                                       return (x >= -0.8 && x <= -0.3 && y >= -0.7 && y <= 0.7) ? 1. : 0.;
                                                    }
                                                });
     }
@@ -140,6 +150,9 @@ int main(int argc, char* argv[])
     unp1.fill(0);
     u1.fill(0);
     u2.fill(0);
+
+    // Homogeneous Dirichlet boundary conditions (similar to burgers demo)
+    samurai::make_bc<samurai::Dirichlet<3>>(u, 0.0);
 
     // Convection operator
     samurai::VelocityVector<dim> velocity;
@@ -172,8 +185,22 @@ int main(int argc, char* argv[])
         std::string suffix = (nfiles != 1) ? fmt::format("_ite_{}", nsave++) : "";
         save(path, filename, u, suffix);
     }
+    
+#ifdef SAMURAI_WITH_MPI
+    samurai::DiffusionLoadBalancer balancer;
+#endif
     while (t != Tf)
     {
+        // Optional load balancing (MPI)
+#ifdef SAMURAI_WITH_MPI
+        if (((nt % nt_loadbalance == 0) && nt > 1) || nt == 1)
+        {
+            auto weights = samurai::Weight::uniform(mesh);
+            // Update all fields used later in the loop
+            balancer.load_balance(mesh, weights, u, u1, u2, unp1);
+        }
+#endif
+
         // Move to next timestep
         t += dt;
         if (t > Tf)

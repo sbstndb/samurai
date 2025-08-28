@@ -7,6 +7,8 @@
 #include <samurai/mr/mesh.hpp>
 #include <samurai/samurai.hpp>
 #include <samurai/schemes/fv.hpp>
+#include <samurai/load_balancing.hpp>
+#include <samurai/load_balancing_diffusion.hpp>
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -84,6 +86,9 @@ int main_dim(int argc, char* argv[])
     fs::path path        = fs::current_path();
     std::string filename = "burgers_" + std::to_string(dim) + "D";
     std::size_t nfiles   = 50;
+#ifdef SAMURAI_WITH_MPI
+    std::size_t nt_loadbalance = 1;
+#endif
 
     app.add_option("--left", left_box, "The left border of the box")->capture_default_str()->group("Simulation parameters");
     app.add_option("--right", right_box, "The right border of the box")->capture_default_str()->group("Simulation parameters");
@@ -107,6 +112,11 @@ int main_dim(int argc, char* argv[])
     app.add_option("--path", path, "Output path")->capture_default_str()->group("Output");
     app.add_option("--filename", filename, "File name prefix")->capture_default_str()->group("Output");
     app.add_option("--nfiles", nfiles, "Number of output files")->capture_default_str()->group("Output");
+#ifdef SAMURAI_WITH_MPI
+    app.add_option("--nt-loadbalance", nt_loadbalance, "load balance each nt steps")
+        ->capture_default_str()
+        ->group("Multiresolution");
+#endif
     app.allow_extras();
     SAMURAI_PARSE(argc, argv);
 
@@ -240,6 +250,10 @@ int main_dim(int argc, char* argv[])
     double dt_save    = Tf / static_cast<double>(nfiles);
     std::size_t nsave = 0, nt = 0;
 
+#ifdef SAMURAI_WITH_MPI
+    samurai::DiffusionLoadBalancer balancer;
+#endif
+
     {
         std::string suffix = (nfiles != 1) ? fmt::format("_ite_{}", nsave++) : "";
         save(path, filename, u, suffix);
@@ -247,6 +261,16 @@ int main_dim(int argc, char* argv[])
 
     while (t != Tf)
     {
+        // Optional load balancing (MPI)
+#ifdef SAMURAI_WITH_MPI
+        if (((nt % nt_loadbalance == 0) && nt > 1) || nt == 1)
+        {
+            auto weights = samurai::Weight::uniform(mesh);
+            // Update all fields used later in the loop
+            balancer.load_balance(mesh, weights, u, u1, u2, unp1);
+        }
+#endif
+
         // Move to next timestep
         t += dt;
         if (t > Tf)

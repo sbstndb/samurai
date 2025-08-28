@@ -98,6 +98,31 @@ namespace samurai
             // Compute fluxes in terms of load to transfer/receive
             std::vector<double> fluxes = compute_fluxes<samurai::BalanceElement_t::CELL>(mesh, weight, 50);
 
+            // Harmonize per-edge fluxes with neighbours to avoid "A sends to B and B sends to A"
+            // We exchange intended flux with each neighbour and set a net antisymmetric flux:
+            //   net_flux = 0.5 * (my_flux - neighbour_flux)
+            auto& neighbourhood = mesh.mpi_neighbourhood();
+            std::vector<double> neighbour_flux(neighbourhood.size(), 0.0);
+#ifdef SAMURAI_WITH_MPI
+            {
+                std::vector<boost::mpi::request> reqs;
+                for (std::size_t i = 0; i < neighbourhood.size(); ++i)
+                {
+                    reqs.push_back(world.isend(neighbourhood[i].rank, 4242, fluxes[i]));
+                }
+                for (std::size_t i = 0; i < neighbourhood.size(); ++i)
+                {
+                    world.recv(neighbourhood[i].rank, 4242, neighbour_flux[i]);
+                }
+                mpi::wait_all(reqs.begin(), reqs.end());
+            }
+#endif
+            std::vector<double> net_fluxes(neighbourhood.size(), 0.0);
+            for (std::size_t i = 0; i < neighbourhood.size(); ++i)
+            {
+                net_fluxes[i] = 0.5 * (fluxes[i] - neighbour_flux[i]);
+            }
+
             // 2D specialization: aggregate by coarse y rows and exchange whole rows
             if constexpr (Mesh_t::dim == 2)
             {
@@ -141,14 +166,12 @@ namespace samurai
                     rows.emplace_back(std::move(kv.second));
                 }
 
-                auto& neighbourhood = mesh.mpi_neighbourhood();
-
                 std::size_t top_row    = 0;                       // highest y first
                 std::size_t bottom_row = rows.size() - 1;         // lowest y last
 
                 for (std::size_t i = 0; i < neighbourhood.size(); ++i)
                 {
-                    double flux         = fluxes[i];
+                    double flux         = net_fluxes[i];
                     auto neighbour_rank = neighbourhood[i].rank;
 
                     if (flux < 0) // We must send load, in coarse y-row chunks
@@ -220,14 +243,12 @@ namespace samurai
                               return center_a(0) < center_b(0); // Then, cells with lowest x coordinate
                           });
 
-                auto& neighbourhood = mesh.mpi_neighbourhood();
-
                 std::size_t top_index    = 0;
                 std::size_t bottom_index = cells.size() - 1;
 
                 for (std::size_t i = 0; i < neighbourhood.size(); ++i)
                 {
-                    double flux         = fluxes[i];
+                    double flux         = net_fluxes[i];
                     auto neighbour_rank = neighbourhood[i].rank;
 
                     if (flux < 0) // We must send cells

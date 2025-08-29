@@ -15,6 +15,9 @@ namespace samurai
         static int finer_level_flux   = 0;
         static bool refine_boundary   = false;
         static bool save_debug_fields = false;
+#ifdef SAMURAI_WITH_MPI
+        static bool horizontal_partition = false;
+#endif
 
         // MRA arguments
         static double epsilon    = std::numeric_limits<double>::infinity();
@@ -40,6 +43,11 @@ namespace samurai
         app.add_flag("--save-debug-fields", args::save_debug_fields, "Add debug fields during save process (coordinates, indices, levels, ...)")
             ->capture_default_str()
             ->group("SAMURAI");
+#ifdef SAMURAI_WITH_MPI
+        app.add_flag("--horizontal-partition", args::horizontal_partition, "Partition domain along x-direction only")
+            ->capture_default_str()
+            ->group("SAMURAI");
+#endif
         app.add_option("--mr-eps", args::epsilon, "The epsilon used by the multiresolution to adapt the mesh")->group("Multiresolution");
         app.add_option("--mr-reg", args::regularity, "The regularity criteria used by the multiresolution to adapt the mesh")
             ->group("Multiresolution");

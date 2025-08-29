@@ -265,9 +265,12 @@ int main_dim(int argc, char* argv[])
         }
 
         // RK3 time scheme
-        u1   = u - dt * conv(u);
-        u2   = 3. / 4 * u + 1. / 4 * (u1 - dt * conv(u1));
-        unp1 = 1. / 3 * u + 2. / 3 * (u2 - dt * conv(u2));
+        auto conv_u  = xt::eval(conv(u));
+        u1           = u - dt * conv_u;
+        auto conv_u1 = xt::eval(conv(u1));
+        u2           = 3. / 4 * u + 1. / 4 * (u1 - dt * conv_u1);
+        auto conv_u2 = xt::eval(conv(u2));
+        unp1         = 1. / 3 * u + 2. / 3 * (u2 - dt * conv_u2);
 
         // u <-- unp1
         samurai::swap(u, unp1);

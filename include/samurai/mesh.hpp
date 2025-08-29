@@ -1094,6 +1094,7 @@ namespace samurai
         if (need_create || prod != size)
         {
             MPI_Dims_create(size, dim, dims.data());
+            std::reverse(dims.begin(), dims.end());
         }
 
         std::array<int, dim> periods;

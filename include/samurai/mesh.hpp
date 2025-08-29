@@ -22,6 +22,7 @@
 #include <boost/mpi.hpp>
 #include <boost/mpi/cartesian_communicator.hpp>
 namespace mpi = boost::mpi;
+#include "arguments.hpp"
 #endif
 
 namespace samurai
@@ -1078,23 +1079,30 @@ namespace samurai
         int size = world.size();
 
         std::array<int, dim> dims = proc_dims;
-        int prod                  = 1;
-        bool need_create          = false;
-        for (std::size_t d = 0; d < dim; ++d)
+        if (args::horizontal_partition)
         {
-            if (dims[d] == 0)
-            {
-                need_create = true;
-            }
-            else
-            {
-                prod *= dims[d];
-            }
+            dims.fill(1);
+            dims[0] = size;
         }
-        if (need_create || prod != size)
+        else
         {
-            MPI_Dims_create(size, dim, dims.data());
-            std::reverse(dims.begin(), dims.end());
+            int prod         = 1;
+            bool need_create = false;
+            for (std::size_t d = 0; d < dim; ++d)
+            {
+                if (dims[d] == 0)
+                {
+                    need_create = true;
+                }
+                else
+                {
+                    prod *= dims[d];
+                }
+            }
+            if (need_create || prod != size)
+            {
+                MPI_Dims_create(size, dim, dims.data());
+            }
         }
 
         std::array<int, dim> periods;

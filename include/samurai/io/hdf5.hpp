@@ -361,8 +361,12 @@ namespace samurai
         {
 #ifdef SAMURAI_WITH_MPI
             mpi::communicator world;
-            auto min_level = mpi::all_reduce(world, this->mesh().min_level(), mpi::minimum<std::size_t>());
-            auto max_level = mpi::all_reduce(world, this->mesh().max_level(), mpi::maximum<std::size_t>());
+            std::array<std::size_t, 2> levels{this->mesh().min_level(), this->mesh().max_level()};
+            levels = mpi::all_reduce(world, levels, [](const auto& a, const auto& b) {
+                return std::array<std::size_t, 2>{std::min(a[0], b[0]), std::max(a[1], b[1])};
+            });
+            auto min_level = levels[0];
+            auto max_level = levels[1];
 #else
             auto min_level = this->mesh().min_level();
             auto max_level = this->mesh().max_level();

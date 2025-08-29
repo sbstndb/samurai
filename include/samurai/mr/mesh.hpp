@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <fmt/format.h>
 
 #include <xtensor/xtensor.hpp>
@@ -160,10 +162,15 @@ namespace samurai
     {
 #ifdef SAMURAI_WITH_MPI
         mpi::communicator world;
+        std::array<std::size_t, 2> levels{this->cells()[mesh_id_t::cells].min_level(),
+                                          this->cells()[mesh_id_t::cells].max_level()};
+        levels = mpi::all_reduce(world, levels, [](const auto& a, const auto& b) {
+            return std::array<std::size_t, 2>{std::min(a[0], b[0]), std::max(a[1], b[1])};
+        });
         // cppcheck-suppress redundantInitialization
-        auto max_level = mpi::all_reduce(world, this->cells()[mesh_id_t::cells].max_level(), mpi::maximum<std::size_t>());
+        auto min_level = levels[0];
         // cppcheck-suppress redundantInitialization
-        auto min_level = mpi::all_reduce(world, this->cells()[mesh_id_t::cells].min_level(), mpi::minimum<std::size_t>());
+        auto max_level = levels[1];
         cl_type cell_list;
 #else
         // cppcheck-suppress redundantInitialization
@@ -292,12 +299,13 @@ namespace samurai
             shift.fill(0);
 
 #ifdef SAMURAI_WITH_MPI
-            std::size_t reference_max_level = mpi::all_reduce(world,
-                                                              this->cells()[mesh_id_t::reference].max_level(),
-                                                              mpi::maximum<std::size_t>());
-            std::size_t reference_min_level = mpi::all_reduce(world,
-                                                              this->cells()[mesh_id_t::reference].min_level(),
-                                                              mpi::minimum<std::size_t>());
+            std::array<std::size_t, 2> reference_levels{this->cells()[mesh_id_t::reference].min_level(),
+                                                        this->cells()[mesh_id_t::reference].max_level()};
+            reference_levels = mpi::all_reduce(world, reference_levels, [](const auto& a, const auto& b) {
+                return std::array<std::size_t, 2>{std::min(a[0], b[0]), std::max(a[1], b[1])};
+            });
+            std::size_t reference_min_level = reference_levels[0];
+            std::size_t reference_max_level = reference_levels[1];
 
             std::vector<ca_type> neighbourhood_extended_subdomain(this->mpi_neighbourhood().size());
             for (size_t neighbor_id = 0; neighbor_id != neighbourhood_extended_subdomain.size(); ++neighbor_id)

@@ -1,5 +1,4 @@
 #pragma once
-#include <math.h>
 #include <type_traits>
 
 namespace samurai
@@ -41,16 +40,26 @@ namespace samurai
         auto q2 =  1./3 * f[j  ] + 5./6 * f[j+1] -  1./6 * f[j+2];
 
         // (3.2)-(3.4)
-        auto IS0 = 13./12 * pow(f[j-2] - 2*f[j-1] + f[j  ], 2) + 1./4 * pow(  f[j-2] -4*f[j-1] + 3*f[j  ], 2);
-        auto IS1 = 13./12 * pow(f[j-1] - 2*f[j  ] + f[j+1], 2) + 1./4 * pow(  f[j-1]           -   f[j+1], 2);
-        auto IS2 = 13./12 * pow(f[j  ] - 2*f[j+1] + f[j+2], 2) + 1./4 * pow(3*f[j  ] -4*f[j+1] +   f[j+2], 2);
+        auto t0  = f[j-2] - 2 * f[j-1] + f[j];
+        auto t1  = f[j-2] - 4 * f[j-1] + 3 * f[j];
+        auto t2  = f[j-1] - 2 * f[j] + f[j + 1];
+        auto t3  = f[j-1] - f[j + 1];
+        auto t4  = f[j] - 2 * f[j + 1] + f[j + 2];
+        auto t5  = 3 * f[j] - 4 * f[j + 1] + f[j + 2];
+
+        auto IS0 = 13. / 12 * t0 * t0 + 1. / 4 * t1 * t1;
+        auto IS1 = 13. / 12 * t2 * t2 + 1. / 4 * t3 * t3;
+        auto IS2 = 13. / 12 * t4 * t4 + 1. / 4 * t5 * t5;
 
         // clang-format on
 
         // (2.16) and Table II (r=3)
-        auto alpha0 = 0.1 / pow((eps + IS0), 2);
-        auto alpha1 = 0.6 / pow((eps + IS1), 2);
-        auto alpha2 = 0.3 / pow((eps + IS2), 2);
+        auto d0     = eps + IS0;
+        auto d1     = eps + IS1;
+        auto d2     = eps + IS2;
+        auto alpha0 = 0.1 / (d0 * d0);
+        auto alpha1 = 0.6 / (d1 * d1);
+        auto alpha2 = 0.3 / (d2 * d2);
 
         // (2.15)
         auto sum_alphas = alpha0 + alpha1 + alpha2;

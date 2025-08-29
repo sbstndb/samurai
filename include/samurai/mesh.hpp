@@ -5,6 +5,7 @@
 
 #include <array>
 #include <set>
+#include <algorithm>
 
 #include <fmt/format.h>
 
@@ -161,20 +162,23 @@ namespace samurai
                   std::size_t min_level,
                   std::size_t max_level,
                   double approx_box_tol = lca_type::default_approx_box_tol,
-                  double scaling_factor = 0);
+                  double scaling_factor = 0,
+                  std::array<int, dim> proc_dims = {});
         Mesh_base(const samurai::DomainBuilder<dim>& domain_builder,
                   std::size_t start_level,
                   std::size_t min_level,
                   std::size_t max_level,
                   double approx_box_tol = lca_type::default_approx_box_tol,
-                  double scaling_factor = 0);
+                  double scaling_factor = 0,
+                  std::array<int, dim> proc_dims = {});
         Mesh_base(const samurai::Box<double, dim>& b,
                   std::size_t start_level,
                   std::size_t min_level,
                   std::size_t max_level,
                   const std::array<bool, dim>& periodic,
                   double approx_box_tol = lca_type::default_approx_box_tol,
-                  double scaling_factor = 0);
+                  double scaling_factor = 0,
+                  std::array<int, dim> proc_dims = {});
 
         derived_type& derived_cast() & noexcept;
         const derived_type& derived_cast() const& noexcept;
@@ -193,7 +197,7 @@ namespace samurai
 
         void find_neighbourhood();
 
-        void partition_mesh(std::size_t start_level, const Box<double, dim>& global_box);
+        void partition_mesh(std::size_t start_level, const Box<double, dim>& global_box, std::array<int, dim> proc_dims = {});
         void load_balancing();
         void load_transfer(const std::vector<double>& load_fluxes);
         std::size_t max_nb_cells(std::size_t level) const;
@@ -252,7 +256,8 @@ namespace samurai
                                            std::size_t min_level,
                                            std::size_t max_level,
                                            double approx_box_tol,
-                                           double scaling_factor_)
+                                           double scaling_factor_,
+                                           std::array<int, dim> proc_dims)
         : m_domain{start_level, b, approx_box_tol, scaling_factor_}
         , m_min_level{min_level}
         , m_max_level{max_level}
@@ -261,7 +266,7 @@ namespace samurai
         m_periodic.fill(false);
 
 #ifdef SAMURAI_WITH_MPI
-        partition_mesh(start_level, b);
+        partition_mesh(start_level, b, proc_dims);
         // load_balancing();
 #else
         this->m_cells[mesh_id_t::cells][start_level] = {start_level, b, approx_box_tol, scaling_factor_};
@@ -283,7 +288,8 @@ namespace samurai
                                     std::size_t min_level,
                                     std::size_t max_level,
                                     [[maybe_unused]] double approx_box_tol,
-                                    double scaling_factor_)
+                                    double scaling_factor_,
+                                    [[maybe_unused]] std::array<int, dim> proc_dims)
         : m_min_level{min_level}
         , m_max_level{max_level}
     {
@@ -322,7 +328,8 @@ namespace samurai
                                            std::size_t max_level,
                                            const std::array<bool, dim>& periodic,
                                            double approx_box_tol,
-                                           double scaling_factor_)
+                                           double scaling_factor_,
+                                           std::array<int, dim> proc_dims)
         : m_domain{start_level, b, approx_box_tol, scaling_factor_}
         , m_min_level{min_level}
         , m_max_level{max_level}
@@ -331,7 +338,7 @@ namespace samurai
         assert(min_level <= max_level);
 
 #ifdef SAMURAI_WITH_MPI
-        partition_mesh(start_level, b);
+        partition_mesh(start_level, b, proc_dims);
         // load_balancing();
 #else
         this->m_cells[mesh_id_t::cells][start_level] = {start_level, b, approx_box_tol, scaling_factor_};
@@ -1061,62 +1068,103 @@ namespace samurai
     }
 
     template <class D, class Config>
-    void Mesh_base<D, Config>::partition_mesh([[maybe_unused]] std::size_t start_level, [[maybe_unused]] const Box<double, dim>& global_box)
+    void Mesh_base<D, Config>::partition_mesh([[maybe_unused]] std::size_t start_level,
+                                              [[maybe_unused]] const Box<double, dim>& global_box,
+                                              [[maybe_unused]] std::array<int, dim> proc_dims)
     {
 #ifdef SAMURAI_WITH_MPI
         mpi::communicator world;
-        auto rank = world.rank();
-        auto size = world.size();
+        int rank = world.rank();
+        int size = world.size();
 
-        std::size_t subdomain_start = 0;
-        std::size_t subdomain_end   = 0;
-        lcl_type subdomain_cells(start_level, m_domain.origin_point(), m_domain.scaling_factor());
-        // in 1D MPI, we need a specific partitioning
-        if (dim == 1)
+        std::array<int, dim> dims = proc_dims;
+        int prod = 1;
+        bool need_create = false;
+        for (std::size_t d = 0; d < dim; ++d)
         {
-            std::size_t n_cells               = m_domain.nb_cells();
-            std::size_t n_cells_per_subdomain = n_cells / static_cast<std::size_t>(size);
-            subdomain_start                   = n_cells_per_subdomain * static_cast<std::size_t>(rank);
-            subdomain_end                     = n_cells_per_subdomain * (static_cast<std::size_t>(rank) + 1);
-            // for the last rank, we have to take all the last cells;
-            if (rank == size - 1)
+            if (dims[d] == 0)
             {
-                subdomain_end = n_cells;
+                need_create = true;
             }
-            for_each_meshinterval(m_domain,
-                                  [&](auto mi)
-                                  {
-                                      for (auto i = mi.i.start; i < mi.i.end; ++i)
-                                      {
-                                          if (static_cast<std::size_t>(i) >= subdomain_start && static_cast<std::size_t>(i) < subdomain_end)
-                                          {
-                                              subdomain_cells[mi.index].add_point(i);
-                                          }
-                                      }
-                                  });
+            else
+            {
+                prod *= dims[d];
+            }
         }
-        else if (dim >= 2)
+        if (need_create || prod != size)
         {
-            auto subdomain_nb_intervals = m_domain.nb_intervals() / static_cast<std::size_t>(size);
-            subdomain_start             = static_cast<std::size_t>(rank) * subdomain_nb_intervals;
-            subdomain_end               = (static_cast<std::size_t>(rank) + 1) * subdomain_nb_intervals;
-            if (rank == size - 1)
-            {
-                subdomain_end = m_domain.nb_intervals();
-            }
-            std::size_t k = 0;
-            for_each_meshinterval(m_domain,
-                                  [&](auto mi)
-                                  {
-                                      if (k >= subdomain_start && k < subdomain_end)
-                                      {
-                                          subdomain_cells[mi.index].add_interval(mi.i);
-                                      }
-                                      ++k;
-                                  });
+            MPI_Dims_create(size, dim, dims.data());
+        }
+
+        std::array<int, dim> periods;
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            periods[d] = m_periodic[d] ? 1 : 0;
+        }
+
+        MPI_Comm cart_comm;
+        MPI_Cart_create(world, dim, dims.data(), periods.data(), 0, &cart_comm);
+
+        std::array<int, dim> coords;
+        MPI_Cart_coords(cart_comm, rank, dim, coords.data());
+
+        using value_t = typename lcl_type::value_t;
+        std::array<value_t, dim> min_indices = m_domain.min_indices();
+        std::array<value_t, dim> max_indices = m_domain.max_indices();
+
+        std::array<value_t, dim> start_idx;
+        std::array<value_t, dim> end_idx;
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            value_t extent = max_indices[d] - min_indices[d];
+            value_t base   = extent / static_cast<value_t>(dims[d]);
+            start_idx[d]   = min_indices[d] + coords[d] * base;
+            end_idx[d]     = (coords[d] == dims[d] - 1) ? max_indices[d] : start_idx[d] + base;
+        }
+
+        lcl_type subdomain_cells(start_level, m_domain.origin_point(), m_domain.scaling_factor());
+
+        if constexpr (dim == 1)
+        {
+            for_each_meshinterval(m_domain, [&](auto mi) {
+                auto i_start = std::max(start_idx[0], mi.i.start);
+                auto i_end   = std::min(end_idx[0], mi.i.end);
+                for (value_t i = i_start; i < i_end; ++i)
+                {
+                    subdomain_cells[mi.index].add_point(i);
+                }
+            });
+        }
+        else
+        {
+            for_each_meshinterval(m_domain, [&](auto mi) {
+                bool inside = true;
+                for (std::size_t d = 1; d < dim; ++d)
+                {
+                    value_t idx = mi.index[d - 1];
+                    if (idx < start_idx[d] || idx >= end_idx[d])
+                    {
+                        inside = false;
+                        break;
+                    }
+                }
+                if (!inside)
+                {
+                    return;
+                }
+                value_t i_start = std::max(start_idx[0], mi.i.start);
+                value_t i_end   = std::min(end_idx[0], mi.i.end);
+                if (i_start < i_end)
+                {
+                    subdomain_cells[mi.index].add_interval({i_start, i_end});
+                }
+            });
         }
 
         this->m_cells[mesh_id_t::cells][start_level] = subdomain_cells;
+        m_subdomain                                   = {subdomain_cells};
+        find_neighbourhood();
+        MPI_Comm_free(&cart_comm);
 #endif
     }
 

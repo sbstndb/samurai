@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <set>
-#include <algorithm>
 
 #include <fmt/format.h>
 
@@ -161,23 +161,23 @@ namespace samurai
                   std::size_t start_level,
                   std::size_t min_level,
                   std::size_t max_level,
-                  double approx_box_tol = lca_type::default_approx_box_tol,
-                  double scaling_factor = 0,
+                  double approx_box_tol          = lca_type::default_approx_box_tol,
+                  double scaling_factor          = 0,
                   std::array<int, dim> proc_dims = {});
         Mesh_base(const samurai::DomainBuilder<dim>& domain_builder,
                   std::size_t start_level,
                   std::size_t min_level,
                   std::size_t max_level,
-                  double approx_box_tol = lca_type::default_approx_box_tol,
-                  double scaling_factor = 0,
+                  double approx_box_tol          = lca_type::default_approx_box_tol,
+                  double scaling_factor          = 0,
                   std::array<int, dim> proc_dims = {});
         Mesh_base(const samurai::Box<double, dim>& b,
                   std::size_t start_level,
                   std::size_t min_level,
                   std::size_t max_level,
                   const std::array<bool, dim>& periodic,
-                  double approx_box_tol = lca_type::default_approx_box_tol,
-                  double scaling_factor = 0,
+                  double approx_box_tol          = lca_type::default_approx_box_tol,
+                  double scaling_factor          = 0,
                   std::array<int, dim> proc_dims = {});
 
         derived_type& derived_cast() & noexcept;
@@ -1078,8 +1078,8 @@ namespace samurai
         int size = world.size();
 
         std::array<int, dim> dims = proc_dims;
-        int prod = 1;
-        bool need_create = false;
+        int prod                  = 1;
+        bool need_create          = false;
         for (std::size_t d = 0; d < dim; ++d)
         {
             if (dims[d] == 0)
@@ -1108,7 +1108,7 @@ namespace samurai
         std::array<int, dim> coords;
         MPI_Cart_coords(cart_comm, rank, dim, coords.data());
 
-        using value_t = typename lcl_type::value_t;
+        using value_t                        = typename lca_type::value_t;
         std::array<value_t, dim> min_indices = m_domain.min_indices();
         std::array<value_t, dim> max_indices = m_domain.max_indices();
 
@@ -1126,43 +1126,47 @@ namespace samurai
 
         if constexpr (dim == 1)
         {
-            for_each_meshinterval(m_domain, [&](auto mi) {
-                auto i_start = std::max(start_idx[0], mi.i.start);
-                auto i_end   = std::min(end_idx[0], mi.i.end);
-                for (value_t i = i_start; i < i_end; ++i)
-                {
-                    subdomain_cells[mi.index].add_point(i);
-                }
-            });
+            for_each_meshinterval(m_domain,
+                                  [&](auto mi)
+                                  {
+                                      auto i_start = std::max(start_idx[0], mi.i.start);
+                                      auto i_end   = std::min(end_idx[0], mi.i.end);
+                                      for (value_t i = i_start; i < i_end; ++i)
+                                      {
+                                          subdomain_cells[mi.index].add_point(i);
+                                      }
+                                  });
         }
         else
         {
-            for_each_meshinterval(m_domain, [&](auto mi) {
-                bool inside = true;
-                for (std::size_t d = 1; d < dim; ++d)
-                {
-                    value_t idx = mi.index[d - 1];
-                    if (idx < start_idx[d] || idx >= end_idx[d])
-                    {
-                        inside = false;
-                        break;
-                    }
-                }
-                if (!inside)
-                {
-                    return;
-                }
-                value_t i_start = std::max(start_idx[0], mi.i.start);
-                value_t i_end   = std::min(end_idx[0], mi.i.end);
-                if (i_start < i_end)
-                {
-                    subdomain_cells[mi.index].add_interval({i_start, i_end});
-                }
-            });
+            for_each_meshinterval(m_domain,
+                                  [&](auto mi)
+                                  {
+                                      bool inside = true;
+                                      for (std::size_t d = 1; d < dim; ++d)
+                                      {
+                                          value_t idx = mi.index[d - 1];
+                                          if (idx < start_idx[d] || idx >= end_idx[d])
+                                          {
+                                              inside = false;
+                                              break;
+                                          }
+                                      }
+                                      if (!inside)
+                                      {
+                                          return;
+                                      }
+                                      value_t i_start = std::max(start_idx[0], mi.i.start);
+                                      value_t i_end   = std::min(end_idx[0], mi.i.end);
+                                      if (i_start < i_end)
+                                      {
+                                          subdomain_cells[mi.index].add_interval({i_start, i_end});
+                                      }
+                                  });
         }
 
         this->m_cells[mesh_id_t::cells][start_level] = subdomain_cells;
-        m_subdomain                                   = {subdomain_cells};
+        m_subdomain                                  = {subdomain_cells};
         find_neighbourhood();
         MPI_Comm_free(&cart_comm);
 #endif

@@ -1079,7 +1079,7 @@ namespace samurai
         int size = world.size();
 
         std::array<int, dim> dims = proc_dims;
-        if (args::horizontal_partition)
+        if (!args::cartesian_partition)
         {
             dims.fill(1);
             dims[0] = size;
@@ -1102,6 +1102,7 @@ namespace samurai
             if (need_create || prod != size)
             {
                 MPI_Dims_create(size, dim, dims.data());
+                std::reverse(dims.begin(), dims.end());
             }
         }
 

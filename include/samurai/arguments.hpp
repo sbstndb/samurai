@@ -16,7 +16,7 @@ namespace samurai
         static bool refine_boundary   = false;
         static bool save_debug_fields = false;
 #ifdef SAMURAI_WITH_MPI
-        static bool horizontal_partition = false;
+        static bool cartesian_partition = false;
 #endif
 
         // MRA arguments
@@ -44,7 +44,7 @@ namespace samurai
             ->capture_default_str()
             ->group("SAMURAI");
 #ifdef SAMURAI_WITH_MPI
-        app.add_flag("--horizontal-partition", args::horizontal_partition, "Partition domain along x-direction only")
+        app.add_flag("--cartesian-partition", args::cartesian_partition, "Partition domain using Cartesian MPI layout")
             ->capture_default_str()
             ->group("SAMURAI");
 #endif

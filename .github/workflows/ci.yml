@@ -358,7 +358,7 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - name: Mamba and samurai env installation
-            uses: mamba-org/setup-micromamba@v1
+              uses: mamba-org/setup-micromamba@v1
               with:
                   environment-file: conda/environment.yml
                   environment-name: samurai-env

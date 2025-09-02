@@ -298,12 +298,12 @@ jobs:
               run: |
                   cd build
                   set -e  # Stop on first failure
-                  mpiexec -n 1 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7
-                  mpiexec -n 2 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7
-                  mpiexec -n 3 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7
-                  mpiexec -n 4 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7
-                  mpiexec -n 6 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7
-                  mpiexec -n 8 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7
+                  mpiexec -n 1 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7 --min-level 4
+                  mpiexec -n 2 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7 --min-level 4
+                  mpiexec -n 3 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7 --min-level 4
+                  mpiexec -n 4 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7 --min-level 4
+                  mpiexec -n 6 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7 --min-level 4
+                  mpiexec -n 8 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.05 --nfiles 20 --max-level 7 --min-level 4
                   ls
                   python ../python/compare.py burgers_2D_size_1_ite_ burgers_2D_size_2_ite_ --start 1 --end 19
                   python ../python/compare.py burgers_2D_size_1_ite_ burgers_2D_size_3_ite_ --start 1 --end 19
@@ -317,12 +317,12 @@ jobs:
               run: |
                   cd build
                   set -e  # Stop on first failure
-                  mpiexec -n 1 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 5
-                  mpiexec -n 2 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 5
-                  mpiexec -n 3 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 5
-                  mpiexec -n 4 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 5
-                  mpiexec -n 6 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 5
-                  mpiexec -n 8 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 5
+                  mpiexec -n 1 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 6 --min-level 4
+                  mpiexec -n 2 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 6 --min-level 4
+                  mpiexec -n 3 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 6 --min-level 4
+                  mpiexec -n 4 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 6 --min-level 4
+                  mpiexec -n 6 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 6 --min-level 4
+                  mpiexec -n 8 ./demos/FiniteVolume/finite-volume-linear-convection --Tf 0.1 --nfiles 20 --max-level 6 --min-level 4
                   ls
                   python ../python/compare.py linear_convection_2D_ite linear_convection_2D_ite --start 1 --end 19
                   python ../python/compare.py linear_convection_2D_ite linear_convection_2D_ite --start 1 --end 19
@@ -356,12 +356,12 @@ jobs:
               run: |
                   cd build
                   set -e  # Stop on first failure
-                  mpiexec -n 1 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8
-                  mpiexec -n 2 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8
-                  mpiexec -n 3 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8
-                  mpiexec -n 4 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8
-                  mpiexec -n 6 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8
-                  mpiexec -n 8 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8
+                  mpiexec -n 1 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8 --min-level 4
+                  mpiexec -n 2 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8 --min-level 4
+                  mpiexec -n 3 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8 --min-level 4
+                  mpiexec -n 4 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8 --min-level 4
+                  mpiexec -n 6 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8 --min-level 4
+                  mpiexec -n 8 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.2 --nfiles 20 --max-level 8 --min-level 4
                   ls
                   python ../python/compare.py burgers_2D_size_1_ite_ burgers_2D_size_2_ite_ --start 1 --end 19
                   python ../python/compare.py burgers_2D_size_1_ite_ burgers_2D_size_3_ite_ --start 1 --end 19

@@ -1082,7 +1082,7 @@ namespace samurai
         if (!args::cartesian_partition)
         {
             dims.fill(1);
-            dims[0] = size;
+            dims[dim - 1] = size;
         }
         else
         {
@@ -1102,9 +1102,11 @@ namespace samurai
             if (need_create || prod != size)
             {
                 MPI_Dims_create(size, dim, dims.data());
-                std::reverse(dims.begin(), dims.end());
             }
         }
+
+        // Place the x-axis dimension first to match mesh interval ordering
+        std::reverse(dims.begin(), dims.end());
 
         std::array<int, dim> periods;
         for (std::size_t d = 0; d < dim; ++d)

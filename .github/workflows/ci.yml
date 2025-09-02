@@ -487,6 +487,8 @@ jobs:
                   mpiexec -n 1 ./demos/FiniteVolume/finite-volume-advection-2d --Tf 0.05 --nfiles 1
                   mpiexec -n 2 ./demos/FiniteVolume/finite-volume-advection-2d --Tf 0.05 --nfiles 1
                   mpiexec -n 3 ./demos/FiniteVolume/finite-volume-advection-2d --Tf 0.05 --nfiles 1
+                  mpiexec -n 4 ./demos/FiniteVolume/finite-volume-advection-2d --Tf 0.05 --nfiles 1
+
 
             - name: test finite-volume-burgers
               shell: bash -l {0}
@@ -496,3 +498,4 @@ jobs:
                   mpiexec -n 1 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.1 --nfiles 1 --max-level 8
                   mpiexec -n 2 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.1 --nfiles 1 --max-level 8
                   mpiexec -n 3 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.1 --nfiles 1 --max-level 8
+                  mpiexec -n 4 ./demos/FiniteVolume/finite-volume-burgers --Tf 0.1 --nfiles 1 --max-level 8

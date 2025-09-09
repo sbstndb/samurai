@@ -389,7 +389,10 @@ namespace samurai
         mesh_t new_mesh{new_ca, mesh};
 #ifdef SAMURAI_WITH_MPI
         mpi::communicator world;
-        if (mpi::all_reduce(world, mesh == new_mesh, std::logical_and()))
+        samurai::times::timers.start("mpi:mr_adapt:all_reduce:mesh_equal");
+        auto meshes_equal = mpi::all_reduce(world, mesh == new_mesh, std::logical_and());
+        samurai::times::timers.stop("mpi:mr_adapt:all_reduce:mesh_equal");
+        if (meshes_equal)
 #else
         if (mesh == new_mesh)
 #endif // SAMURAI_WITH_MPI

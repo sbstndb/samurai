@@ -161,9 +161,13 @@ namespace samurai
 #ifdef SAMURAI_WITH_MPI
         mpi::communicator world;
         // cppcheck-suppress redundantInitialization
+        samurai::times::timers.start("mpi:mr_mesh:update_sub_mesh_impl:all_reduce:max_level");
         auto max_level = mpi::all_reduce(world, this->cells()[mesh_id_t::cells].max_level(), mpi::maximum<std::size_t>());
+        samurai::times::timers.stop("mpi:mr_mesh:update_sub_mesh_impl:all_reduce:max_level");
         // cppcheck-suppress redundantInitialization
+        samurai::times::timers.start("mpi:mr_mesh:update_sub_mesh_impl:all_reduce:min_level");
         auto min_level = mpi::all_reduce(world, this->cells()[mesh_id_t::cells].min_level(), mpi::minimum<std::size_t>());
+        samurai::times::timers.stop("mpi:mr_mesh:update_sub_mesh_impl:all_reduce:min_level");
         cl_type cell_list;
 #else
         // cppcheck-suppress redundantInitialization
@@ -292,12 +296,16 @@ namespace samurai
             shift.fill(0);
 
 #ifdef SAMURAI_WITH_MPI
+            samurai::times::timers.start("mpi:mr_mesh:update_sub_mesh_impl:all_reduce:ref_max_level");
             std::size_t reference_max_level = mpi::all_reduce(world,
                                                               this->cells()[mesh_id_t::reference].max_level(),
                                                               mpi::maximum<std::size_t>());
+            samurai::times::timers.stop("mpi:mr_mesh:update_sub_mesh_impl:all_reduce:ref_max_level");
+            samurai::times::timers.start("mpi:mr_mesh:update_sub_mesh_impl:all_reduce:ref_min_level");
             std::size_t reference_min_level = mpi::all_reduce(world,
                                                               this->cells()[mesh_id_t::reference].min_level(),
                                                               mpi::minimum<std::size_t>());
+            samurai::times::timers.stop("mpi:mr_mesh:update_sub_mesh_impl:all_reduce:ref_min_level");
 
             std::vector<ca_type> neighbourhood_extended_subdomain(this->mpi_neighbourhood().size());
             for (size_t neighbor_id = 0; neighbor_id != neighbourhood_extended_subdomain.size(); ++neighbor_id)

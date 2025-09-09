@@ -69,7 +69,9 @@ namespace samurai
 
 #ifdef SAMURAI_WITH_MPI
         mpi::communicator world;
+        samurai::times::timers.start("mpi:rel_detail:all_reduce:max_fields");
         mpi::all_reduce(world, mpi::inplace(inv_max_fields.data()), inv_max_fields.size(), mpi::maximum<value_t>());
+        samurai::times::timers.stop("mpi:rel_detail:all_reduce:max_fields");
 #endif
 
         for (std::size_t i = 0; i < inv_max_fields.size(); ++i)

@@ -535,15 +535,19 @@ namespace samurai
         std::tie(local_coords, local_connectivity) = extract_coords_and_connectivity(submesh);
 
 #ifdef SAMURAI_WITH_MPI
-        mpi::communicator world;
+            mpi::communicator world;
 
-        auto rank = static_cast<std::size_t>(world.rank());
-        auto size = static_cast<std::size_t>(world.size());
+            auto rank = static_cast<std::size_t>(world.rank());
+            auto size = static_cast<std::size_t>(world.size());
 
-        xt::xtensor<std::size_t, 1> connectivity_sizes = xt::empty<std::size_t>({size});
-        mpi::all_gather(world, local_connectivity.shape(0), connectivity_sizes.begin());
-        xt::xtensor<std::size_t, 1> coords_sizes = xt::empty<std::size_t>({size});
-        mpi::all_gather(world, local_coords.shape(0), coords_sizes.begin());
+            xt::xtensor<std::size_t, 1> connectivity_sizes = xt::empty<std::size_t>({size});
+            samurai::times::timers.start("mpi:hdf5:save:all_gather:connectivity_sizes");
+            mpi::all_gather(world, local_connectivity.shape(0), connectivity_sizes.begin());
+            samurai::times::timers.stop("mpi:hdf5:save:all_gather:connectivity_sizes");
+            xt::xtensor<std::size_t, 1> coords_sizes = xt::empty<std::size_t>({size});
+            samurai::times::timers.start("mpi:hdf5:save:all_gather:coords_sizes");
+            mpi::all_gather(world, local_coords.shape(0), coords_sizes.begin());
+            samurai::times::timers.stop("mpi:hdf5:save:all_gather:coords_sizes");
 #else
         std::size_t rank                                                 = 0;
         std::size_t size                                                 = 1;
@@ -693,7 +697,9 @@ namespace samurai
         xfer_props.add(HighFive::UseCollectiveIO{});
 
         xt::xtensor<std::size_t, 1> field_sizes = xt::empty<std::size_t>({size});
+        samurai::times::timers.start("mpi:hdf5:save:all_gather:field_sizes");
         mpi::all_gather(world, submesh.nb_cells(), field_sizes.begin());
+        samurai::times::timers.stop("mpi:hdf5:save:all_gather:field_sizes");
 #else
         std::size_t rank                                          = 0;
         std::size_t size                                          = 1;

@@ -100,11 +100,17 @@ namespace samurai
 #ifdef SAMURAI_WITH_PETSC
         petsc_finalize();
 #endif
-        if (args::timers) // cppcheck-suppress knownConditionTrueFalse
+        if (args::timers || args::expert_timers) // cppcheck-suppress knownConditionTrueFalse
         {
             times::timers.stop("total runtime");
             std::cout << std::endl;
             times::timers.print();
+        }
+        
+        if (args::expert_timers) // cppcheck-suppress knownConditionTrueFalse
+        {
+            std::cout << std::endl << "=== Expert Timers ===" << std::endl;
+            times::expert_timers.print();
         }
 #ifdef SAMURAI_WITH_MPI
         MPI_Finalize();

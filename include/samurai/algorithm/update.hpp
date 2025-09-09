@@ -18,6 +18,10 @@
 #include "graduation.hpp"
 #include "utils.hpp"
 
+#ifdef SAMURAI_MPI_AGGREGATED_EXCHANGE
+#include "mpi_exchange.hpp"
+#endif
+
 #ifndef NDEBUG
 #include "../io/hdf5.hpp"
 #endif
@@ -535,6 +539,34 @@ namespace samurai
 
         update_outer_ghosts(max_level, field, other_fields...);
 
+#ifdef SAMURAI_MPI_AGGREGATED_EXCHANGE
+        auto plan = build_exchange_plan(field);
+        exchange_ghosts_all_levels(plan, field, other_fields...);
+
+        for (std::size_t level = max_level; level > min_level; --level)
+        {
+            // With aggregated exchanges, periodic and subdomain ghosts are already updated for all levels.
+            // We only need to handle local projections and outer ghosts.
+            auto set_at_levelm1 = intersection(mesh[mesh_id_t::reference][level], mesh[mesh_id_t::proj_cells][level - 1]).on(level - 1);
+            set_at_levelm1.apply_op(variadic_projection(field, other_fields...));
+            update_outer_ghosts(level - 1, field, other_fields...);
+        }
+
+        if (min_level > 0 && min_level != max_level)
+        {
+            update_outer_ghosts(min_level - 1, field, other_fields...);
+        }
+
+        for (std::size_t level = min_level + 1; level <= max_level; ++level)
+        {
+            auto pred_ghosts = difference(mesh[mesh_id_t::all_cells][level],
+                                          union_(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::proj_cells][level]));
+            auto expr        = intersection(pred_ghosts, mesh.subdomain(), mesh[mesh_id_t::all_cells][level - 1]).on(level);
+
+            expr.apply_op(variadic_prediction<pred_order, false>(field, other_fields...));
+        }
+
+#else
         for (std::size_t level = max_level; level > min_level; --level)
         {
             update_ghost_periodic(level, field, other_fields...);
@@ -565,6 +597,7 @@ namespace samurai
             update_ghost_periodic(level, field, other_fields...);
             update_ghost_subdomains(level, field, other_fields...);
         }
+#endif
         // save(fs::current_path(), "update_ghosts", {true, true}, mesh, field);
 
         field.ghosts_updated() = true;

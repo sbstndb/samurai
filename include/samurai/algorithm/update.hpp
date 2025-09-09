@@ -32,6 +32,25 @@ namespace mpi = boost::mpi;
 
 namespace samurai
 {
+    // Enable one-shot multi-level halo exchange by default.
+    // Define SAMURAI_MR_ONESHOT to 0 at compile time to fallback to legacy per-level exchanges.
+#ifndef SAMURAI_MR_ONESHOT
+#define SAMURAI_MR_ONESHOT 1
+#endif
+#ifndef SAMURAI_MR_HALO_MULTIPLIER
+#define SAMURAI_MR_HALO_MULTIPLIER 2
+#endif
+
+    // Forward declarations for one-shot custom-width halo updates
+    template <class Field>
+    void update_periodic_halo(std::size_t halo_width, Field& field);
+    template <class Field, class... Fields>
+    void update_periodic_halo(std::size_t halo_width, Field& field, Fields&... other_fields);
+    template <class Field>
+    void update_subdomains_halo(std::size_t halo_width, Field& field);
+    template <class Field, class... Fields>
+    void update_subdomains_halo(std::size_t halo_width, Field& field, Fields&... other_fields);
+
     template <class Field, class... Fields>
     void update_ghost(Field& field, Fields&... fields)
     {
@@ -535,6 +554,33 @@ namespace samurai
 
         update_outer_ghosts(max_level, field, other_fields...);
 
+#if SAMURAI_MR_ONESHOT
+        // One-shot multi-level halo exchange: gather all ghost data across levels once, with larger halo.
+        // Width is scaled to cover prediction/projection stencils across levels.
+        const std::size_t halo_width = Field::mesh_t::config::ghost_width * static_cast<std::size_t>(SAMURAI_MR_HALO_MULTIPLIER);
+        update_periodic_halo(halo_width, field, other_fields...);
+        update_subdomains_halo(halo_width, field, other_fields...);
+
+        // Downward projection using already available neighbor data at all levels.
+        for (std::size_t level = max_level; level > min_level; --level)
+        {
+            auto set_at_levelm1 = intersection(mesh[mesh_id_t::reference][level], mesh[mesh_id_t::proj_cells][level - 1]).on(level - 1);
+            set_at_levelm1.apply_op(variadic_projection(field, other_fields...));
+
+            update_outer_ghosts(level - 1, field, other_fields...);
+        }
+
+        // Upward prediction without further MPI exchanges.
+        for (std::size_t level = min_level + 1; level <= max_level; ++level)
+        {
+            auto pred_ghosts = difference(mesh[mesh_id_t::all_cells][level],
+                                          union_(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::proj_cells][level]));
+            auto expr        = intersection(pred_ghosts, mesh.subdomain(), mesh[mesh_id_t::all_cells][level - 1]).on(level);
+
+            expr.apply_op(variadic_prediction<pred_order, false>(field, other_fields...));
+        }
+#else
+        // Legacy behavior: per-level exchanges at each step for maximum safety.
         for (std::size_t level = max_level; level > min_level; --level)
         {
             update_ghost_periodic(level, field, other_fields...);
@@ -565,6 +611,7 @@ namespace samurai
             update_ghost_periodic(level, field, other_fields...);
             update_ghost_subdomains(level, field, other_fields...);
         }
+#endif
         // save(fs::current_path(), "update_ghosts", {true, true}, mesh, field);
 
         field.ghosts_updated() = true;
@@ -715,6 +762,154 @@ namespace samurai
         }
         mpi::wait_all(req.begin(), req.end());
 #endif
+    }
+
+    // One-shot helper: subdomain halo exchange at a given level with custom halo width
+    template <bool to_send, class Field>
+    auto outer_subdomain_halo(std::size_t level,
+                              std::size_t halo_width,
+                              Field& field,
+                              const typename Field::mesh_t::mpi_subdomain_t& neighbour)
+    {
+        using mesh_id_t  = typename Field::mesh_t::mesh_id_t;
+        using lca_t      = typename Field::mesh_t::lca_type;
+        using interval_t = typename Field::mesh_t::interval_t;
+        using coord_t    = typename lca_t::coord_type;
+
+        ArrayOfIntervalAndPoint<interval_t, coord_t> interval_list;
+
+        auto& mesh = field.mesh();
+        for_each_cartesian_direction<Field::dim>(
+            [&](auto bdry_direction_index, const auto& bdry_direction)
+            {
+                if (!mesh.is_periodic(bdry_direction_index))
+                {
+                    auto domain = self(mesh.domain()).on(level);
+                    auto& mesh1 = to_send ? mesh : neighbour.mesh;
+                    auto& mesh2 = to_send ? neighbour.mesh : mesh;
+
+                    auto my_boundary_halo = difference(
+                        intersection(mesh1[mesh_id_t::reference][level],
+                                     translate(domain, static_cast<long long>(halo_width) * bdry_direction),
+                                     translate(self(mesh1.subdomain()).on(level), static_cast<long long>(halo_width) * bdry_direction)),
+                        domain);
+
+                    auto neighbour_cells_in_my_halo = intersection(my_boundary_halo, mesh2[mesh_id_t::reference][level]);
+                    neighbour_cells_in_my_halo(
+                        [&](const auto& i, const auto& index)
+                        {
+                            interval_list.push_back(i, index);
+                        });
+                }
+            });
+
+        interval_list.sort_intervals();
+
+        lca_t lca(level);
+        for (std::size_t k = 0; k < interval_list.size(); ++k)
+        {
+            const auto& [i, index] = interval_list[k];
+            lca.add_interval_back(i, index);
+        }
+
+        return lca;
+    }
+
+    template <class Field>
+    void update_subdomains_halo([[maybe_unused]] std::size_t level, [[maybe_unused]] std::size_t halo_width, [[maybe_unused]] Field& field)
+    {
+#ifdef SAMURAI_WITH_MPI
+        using mesh_t    = typename Field::mesh_t;
+        using value_t   = typename Field::value_type;
+        using mesh_id_t = typename mesh_t::mesh_id_t;
+        std::vector<mpi::request> req;
+
+        auto& mesh = field.mesh();
+        mpi::communicator world;
+        std::vector<std::vector<value_t>> to_send(mesh.mpi_neighbourhood().size());
+
+        std::size_t i_neigh = 0;
+        for (auto& neighbour : mesh.mpi_neighbourhood())
+        {
+            if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
+            {
+                auto out_interface = intersection(mesh[mesh_id_t::reference][level],
+                                                  neighbour.mesh[mesh_id_t::reference][level],
+                                                  mesh.subdomain())
+                                         .on(level);
+                out_interface(
+                    [&](const auto& i, const auto& index)
+                    {
+                        std::copy(field(level, i, index).begin(), field(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
+                    });
+
+                auto halo_lca = outer_subdomain_halo<true>(level, halo_width, field, neighbour);
+                for_each_interval(
+                    halo_lca,
+                    [&](const auto, const auto& i, const auto& index)
+                    {
+                        std::copy(field(level, i, index).begin(), field(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
+                    });
+
+                req.push_back(world.isend(neighbour.rank, neighbour.rank, to_send[i_neigh++]));
+            }
+        }
+
+        for (auto& neighbour : mesh.mpi_neighbourhood())
+        {
+            if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
+            {
+                std::vector<value_t> to_recv;
+                std::ptrdiff_t count = 0;
+
+                world.recv(neighbour.rank, world.rank(), to_recv);
+                auto in_interface = intersection(neighbour.mesh[mesh_id_t::reference][level],
+                                                 mesh[mesh_id_t::reference][level],
+                                                 neighbour.mesh.subdomain())
+                                        .on(level);
+                in_interface(
+                    [&](const auto& i, const auto& index)
+                    {
+                        std::copy(to_recv.begin() + count,
+                                  to_recv.begin() + count + static_cast<ptrdiff_t>(i.size() * Field::n_comp),
+                                  field(level, i, index).begin());
+                        count += static_cast<ptrdiff_t>(i.size() * Field::n_comp);
+                    });
+
+                auto halo_lca = outer_subdomain_halo<false>(level, halo_width, field, neighbour);
+                for_each_interval(halo_lca,
+                                  [&](const auto, const auto& i, const auto& index)
+                                  {
+                                      std::copy(to_recv.begin() + count,
+                                                to_recv.begin() + count + static_cast<ptrdiff_t>(i.size() * Field::n_comp),
+                                                field(level, i, index).begin());
+                                      count += static_cast<ptrdiff_t>(i.size() * Field::n_comp);
+                                  });
+            }
+        }
+        mpi::wait_all(req.begin(), req.end());
+#endif
+    }
+
+    template <class Field>
+    void update_subdomains_halo([[maybe_unused]] std::size_t halo_width, [[maybe_unused]] Field& field)
+    {
+#ifdef SAMURAI_WITH_MPI
+        mpi::communicator world;
+        auto& mesh     = field.mesh();
+        auto max_level = mesh.max_level();
+        for (std::size_t level = 0; level <= max_level; ++level)
+        {
+            update_subdomains_halo(level, halo_width, field);
+        }
+#endif
+    }
+
+    template <class Field, class... Fields>
+    void update_subdomains_halo(std::size_t halo_width, Field& field, Fields&... other_fields)
+    {
+        update_subdomains_halo(halo_width, field);
+        update_subdomains_halo(halo_width, other_fields...);
     }
 
     template <class Field, class... Fields>
@@ -945,6 +1140,170 @@ namespace samurai
                                      {
                                          field(level, i_ghosts, index_ghosts) = field(level, i_cells, index_cells);
                                      });
+    }
+
+    // One-shot helper: periodic halo exchange at a given level with custom halo width
+    template <class Field>
+    void update_periodic_halo(std::size_t level, std::size_t halo_width, Field& field)
+    {
+#ifdef SAMURAI_WITH_MPI
+        using field_value_t = typename Field::value_type;
+#endif
+        using mesh_id_t        = typename Field::mesh_t::mesh_id_t;
+        using lca_type         = typename Field::mesh_t::lca_type;
+        using interval_value_t = typename Field::interval_t::value_t;
+        using box_t            = Box<interval_value_t, Field::dim>;
+
+        constexpr std::size_t dim = Field::dim;
+
+        auto& mesh = field.mesh();
+
+        const auto& domain      = mesh.domain();
+        const auto& min_indices = domain.min_indices();
+        const auto& max_indices = domain.max_indices();
+
+        const auto& mesh_ref = mesh[mesh_id_t::reference];
+
+        const std::size_t delta_l = domain.level() - level;
+
+        xt::xtensor_fixed<interval_value_t, xt::xshape<dim>> min_corner;
+        xt::xtensor_fixed<interval_value_t, xt::xshape<dim>> max_corner;
+        xt::xtensor_fixed<interval_value_t, xt::xshape<dim>> shift;
+
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            min_corner[d] = (min_indices[d] >> delta_l) - static_cast<interval_value_t>(halo_width);
+            max_corner[d] = (max_indices[d] >> delta_l) + static_cast<interval_value_t>(halo_width);
+            shift[d]      = 0;
+        }
+#ifdef SAMURAI_WITH_MPI
+        std::vector<mpi::request> req;
+        req.reserve(mesh.mpi_neighbourhood().size());
+        mpi::communicator world;
+
+        std::vector<std::vector<field_value_t>> field_data_out(mesh.mpi_neighbourhood().size());
+        std::vector<field_value_t> field_data_in;
+#endif // SAMURAI_WITH_MPI
+        for (std::size_t d = 0; d < dim; ++d)
+        {
+            if (mesh.is_periodic(d))
+            {
+                shift[d]                  = (max_indices[d] - min_indices[d]) >> delta_l;
+                const auto shift_interval = shift[0];
+                const auto shift_index    = xt::view(shift, xt::range(1, _));
+
+                min_corner[d] = (min_indices[d] >> delta_l) - static_cast<interval_value_t>(halo_width);
+                max_corner[d] = (min_indices[d] >> delta_l);
+
+                lca_type lca_min_m(level, box_t(min_corner, max_corner));
+
+                min_corner[d] = (max_indices[d] >> delta_l) - static_cast<interval_value_t>(halo_width);
+                max_corner[d] = (max_indices[d] >> delta_l);
+
+                lca_type lca_max_m(level, box_t(min_corner, max_corner));
+
+                min_corner[d] = (min_indices[d] >> delta_l);
+                max_corner[d] = (min_indices[d] >> delta_l) + static_cast<interval_value_t>(halo_width);
+
+                lca_type lca_min_p(level, box_t(min_corner, max_corner));
+
+                min_corner[d] = (max_indices[d] >> delta_l);
+                max_corner[d] = (max_indices[d] >> delta_l) + static_cast<interval_value_t>(halo_width);
+
+                lca_type lca_max_p(level, box_t(min_corner, max_corner));
+
+                auto set1 = intersection(translate(intersection(mesh_ref[level], lca_min_p), shift),
+                                         intersection(mesh_ref[level], lca_max_p));
+                set1(
+                    [&](const auto& i, const auto& index)
+                    {
+                        field(level, i, index) = field(level, i - shift_interval, index - shift_index);
+                    });
+                auto set2 = intersection(translate(intersection(mesh_ref[level], lca_max_m), -shift),
+                                         intersection(mesh_ref[level], lca_min_m));
+                set2(
+                    [&](const auto& i, const auto& index)
+                    {
+                        field(level, i, index) = field(level, i + shift_interval, index + shift_index);
+                    });
+#ifdef SAMURAI_WITH_MPI
+                size_t neighbor_id = 0;
+                for (const auto& mpi_neighbor : mesh.mpi_neighbourhood())
+                {
+                    const auto& neighbor_mesh_ref = mpi_neighbor.mesh[mesh_id_t::reference];
+
+                    field_data_out[neighbor_id].clear();
+                    auto set1_mpi = intersection(translate(intersection(mesh_ref[level], lca_min_p), shift),
+                                                 intersection(neighbor_mesh_ref[level], lca_max_p));
+                    set1_mpi(
+                        [&](const auto& i, const auto& index)
+                        {
+                            const auto& field_data = field(level, i - shift_interval, index - shift_index);
+                            std::copy(field_data.begin(), field_data.end(), std::back_inserter(field_data_out[neighbor_id]));
+                        });
+                    auto set2_mpi = intersection(translate(intersection(mesh_ref[level], lca_max_m), -shift),
+                                                 intersection(neighbor_mesh_ref[level], lca_min_m));
+                    set2_mpi(
+                        [&](const auto& i, const auto& index)
+                        {
+                            const auto& field_data = field(level, i + shift_interval, index + shift_index);
+                            std::copy(field_data.begin(), field_data.end(), std::back_inserter(field_data_out[neighbor_id]));
+                        });
+                    req.push_back(world.isend(mpi_neighbor.rank, mpi_neighbor.rank, field_data_out[neighbor_id]));
+                    ++neighbor_id;
+                }
+                for (const auto& mpi_neighbor : mesh.mpi_neighbourhood())
+                {
+                    const auto& neighbor_mesh_ref = mpi_neighbor.mesh[mesh_id_t::reference];
+
+                    world.recv(mpi_neighbor.rank, world.rank(), field_data_in);
+                    auto it       = field_data_in.cbegin();
+                    auto set1_mpi = intersection(translate(intersection(neighbor_mesh_ref[level], lca_min_p), shift),
+                                                 intersection(mesh_ref[level], lca_max_p));
+                    set1_mpi(
+                        [&](const auto& i, const auto& index)
+                        {
+                            std::copy(it, it + std::ssize(field(level, i, index)), field(level, i, index).begin());
+                            it += std::ssize(field(level, i, index));
+                        });
+                    auto set2_mpi = intersection(translate(intersection(neighbor_mesh_ref[level], lca_max_m), -shift),
+                                                 intersection(mesh_ref[level], lca_min_m));
+                    set2_mpi(
+                        [&](const auto& i, const auto& index)
+                        {
+                            std::copy(it, it + std::ssize(field(level, i, index)), field(level, i, index).begin());
+                            it += std::ssize(field(level, i, index));
+                        });
+                }
+                mpi::wait_all(req.begin(), req.end());
+#endif // SAMURAI_WITH_MPI
+                /* reset variables for next iterations. */
+                shift[d]      = 0;
+                min_corner[d] = (min_indices[d] >> delta_l) - static_cast<interval_value_t>(halo_width);
+                max_corner[d] = (max_indices[d] >> delta_l) + static_cast<interval_value_t>(halo_width);
+            }
+        }
+    }
+
+    template <class Field>
+    void update_periodic_halo(std::size_t halo_width, Field& field)
+    {
+        using mesh_id_t       = typename Field::mesh_t::mesh_id_t;
+        auto& mesh            = field.mesh();
+        std::size_t min_level = mesh[mesh_id_t::reference].min_level();
+        std::size_t max_level = mesh[mesh_id_t::reference].max_level();
+
+        for (std::size_t level = min_level; level <= max_level; ++level)
+        {
+            update_periodic_halo(level, halo_width, field);
+        }
+    }
+
+    template <class Field, class... Fields>
+    void update_periodic_halo(std::size_t halo_width, Field& field, Fields&... other_fields)
+    {
+        update_periodic_halo(halo_width, field);
+        update_periodic_halo(halo_width, other_fields...);
     }
 
     template <class Field, class Func>

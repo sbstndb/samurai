@@ -27,7 +27,33 @@ using namespace xt::placeholders;
 #ifdef SAMURAI_WITH_MPI
 #include <boost/mpi.hpp>
 #include <xtensor/xmasked_view.hpp>
+#include <boost/serialization/vector.hpp>
 namespace mpi = boost::mpi;
+
+// Structure for aggregated multi-level ghost data
+template <typename ValueType>
+struct MultiLevelGhostData {
+    struct LevelData {
+        std::size_t level;
+        std::vector<ValueType> values;
+        // Store interval start, size, and indices for reconstruction
+        std::vector<std::ptrdiff_t> cell_metadata;
+        
+        template<class Archive>
+        void serialize(Archive & ar, const unsigned int) {
+            ar & level;
+            ar & values;
+            ar & cell_metadata;
+        }
+    };
+    
+    std::vector<LevelData> levels_data;
+    
+    template<class Archive>
+    void serialize(Archive & ar, const unsigned int) {
+        ar & levels_data;
+    }
+};
 #endif
 
 namespace samurai
@@ -738,6 +764,189 @@ namespace samurai
 #endif
     }
 
+    // Aggregated version that sends all levels in one message per neighbor
+    template <class Field>
+    void update_ghost_subdomains_aggregated([[maybe_unused]] Field& field)
+    {
+#ifdef SAMURAI_WITH_MPI
+        using mesh_t    = typename Field::mesh_t;
+        using value_t   = typename Field::value_type;
+        using mesh_id_t = typename mesh_t::mesh_id_t;
+        constexpr std::size_t dim = Field::dim;
+        
+        auto& mesh = field.mesh();
+        mpi::communicator world;
+        std::size_t min_level = mesh.min_level();
+        std::size_t max_level = mesh.max_level();
+        
+        // Prepare aggregated buffers for each neighbor
+        std::vector<MultiLevelGhostData<value_t>> send_buffers(mesh.mpi_neighbourhood().size());
+        std::vector<mpi::request> requests;
+        
+        // Phase 1: Collect all data to send for all levels
+        std::size_t neighbor_idx = 0;
+        for (auto& neighbour : mesh.mpi_neighbourhood())
+        {
+            auto& buffer = send_buffers[neighbor_idx];
+            
+            // Collect data for each level
+            for (std::size_t level = min_level; level <= max_level; ++level)
+            {
+                if (!mesh[mesh_id_t::reference][level].empty() && 
+                    !neighbour.mesh[mesh_id_t::reference][level].empty())
+                {
+                    typename MultiLevelGhostData<value_t>::LevelData level_data;
+                    level_data.level = level;
+                    
+                    // Out interface
+                    auto out_interface = intersection(mesh[mesh_id_t::reference][level],
+                                                    neighbour.mesh[mesh_id_t::reference][level],
+                                                    mesh.subdomain())
+                                            .on(level);
+                                            
+                    out_interface([&](const auto& i, const auto& index) {
+                        // Store values
+                        auto field_values = field(level, i, index);
+                        std::copy(field_values.begin(), field_values.end(), 
+                                 std::back_inserter(level_data.values));
+                        
+                        // Store metadata for reconstruction: interval start, size, indices
+                        level_data.cell_metadata.push_back(i.start);
+                        level_data.cell_metadata.push_back(i.size());
+                        for (std::size_t d = 0; d < dim - 1; ++d) {
+                            level_data.cell_metadata.push_back(index[d]);
+                        }
+                    });
+                    
+                    // Subdomain corners
+                    auto subdomain_corners = outer_subdomain_corner<true>(level, field, neighbour);
+                    for_each_interval(subdomain_corners,
+                        [&](const auto, const auto& i, const auto& index) {
+                            auto field_values = field(level, i, index);
+                            std::copy(field_values.begin(), field_values.end(), 
+                                     std::back_inserter(level_data.values));
+                            
+                            level_data.cell_metadata.push_back(i.start);
+                            level_data.cell_metadata.push_back(i.size());
+                            for (std::size_t d = 0; d < dim - 1; ++d) {
+                                level_data.cell_metadata.push_back(index[d]);
+                            }
+                        });
+                    
+                    if (!level_data.values.empty()) {
+                        buffer.levels_data.push_back(std::move(level_data));
+                    }
+                }
+            }
+            
+            // Send aggregated buffer (one message per neighbor)
+            if (!buffer.levels_data.empty()) {
+                requests.push_back(world.isend(neighbour.rank, neighbour.rank, buffer));
+            }
+            neighbor_idx++;
+        }
+        
+        // Phase 2: Receive and process aggregated buffers
+        for (auto& neighbour : mesh.mpi_neighbourhood())
+        {
+            MultiLevelGhostData<value_t> recv_buffer;
+            world.recv(neighbour.rank, world.rank(), recv_buffer);
+            
+            // Process each received level
+            for (const auto& level_data : recv_buffer.levels_data)
+            {
+                std::size_t level = level_data.level;
+                
+                if (!mesh[mesh_id_t::reference][level].empty() && 
+                    !neighbour.mesh[mesh_id_t::reference][level].empty())
+                {
+                    std::ptrdiff_t value_idx = 0;
+                    std::size_t metadata_idx = 0;
+                    
+                    // Process in_interface
+                    auto in_interface = intersection(neighbour.mesh[mesh_id_t::reference][level],
+                                                   mesh[mesh_id_t::reference][level],
+                                                   neighbour.mesh.subdomain())
+                                           .on(level);
+                    
+                    // First process interface data
+                    while (metadata_idx < level_data.cell_metadata.size())
+                    {
+                        auto i_start = level_data.cell_metadata[metadata_idx++];
+                        auto i_size = level_data.cell_metadata[metadata_idx++];
+                        
+                        typename Field::index_t index;
+                        for (std::size_t d = 0; d < dim - 1; ++d) {
+                            index[d] = level_data.cell_metadata[metadata_idx++];
+                        }
+                        
+                        typename Field::interval_t interval{i_start, i_start + i_size};
+                        
+                        // Check if this interval is in the in_interface
+                        bool found_in_interface = false;
+                        in_interface([&](const auto& i, const auto& idx) {
+                            if (i.start == interval.start && i.size() == interval.size()) {
+                                bool indices_match = true;
+                                for (std::size_t d = 0; d < dim - 1; ++d) {
+                                    if (idx[d] != index[d]) {
+                                        indices_match = false;
+                                        break;
+                                    }
+                                }
+                                if (indices_match) {
+                                    found_in_interface = true;
+                                    // Copy values
+                                    auto field_ref = field(level, i, idx);
+                                    std::copy(level_data.values.begin() + value_idx,
+                                             level_data.values.begin() + value_idx + i_size * Field::n_comp,
+                                             field_ref.begin());
+                                }
+                            }
+                        });
+                        
+                        // If not in interface, check subdomain corners
+                        if (!found_in_interface) {
+                            auto subdomain_corners = outer_subdomain_corner<false>(level, field, neighbour);
+                            for_each_interval(subdomain_corners,
+                                [&](const auto, const auto& i, const auto& idx) {
+                                    if (i.start == interval.start && i.size() == interval.size()) {
+                                        bool indices_match = true;
+                                        for (std::size_t d = 0; d < dim - 1; ++d) {
+                                            if (idx[d] != index[d]) {
+                                                indices_match = false;
+                                                break;
+                                            }
+                                        }
+                                        if (indices_match) {
+                                            // Copy values
+                                            auto field_ref = field(level, i, idx);
+                                            std::copy(level_data.values.begin() + value_idx,
+                                                     level_data.values.begin() + value_idx + i_size * Field::n_comp,
+                                                     field_ref.begin());
+                                        }
+                                    }
+                                });
+                        }
+                        
+                        value_idx += i_size * Field::n_comp;
+                    }
+                }
+            }
+        }
+        
+        // Wait for all sends to complete
+        mpi::wait_all(requests.begin(), requests.end());
+#endif
+    }
+    
+    // Aggregated version for multiple fields
+    template <class Field, class... Fields>
+    void update_ghost_subdomains_aggregated(Field& field, Fields&... other_fields)
+    {
+        update_ghost_subdomains_aggregated(field);
+        update_ghost_subdomains_aggregated(other_fields...);
+    }
+
     template <class Field>
     void update_tag_subdomains([[maybe_unused]] std::size_t level, [[maybe_unused]] Field& tag, [[maybe_unused]] bool erase = false)
     {
@@ -1116,6 +1325,60 @@ namespace samurai
     {
         update_ghost_periodic(field);
         update_ghost_periodic(other_fields...);
+    }
+
+    // Aggregated version of update_ghost_mr that uses aggregated communications
+    template <class Field, class... Fields>
+    void update_ghost_mr_aggregated(Field& field, Fields&... other_fields)
+    {
+        using mesh_id_t                  = typename Field::mesh_t::mesh_id_t;
+        constexpr std::size_t pred_order = Field::mesh_t::config::prediction_order;
+
+        times::timers.start("ghost update aggregated");
+
+        auto& mesh            = field.mesh();
+        auto max_level        = mesh.max_level();
+        std::size_t min_level = 0;
+
+        update_outer_ghosts(max_level, field, other_fields...);
+
+        // Phase 1: Descending phase with projection
+        // Use aggregated communications for subdomains
+        update_ghost_subdomains_aggregated(field, other_fields...);
+        
+        // Still need to do periodic updates level by level due to local dependencies
+        for (std::size_t level = max_level; level > min_level; --level)
+        {
+            update_ghost_periodic(level, field, other_fields...);
+            
+            auto set_at_levelm1 = intersection(mesh[mesh_id_t::reference][level], mesh[mesh_id_t::proj_cells][level - 1]).on(level - 1);
+            set_at_levelm1.apply_op(variadic_projection(field, other_fields...));
+
+            update_outer_ghosts(level - 1, field, other_fields...);
+        }
+
+        if (min_level > 0 && min_level != max_level)
+        {
+            update_ghost_periodic(min_level - 1, field, other_fields...);
+            update_outer_ghosts(min_level - 1, field, other_fields...);
+        }
+        update_ghost_periodic(min_level, field, other_fields...);
+
+        // Phase 2: Ascending phase with prediction
+        for (std::size_t level = min_level + 1; level <= max_level; ++level)
+        {
+            auto pred_ghosts = difference(mesh[mesh_id_t::all_cells][level],
+                                          union_(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::proj_cells][level]));
+            auto expr        = intersection(pred_ghosts, mesh.subdomain(), mesh[mesh_id_t::all_cells][level - 1]).on(level);
+
+            expr.apply_op(variadic_prediction<pred_order, false>(field, other_fields...));
+            update_ghost_periodic(level, field, other_fields...);
+        }
+
+        field.ghosts_updated() = true;
+        ((other_fields.ghosts_updated() = true), ...);
+
+        times::timers.stop("ghost update aggregated");
     }
 
     template <class Tag>

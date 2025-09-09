@@ -9,6 +9,7 @@ namespace samurai
     namespace args
     {
         static bool timers = false;
+        static bool expert_timers = false;
 #ifdef SAMURAI_WITH_MPI
         static bool dont_redirect_output = false;
 #endif
@@ -30,6 +31,7 @@ namespace samurai
             ->group("IO");
 #endif
         app.add_flag("--timers", args::timers, "Print timers at the end of the program")->capture_default_str()->group("Tools");
+        app.add_flag("--expert-timers", args::expert_timers, "Print expert timers at the end of the program")->capture_default_str()->group("Tools");
         app.add_option(
                "--finer-level-flux",
                args::finer_level_flux,

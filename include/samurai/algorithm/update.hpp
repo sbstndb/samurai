@@ -679,11 +679,11 @@ namespace samurai
                         std::copy(field(level, i, index).begin(), field(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
                     });
 
-                samurai::times::timers.start("mpi:update_ghost_subdomains:isend");
-                samurai::times::timers.start("mpi:update_tag_subdomains:isend");
+                samurai::times::expert_timers.start("mpi:update_ghost_subdomains:isend");
+                samurai::times::expert_timers.start("mpi:update_tag_subdomains:isend");
                 req.push_back(world.isend(neighbour.rank, neighbour.rank, to_send[i_neigh++]));
-                samurai::times::timers.stop("mpi:update_tag_subdomains:isend");
-                samurai::times::timers.stop("mpi:update_ghost_subdomains:isend");
+                samurai::times::expert_timers.stop("mpi:update_tag_subdomains:isend");
+                samurai::times::expert_timers.stop("mpi:update_ghost_subdomains:isend");
             }
         }
 
@@ -694,11 +694,11 @@ namespace samurai
                 std::vector<value_t> to_recv;
                 std::ptrdiff_t count = 0;
 
-                samurai::times::timers.start("mpi:update_ghost_subdomains:recv");
-                samurai::times::timers.start("mpi:update_tag_subdomains:recv");
+                samurai::times::expert_timers.start("mpi:update_ghost_subdomains:recv");
+                samurai::times::expert_timers.start("mpi:update_tag_subdomains:recv");
                 world.recv(neighbour.rank, world.rank(), to_recv);
-                samurai::times::timers.stop("mpi:update_tag_subdomains:recv");
-                samurai::times::timers.stop("mpi:update_ghost_subdomains:recv");
+                samurai::times::expert_timers.stop("mpi:update_tag_subdomains:recv");
+                samurai::times::expert_timers.stop("mpi:update_ghost_subdomains:recv");
                 auto in_interface = intersection(neighbour.mesh[mesh_id_t::reference][level],
                                                  mesh[mesh_id_t::reference][level],
                                                  neighbour.mesh.subdomain())
@@ -722,11 +722,11 @@ namespace samurai
                                   });
             }
         }
-        samurai::times::timers.start("mpi:update_ghost_subdomains:wait_all");
-        samurai::times::timers.start("mpi:update_tag_subdomains:wait_all");
+        samurai::times::expert_timers.start("mpi:update_ghost_subdomains:wait_all");
+        samurai::times::expert_timers.start("mpi:update_tag_subdomains:wait_all");
         mpi::wait_all(req.begin(), req.end());
-        samurai::times::timers.stop("mpi:update_tag_subdomains:wait_all");
-        samurai::times::timers.stop("mpi:update_ghost_subdomains:wait_all");
+        samurai::times::expert_timers.stop("mpi:update_tag_subdomains:wait_all");
+        samurai::times::expert_timers.stop("mpi:update_ghost_subdomains:wait_all");
 #endif
     }
 

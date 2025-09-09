@@ -857,14 +857,14 @@ namespace samurai
         std::vector<mpi::request> req;
 
         // Pack local mesh
-        samurai::times::timers.start("mpi:mesh:update_neighbour:pack");
+        samurai::times::expert_timers.start("mpi:mesh:update_neighbour:pack");
         boost::mpi::packed_oarchive::buffer_type buffer;
         boost::mpi::packed_oarchive oa(world, buffer);
         oa << derived_cast();
-        samurai::times::timers.stop("mpi:mesh:update_neighbour:pack");
+        samurai::times::expert_timers.stop("mpi:mesh:update_neighbour:pack");
 
         // Non-blocking sends to neighbours
-        samurai::times::timers.start("mpi:mesh:update_neighbour:isend");
+        samurai::times::expert_timers.start("mpi:mesh:update_neighbour:isend");
         std::transform(m_mpi_neighbourhood.cbegin(),
                        m_mpi_neighbourhood.cend(),
                        std::back_inserter(req),
@@ -872,20 +872,20 @@ namespace samurai
                        {
                            return world.isend(neighbour.rank, neighbour.rank, buffer);
                        });
-        samurai::times::timers.stop("mpi:mesh:update_neighbour:isend");
+        samurai::times::expert_timers.stop("mpi:mesh:update_neighbour:isend");
 
         // Blocking receives from neighbours
-        samurai::times::timers.start("mpi:mesh:update_neighbour:recv");
+        samurai::times::expert_timers.start("mpi:mesh:update_neighbour:recv");
         for (auto& neighbour : m_mpi_neighbourhood)
         {
             world.recv(neighbour.rank, world.rank(), neighbour.mesh);
         }
-        samurai::times::timers.stop("mpi:mesh:update_neighbour:recv");
+        samurai::times::expert_timers.stop("mpi:mesh:update_neighbour:recv");
 
         // Wait for all sends to complete
-        samurai::times::timers.start("mpi:mesh:update_neighbour:wait_all");
+        samurai::times::expert_timers.start("mpi:mesh:update_neighbour:wait_all");
         mpi::wait_all(req.begin(), req.end());
-        samurai::times::timers.stop("mpi:mesh:update_neighbour:wait_all");
+        samurai::times::expert_timers.stop("mpi:mesh:update_neighbour:wait_all");
 #endif
     }
 
@@ -1188,14 +1188,14 @@ namespace samurai
             {
                 std::cout << "---------------- k = " << k << " ----------------" << std::endl;
             }
-            samurai::times::timers.start("mpi:mesh:load_balancing:all_gather:load");
+            samurai::times::expert_timers.start("mpi:mesh:load_balancing:all_gather:load");
             mpi::all_gather(world, load, loads);
-            samurai::times::timers.stop("mpi:mesh:load_balancing:all_gather:load");
+            samurai::times::expert_timers.stop("mpi:mesh:load_balancing:all_gather:load");
 
             std::vector<std::size_t> nb_neighbours;
-            samurai::times::timers.start("mpi:mesh:load_balancing:all_gather:nb_neighbours");
+            samurai::times::expert_timers.start("mpi:mesh:load_balancing:all_gather:nb_neighbours");
             mpi::all_gather(world, m_mpi_neighbourhood.size(), nb_neighbours);
-            samurai::times::timers.stop("mpi:mesh:load_balancing:all_gather:nb_neighbours");
+            samurai::times::expert_timers.stop("mpi:mesh:load_balancing:all_gather:nb_neighbours");
 
             double load_np1 = static_cast<double>(load);
             for (std::size_t i_rank = 0; i_rank < m_mpi_neighbourhood.size(); ++i_rank)

@@ -745,62 +745,91 @@ namespace samurai
         using mesh_t    = typename Field::mesh_t;
         using value_t   = typename Field::value_type;
         using mesh_id_t = typename mesh_t::mesh_id_t;
-        std::vector<mpi::request> req;
+        std::vector<mpi::request> send_reqs;
+        std::vector<mpi::request> recv_reqs;
 
         auto& mesh = tag.mesh();
         mpi::communicator world;
         std::vector<std::vector<value_t>> to_send(mesh.mpi_neighbourhood().size());
+        std::vector<std::vector<value_t>> recv_buffers(mesh.mpi_neighbourhood().size());
 
-        std::size_t i_neigh = 0;
-        for (auto& neighbour : mesh.mpi_neighbourhood())
+        // Post all non-blocking receives first to avoid head-of-line blocking.
         {
-            if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
+            std::size_t neighbor_id = 0;
+            for (auto& neighbour : mesh.mpi_neighbourhood())
             {
-                auto out_interface = intersection(mesh[mesh_id_t::reference][level],
-                                                  neighbour.mesh[mesh_id_t::reference][level],
-                                                  mesh.subdomain())
-                                         .on(level);
-                out_interface(
-                    [&](const auto& i, const auto& index)
-                    {
-                        std::copy(tag(level, i, index).begin(), tag(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
-                    });
-
-                req.push_back(world.isend(neighbour.rank, neighbour.rank, to_send[i_neigh++]));
+                if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
+                {
+                    recv_reqs.push_back(world.irecv(neighbour.rank, world.rank(), recv_buffers[neighbor_id]));
+                }
+                ++neighbor_id;
             }
         }
 
-        for (auto& neighbour : mesh.mpi_neighbourhood())
+        // Now prepare and post all sends.
         {
-            if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
+            std::size_t neighbor_id = 0;
+            for (auto& neighbour : mesh.mpi_neighbourhood())
             {
-                std::vector<value_t> to_recv;
-                std::ptrdiff_t count = 0;
-
-                world.recv(neighbour.rank, world.rank(), to_recv);
-
-                auto in_interface = intersection(mesh[mesh_id_t::reference][level],
-                                                 neighbour.mesh[mesh_id_t::reference][level],
-                                                 neighbour.mesh.subdomain())
-                                        .on(level);
-                in_interface(
-                    [&](const auto& i, const auto& index)
-                    {
-                        xt::xtensor<value_t, 1> neigh_tag = xt::empty_like(tag(level, i, index));
-                        std::copy(to_recv.begin() + count, to_recv.begin() + count + static_cast<std::ptrdiff_t>(i.size()), neigh_tag.begin());
-                        if (erase)
+                if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
+                {
+                    auto out_interface = intersection(mesh[mesh_id_t::reference][level],
+                                                      neighbour.mesh[mesh_id_t::reference][level],
+                                                      mesh.subdomain())
+                                             .on(level);
+                    to_send[neighbor_id].clear();
+                    out_interface(
+                        [&](const auto& i, const auto& index)
                         {
-                            tag(level, i, index) = neigh_tag;
-                        }
-                        else
-                        {
-                            tag(level, i, index) |= neigh_tag;
-                        }
-                        count += static_cast<std::ptrdiff_t>(i.size());
-                    });
+                            std::copy(tag(level, i, index).begin(), tag(level, i, index).end(), std::back_inserter(to_send[neighbor_id]));
+                        });
+
+                    send_reqs.push_back(world.isend(neighbour.rank, neighbour.rank, to_send[neighbor_id]));
+                }
+                ++neighbor_id;
             }
         }
-        mpi::wait_all(req.begin(), req.end());
+
+        // Wait for all receives to complete, then apply the received data.
+        mpi::wait_all(recv_reqs.begin(), recv_reqs.end());
+
+        {
+            std::size_t neighbor_id = 0;
+            for (auto& neighbour : mesh.mpi_neighbourhood())
+            {
+                if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
+                {
+                    const auto& to_recv = recv_buffers[neighbor_id];
+                    std::ptrdiff_t count = 0;
+
+                    auto in_interface = intersection(mesh[mesh_id_t::reference][level],
+                                                     neighbour.mesh[mesh_id_t::reference][level],
+                                                     neighbour.mesh.subdomain())
+                                            .on(level);
+                    in_interface(
+                        [&](const auto& i, const auto& index)
+                        {
+                            xt::xtensor<value_t, 1> neigh_tag = xt::empty_like(tag(level, i, index));
+                            std::copy(to_recv.begin() + count,
+                                      to_recv.begin() + count + static_cast<std::ptrdiff_t>(i.size()),
+                                      neigh_tag.begin());
+                            if (erase)
+                            {
+                                tag(level, i, index) = neigh_tag;
+                            }
+                            else
+                            {
+                                tag(level, i, index) |= neigh_tag;
+                            }
+                            count += static_cast<std::ptrdiff_t>(i.size());
+                        });
+                }
+                ++neighbor_id;
+            }
+        }
+
+        // Ensure all sends have completed before returning.
+        mpi::wait_all(send_reqs.begin(), send_reqs.end());
 
 #endif
     }

@@ -208,6 +208,7 @@ namespace samurai
     template <class Config>
     inline void MRMesh<Config>::update_sub_mesh_impl()
     {
+        times::expert_timers.start("mr:mesh:update_sub_mesh_impl:init");
 #ifdef SAMURAI_WITH_MPI
         mpi::communicator world;
         // cppcheck-suppress redundantInitialization
@@ -226,6 +227,7 @@ namespace samurai
         auto min_level = this->cells()[mesh_id_t::cells].min_level();
         cl_type cell_list;
 #endif
+        times::expert_timers.stop("mr:mesh:update_sub_mesh_impl:init");
         // Construction of ghost cells
         // ===========================
         //
@@ -240,6 +242,7 @@ namespace samurai
         //
         // level 0 |.......|-------|.......|       |.......|-------|.......|
         //
+        times::expert_timers.start("mr:mesh:update_sub_mesh_impl:ghost_cells");
         for_each_interval(this->cells()[mesh_id_t::cells],
                           [&](std::size_t level, const auto& interval, const auto& index_yz)
                           {
@@ -254,10 +257,12 @@ namespace samurai
                                   });
                           });
         this->cells()[mesh_id_t::cells_and_ghosts] = {cell_list, false};
+        times::expert_timers.stop("mr:mesh:update_sub_mesh_impl:ghost_cells");
 
         // Add cells for the MRA
         if (this->max_level() != this->min_level())
         {
+            times::expert_timers.start("mr:mesh:update_sub_mesh_impl:add_mra_cells");
             for (std::size_t level = max_level; level >= ((min_level == 0) ? 1 : min_level); --level)
             {
                 auto expr = difference(intersection(this->cells()[mesh_id_t::cells_and_ghosts][level], self(this->domain()).on(level)),
@@ -297,10 +302,14 @@ namespace samurai
                     });
             }
             this->cells()[mesh_id_t::all_cells] = {cell_list, false};
+            times::expert_timers.stop("mr:mesh:update_sub_mesh_impl:add_mra_cells");
 
+            times::expert_timers.start("mr:mesh:update_sub_mesh_impl:update_meshid_neighbour");
             this->update_meshid_neighbour(mesh_id_t::cells_and_ghosts);
             this->update_meshid_neighbour(mesh_id_t::reference);
+            times::expert_timers.stop("mr:mesh:update_sub_mesh_impl:update_meshid_neighbour");
 
+            times::expert_timers.start("mr:mesh:update_sub_mesh_impl:neighbour_processing");
             for (auto& neighbour : this->mpi_neighbourhood())
             {
                 for (std::size_t level = 0; level <= this->max_level(); ++level)
@@ -328,6 +337,7 @@ namespace samurai
                 }
             }
             this->cells()[mesh_id_t::all_cells] = {cell_list, false};
+            times::expert_timers.stop("mr:mesh:update_sub_mesh_impl:neighbour_processing");
 
             using box_t = Box<typename interval_t::value_t, dim>;
 
@@ -380,6 +390,7 @@ namespace samurai
                 }
             }
 #endif // SAMURAI_WITH_MPI
+            times::expert_timers.start("mr:mesh:update_sub_mesh_impl:periodic_ghosts");
             const auto& mesh_ref = this->cells()[mesh_id_t::reference];
             for (std::size_t level = 0; level <= this->max_level(); ++level)
             {
@@ -454,6 +465,8 @@ namespace samurai
                     }
                 }
             }
+            times::expert_timers.stop("mr:mesh:update_sub_mesh_impl:periodic_ghosts");
+            times::expert_timers.start("mr:mesh:update_sub_mesh_impl:project_cells");
             for (std::size_t level = 0; level < max_level; ++level)
             {
                 lcl_type& lcl = cell_list[level + 1];
@@ -473,9 +486,14 @@ namespace samurai
                 this->cells()[mesh_id_t::all_cells][level + 1] = lcl;
                 this->cells()[mesh_id_t::proj_cells][level]    = lcl_proj;
             }
+            times::expert_timers.stop("mr:mesh:update_sub_mesh_impl:project_cells");
+
+            times::expert_timers.start("mr:mesh:update_sub_mesh_impl:update_neighbour_subdomain");
             this->update_neighbour_subdomain();
             this->update_meshid_neighbour(mesh_id_t::all_cells);
+            times::expert_timers.stop("mr:mesh:update_sub_mesh_impl:update_neighbour_subdomain");
 
+            times::expert_timers.start("mr:mesh:update_sub_mesh_impl:neighbour_processing_2");
             for (auto& neighbour : this->mpi_neighbourhood())
             {
                 for (std::size_t level = 0; level <= this->max_level(); ++level)
@@ -514,6 +532,7 @@ namespace samurai
                     }
                 }
             }
+            times::expert_timers.stop("mr:mesh:update_sub_mesh_impl:neighbour_processing_2");
 
             this->cells()[mesh_id_t::all_cells] = {cell_list, false};
             this->update_meshid_neighbour(mesh_id_t::all_cells);
@@ -523,9 +542,11 @@ namespace samurai
         {
             this->cells()[mesh_id_t::all_cells] = {cell_list, false};
             // TODO : I think we do not want to update subdomain in this case, it remains the same iteration after iteration.
+            times::expert_timers.start("mr:mesh:update_sub_mesh_impl:update_neighbour_subdomain_simple");
             this->update_neighbour_subdomain();
             this->update_meshid_neighbour(mesh_id_t::cells_and_ghosts);
             this->update_meshid_neighbour(mesh_id_t::reference);
+            times::expert_timers.stop("mr:mesh:update_sub_mesh_impl:update_neighbour_subdomain_simple");
         }
     }
 

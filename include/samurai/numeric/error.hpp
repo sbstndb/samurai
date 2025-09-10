@@ -27,6 +27,7 @@ namespace samurai
     template <bool relative_error, class Field, class Func>
     double L2_error(Field& approximate, Func&& exact)
     {
+        times::expert_timers.start("numeric:L2_error");
         times::timers.start("error computation");
 
         // In FV, we want only 1 quadrature point.
@@ -60,6 +61,7 @@ namespace samurai
         solution_norm = sqrt(solution_norm);
 
         times::timers.stop("error computation");
+        times::expert_timers.stop("numeric:L2_error");
 
         if constexpr (relative_error)
         {
@@ -74,23 +76,35 @@ namespace samurai
     template <class Field, class Func>
     double L2_error(Field& approximate, Func&& exact)
     {
-        return L2_error<false, Field, Func>(approximate, std::forward<Func>(exact));
+        times::expert_timers.start("numeric:L2_error_default");
+        auto result = L2_error<false, Field, Func>(approximate, std::forward<Func>(exact));
+        times::expert_timers.stop("numeric:L2_error_default");
+        return result;
     }
 
     template <std::size_t order>
     double compute_error_bound_hidden_constant(double h, double error)
     {
-        return error / std::pow(h, order);
+        times::expert_timers.start("numeric:compute_error_bound_hidden_constant");
+        auto result = error / std::pow(h, order);
+        times::expert_timers.stop("numeric:compute_error_bound_hidden_constant");
+        return result;
     }
 
     template <std::size_t order>
     double theoretical_error_bound(double hidden_constant, double h)
     {
-        return hidden_constant * std::pow(h, order);
+        times::expert_timers.start("numeric:theoretical_error_bound");
+        auto result = hidden_constant * std::pow(h, order);
+        times::expert_timers.stop("numeric:theoretical_error_bound");
+        return result;
     }
 
     inline double convergence_order(double h1, double error1, double h2, double error2)
     {
-        return log(error2 / error1) / log(h2 / h1);
+        times::expert_timers.start("numeric:convergence_order");
+        auto result = log(error2 / error1) / log(h2 / h1);
+        times::expert_timers.stop("numeric:convergence_order");
+        return result;
     }
 }

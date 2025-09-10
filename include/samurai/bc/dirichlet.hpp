@@ -18,7 +18,8 @@ namespace samurai
 
         apply_function_t get_apply_function(constant_stencil_size_t, const direction_t&) const override
         {
-            return [](Field& u, const stencil_cells_t& cells, const value_t& dirichlet_value)
+            times::expert_timers.start("bc:dirichlet_apply_function");
+            auto result = [](Field& u, const stencil_cells_t& cells, const value_t& dirichlet_value)
             {
                 if constexpr (order == 1)
                 {
@@ -86,6 +87,8 @@ namespace samurai
                     static_assert(order <= 4, "The Dirichlet boundary conditions are only implemented up to order 4.");
                 }
             };
+            times::expert_timers.stop("bc:dirichlet_apply_function");
+            return result;
         }
     };
 

@@ -403,11 +403,13 @@ namespace samurai
                                                           std::integral_constant<std::size_t, 0>,
                                                           std::integral_constant<bool, true>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_1d_order0_forward");
         auto ii = i << 1;
         ii.step = 2;
 
         dest(level + 1, ii)     = src(level, i);
         dest(level + 1, ii + 1) = src(level, i);
+        times::expert_timers.stop("numeric:prediction:prediction_op_1d_order0_forward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -418,6 +420,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, 0>,
                                                           std::integral_constant<bool, false>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_1d_order0_backward");
         auto even_i = i.even_elements();
         if (even_i.is_valid())
         {
@@ -431,6 +434,7 @@ namespace samurai
             auto coarse_odd_i  = odd_i >> 1;
             dest(level, odd_i) = src(level - 1, coarse_odd_i);
         }
+        times::expert_timers.stop("numeric:prediction:prediction_op_1d_order0_backward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -441,6 +445,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, order>,
                                                           std::integral_constant<bool, true>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_1d_order_high_forward");
         auto ii = i << 1;
         ii.step = 2;
 
@@ -448,6 +453,7 @@ namespace samurai
 
         dest(level + 1, ii)     = src(level, i) + qs_i;
         dest(level + 1, ii + 1) = src(level, i) - qs_i;
+        times::expert_timers.stop("numeric:prediction:prediction_op_1d_order_high_forward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -458,6 +464,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, order>,
                                                           std::integral_constant<bool, false>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_1d_order_high_backward");
         auto qs_i = Qs_i<order>(src, level - 1, i >> 1);
 
         auto even_i = i.even_elements();
@@ -475,6 +482,7 @@ namespace samurai
             auto dec_odd       = (i.end & 1) ? 1 : 0;
             dest(level, odd_i) = src(level - 1, coarse_odd_i) - detail::qs_view_odd<T2>(qs_i, dec_odd);
         }
+        times::expert_timers.stop("numeric:prediction:prediction_op_1d_order_high_backward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -485,6 +493,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, 0>,
                                                           std::integral_constant<bool, true>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_2d_order0_forward");
         auto ii = i << 1;
         ii.step = 2;
 
@@ -494,6 +503,7 @@ namespace samurai
         dest(level + 1, ii + 1, jj)     = src(level, i, j);
         dest(level + 1, ii, jj + 1)     = src(level, i, j);
         dest(level + 1, ii + 1, jj + 1) = src(level, i, j);
+        times::expert_timers.stop("numeric:prediction:prediction_op_2d_order0_forward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -504,6 +514,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, 0>,
                                                           std::integral_constant<bool, false>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_2d_order0_backward");
         if (j & 1)
         {
             auto even_i = i.even_elements();
@@ -536,6 +547,7 @@ namespace samurai
                 dest(level, odd_i, j) = src(level - 1, coarse_odd_i, j >> 1);
             }
         }
+        times::expert_timers.stop("numeric:prediction:prediction_op_2d_order0_backward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -546,6 +558,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, order>,
                                                           std::integral_constant<bool, true>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_2d_order_high_forward");
         auto ii = i << 1;
         ii.step = 2;
 
@@ -559,6 +572,7 @@ namespace samurai
         dest(level + 1, ii + 1, jj)     = src(level, i, j) - qs_i + qs_j + qs_ij;
         dest(level + 1, ii, jj + 1)     = src(level, i, j) + qs_i - qs_j + qs_ij;
         dest(level + 1, ii + 1, jj + 1) = src(level, i, j) - qs_i - qs_j - qs_ij;
+        times::expert_timers.stop("numeric:prediction:prediction_op_2d_order_high_forward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -569,6 +583,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, order>,
                                                           std::integral_constant<bool, false>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_2d_order_high_backward");
         auto qs_i  = Qs_i<order>(src, level - 1, i >> 1, j >> 1);
         auto qs_j  = Qs_j<order>(src, level - 1, i >> 1, j >> 1);
         auto qs_ij = Qs_ij<order>(src, level - 1, i >> 1, j >> 1);
@@ -622,6 +637,7 @@ namespace samurai
                                       + detail::qs_view_odd<T2>(qs_j, dec_odd) + detail::qs_view_odd<T2>(qs_ij, dec_odd);
             }
         }
+        times::expert_timers.stop("numeric:prediction:prediction_op_2d_order_high_backward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -632,6 +648,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, 0>,
                                                           std::integral_constant<bool, true>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_3d_order0_forward");
         auto ii = i << 1;
         ii.step = 2;
 
@@ -646,6 +663,7 @@ namespace samurai
         dest(level + 1, ii + 1, jj, kk + 1)     = src(level, i, j, k);
         dest(level + 1, ii, jj + 1, kk + 1)     = src(level, i, j, k);
         dest(level + 1, ii + 1, jj + 1, kk + 1) = src(level, i, j, k);
+        times::expert_timers.stop("numeric:prediction:prediction_op_3d_order0_forward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -656,6 +674,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, 0>,
                                                           std::integral_constant<bool, false>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_3d_order0_backward");
         auto even_i = i.even_elements();
         if (even_i.is_valid())
         {
@@ -669,6 +688,7 @@ namespace samurai
             auto coarse_odd_i        = odd_i >> 1;
             dest(level, odd_i, j, k) = src(level - 1, coarse_odd_i, j >> 1, k >> 1);
         }
+        times::expert_timers.stop("numeric:prediction:prediction_op_3d_order0_backward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -679,6 +699,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, order>,
                                                           std::integral_constant<bool, true>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_3d_order_high_forward");
         auto ii = i << 1;
         ii.step = 2;
 
@@ -701,6 +722,7 @@ namespace samurai
         dest(level + 1, ii + 1, jj, kk + 1)     = src(level, i, j, k) - qs_i + qs_j - qs_k + qs_ij - qs_ik + qs_jk + qs_ijk;
         dest(level + 1, ii, jj + 1, kk + 1)     = src(level, i, j, k) + qs_i - qs_j - qs_k + qs_ij + qs_ik - qs_jk + qs_ijk;
         dest(level + 1, ii + 1, jj + 1, kk + 1) = src(level, i, j, k) - qs_i - qs_j - qs_k - qs_ij - qs_ik - qs_jk - qs_ijk;
+        times::expert_timers.stop("numeric:prediction:prediction_op_3d_order_high_forward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -711,6 +733,7 @@ namespace samurai
                                                           std::integral_constant<std::size_t, order>,
                                                           std::integral_constant<bool, false>) const
     {
+        times::expert_timers.start("numeric:prediction:prediction_op_3d_order_high_backward");
         auto qs_i   = Qs_i<order>(src, level - 1, i >> 1, j >> 1, k >> 1);
         auto qs_j   = Qs_j<order>(src, level - 1, i >> 1, j >> 1, k >> 1);
         auto qs_k   = Qs_k<order>(src, level - 1, i >> 1, j >> 1, k >> 1);
@@ -821,6 +844,7 @@ namespace samurai
                 }
             }
         }
+        times::expert_timers.stop("numeric:prediction:prediction_op_3d_order_high_backward");
     }
 
     template <std::size_t dim, class TInterval>
@@ -869,29 +893,38 @@ namespace samurai
         }
     };
 
-    template <std::size_t order, bool dest_on_level, class... T>
+    template <std::size_t order, bool enlarge, class... T>
     inline auto variadic_prediction(T&&... fields)
     {
-        return make_field_operator_function<variadic_prediction_op>(std::integral_constant<std::size_t, order>{},
-                                                                    std::integral_constant<bool, dest_on_level>{},
-                                                                    std::forward<T>(fields)...);
+        times::expert_timers.start("algorithm:prediction:variadic_prediction");
+        auto result = make_field_operator_function<variadic_prediction_op>(std::integral_constant<std::size_t, order>{},
+                                                                   std::integral_constant<bool, enlarge>{},
+                                                                   std::forward<T>(fields)...);
+        times::expert_timers.stop("algorithm:prediction:variadic_prediction");
+        return result;
     }
 
     template <std::size_t order, bool dest_on_level, class T>
     inline auto prediction(T& field)
     {
-        return make_field_operator_function<prediction_op>(field,
+        times::expert_timers.start("algorithm:prediction:prediction");
+        auto result = make_field_operator_function<prediction_op>(field,
                                                            field,
                                                            std::integral_constant<std::size_t, order>{},
                                                            std::integral_constant<bool, dest_on_level>{});
+        times::expert_timers.stop("algorithm:prediction:prediction");
+        return result;
     }
 
     template <std::size_t order, bool dest_on_level, class T1, class T2>
     inline auto prediction(T1& field_dest, const T2& field_src)
     {
-        return make_field_operator_function<prediction_op>(field_dest,
+        times::expert_timers.start("algorithm:prediction:prediction_with_source");
+        auto result = make_field_operator_function<prediction_op>(field_dest,
                                                            field_src,
                                                            std::integral_constant<std::size_t, order>{},
                                                            std::integral_constant<bool, dest_on_level>{});
+        times::expert_timers.stop("algorithm:prediction:prediction_with_source");
+        return result;
     }
 }

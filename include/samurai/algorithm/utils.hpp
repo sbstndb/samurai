@@ -42,7 +42,10 @@ namespace samurai
     template <class T>
     inline auto copy(T&& dest, T&& src)
     {
-        return make_field_operator_function<copy_op>(std::forward<T>(dest), std::forward<T>(src));
+        times::expert_timers.start("algorithm:utils:copy");
+        auto result = make_field_operator_function<copy_op>(std::forward<T>(dest), std::forward<T>(src));
+        times::expert_timers.stop("algorithm:utils:copy");
+        return result;
     }
 
     //////////////////////////
@@ -138,13 +141,19 @@ namespace samurai
     template <int s, class T>
     inline auto tag_to_keep(T& tag)
     {
-        return make_field_operator_function<tag_to_keep_op>(tag, std::integral_constant<int, s>{});
+        times::expert_timers.start("algorithm:utils:tag_to_keep");
+        auto result = make_field_operator_function<tag_to_keep_op>(tag, std::integral_constant<int, s>{});
+        times::expert_timers.stop("algorithm:utils:tag_to_keep");
+        return result;
     }
 
     template <int s, class T, class Flag>
     inline auto tag_to_keep(T& tag, const Flag& flag)
     {
-        return make_field_operator_function<tag_to_keep_op>(tag, flag, std::integral_constant<int, s>{});
+        times::expert_timers.start("algorithm:utils:tag_to_keep_with_flag");
+        auto result = make_field_operator_function<tag_to_keep_op>(tag, flag, std::integral_constant<int, s>{});
+        times::expert_timers.stop("algorithm:utils:tag_to_keep_with_flag");
+        return result;
     }
 
     /////////////////////////////////////
@@ -220,7 +229,10 @@ namespace samurai
     template <class T>
     inline auto keep_children_together(T& tag)
     {
-        return make_field_operator_function<keep_children_together_op>(tag);
+        times::expert_timers.start("algorithm:utils:keep_children_together");
+        auto result = make_field_operator_function<keep_children_together_op>(tag);
+        times::expert_timers.stop("algorithm:utils:keep_children_together");
+        return result;
     }
 
 }

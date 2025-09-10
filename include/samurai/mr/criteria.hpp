@@ -74,6 +74,7 @@ namespace samurai
             {
                 if constexpr (T1::is_scalar)
                 {
+                    times::expert_timers.start("mr:criteria:to_coarsen_2d");
                     auto mask = (abs(detail(fine_level, 2 * i, 2 * j)) < eps) && (abs(detail(fine_level, 2 * i + 1, 2 * j)) < eps)
                              && (abs(detail(fine_level, 2 * i, 2 * j + 1)) < eps) && (abs(detail(fine_level, 2 * i + 1, 2 * j + 1)) < eps);
 
@@ -90,6 +91,7 @@ namespace samurai
                                     }
                                 });
                         });
+                    times::expert_timers.stop("mr:criteria:to_coarsen_2d");
                     // xt::masked_view(tag(fine_level, 2 * i, 2 * j), mask)         = static_cast<int>(CellFlag::coarsen);
                     // xt::masked_view(tag(fine_level, 2 * i + 1, 2 * j), mask)     = static_cast<int>(CellFlag::coarsen);
                     // xt::masked_view(tag(fine_level, 2 * i, 2 * j + 1), mask)     = static_cast<int>(CellFlag::coarsen);
@@ -97,6 +99,7 @@ namespace samurai
                 }
                 else
                 {
+                    times::expert_timers.start("mr:criteria:to_coarsen_2d_vector");
                     constexpr auto n_comp = T1::n_comp;
 
                     // auto mask = xt::sum((abs(detail(level, 2*i  ,
@@ -128,6 +131,7 @@ namespace samurai
                                     }
                                 });
                         });
+                    times::expert_timers.stop("mr:criteria:to_coarsen_2d_vector");
                     // xt::masked_view(tag(fine_level, 2 * i, 2 * j), mask)         = static_cast<int>(CellFlag::coarsen);
                     // xt::masked_view(tag(fine_level, 2 * i + 1, 2 * j), mask)     = static_cast<int>(CellFlag::coarsen);
                     // xt::masked_view(tag(fine_level, 2 * i, 2 * j + 1), mask)     = static_cast<int>(CellFlag::coarsen);
@@ -258,6 +262,7 @@ namespace samurai
             constexpr auto n_comp  = T1::n_comp;
             std::size_t fine_level = level + 1;
 
+            times::expert_timers.start("mr:criteria:to_refine_mr");
             auto mask_ghost = get_mask<n_comp, detail::is_soa_v<T1>>(detail(fine_level - 1, i, index), eps / (1 << dim));
 
             apply_on_masked(mask_ghost,
@@ -289,6 +294,7 @@ namespace samurai
                         }
                     });
             }
+            times::expert_timers.stop("mr:criteria:to_refine_mr");
         }
     };
 

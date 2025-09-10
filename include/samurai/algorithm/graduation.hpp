@@ -123,12 +123,16 @@ namespace samurai
     template <class T, class Stencil>
     inline auto graduate(T& tag, const Stencil& s)
     {
-        return make_field_operator_function<graduate_op>(tag, s);
+        times::expert_timers.start("algorithm:graduation:graduate");
+        auto result = make_field_operator_function<graduate_op>(tag, s);
+        times::expert_timers.stop("algorithm:graduation:graduate");
+        return result;
     }
 
     template <class Tag, class Stencil>
     void graduation(Tag& tag, const Stencil& stencil)
     {
+        times::expert_timers.start("algorithm:graduation:graduation");
         auto& mesh      = tag.mesh();
         using mesh_t    = typename Tag::mesh_t;
         using mesh_id_t = typename mesh_t::mesh_id_t;
@@ -195,6 +199,7 @@ namespace samurai
                 subset.apply_op(graduate(tag, s));
             }
         }
+        times::expert_timers.stop("algorithm:graduation:graduation");
     }
 
     template <class Mesh, std::size_t neighbourhood_width = 1>
@@ -238,6 +243,7 @@ namespace samurai
         const std::array<int, dim>& nb_cells_finest_level,
         std::array<ArrayOfIntervalAndPoint<TInterval, TCoord>, CellArray<dim, TInterval, max_size>::max_size>& out)
     {
+        times::expert_timers.start("algorithm:graduation:list_interval_to_refine_for_graduation");
         const size_t max_level      = ca.max_level() + 1;
         const size_t min_level      = ca.min_level();
         const size_t min_fine_level = (min_level + 2) - 1; // fine_level =  max_level, max_level-1, ..., min_level+2. Thus fine_level !=
@@ -317,6 +323,7 @@ namespace samurai
         }
         mpi::wait_all(req.begin(), req.end());
 #endif // SAMURAI_WITH_MPI
+        times::expert_timers.stop("algorithm:graduation:list_interval_to_refine_for_graduation");
     }
 
     template <size_t dim, typename TInterval, size_t max_size, typename TCoord>
@@ -327,8 +334,10 @@ namespace samurai
         const std::array<bool, dim>& is_periodic,
         std::array<ArrayOfIntervalAndPoint<TInterval, TCoord>, CellArray<dim, TInterval, max_size>::max_size>& out)
     {
+        times::expert_timers.start("algorithm:graduation:list_interval_to_refine_for_contiguous_boundary_cells");
         if (half_stencil_width == 1)
         {
+            times::expert_timers.stop("algorithm:graduation:list_interval_to_refine_for_contiguous_boundary_cells");
             return;
         }
 
@@ -407,6 +416,7 @@ namespace samurai
                     }
                 }
             });
+        times::expert_timers.stop("algorithm:graduation:list_interval_to_refine_for_contiguous_boundary_cells");
     }
 
     template <size_t dim, typename TInterval, typename MeshType, size_t max_size, typename TCoord>
@@ -419,11 +429,13 @@ namespace samurai
                                   const std::array<int, dim>& nb_cells_finest_level,
                                   std::array<ArrayOfIntervalAndPoint<TInterval, TCoord>, CellArray<dim, TInterval, max_size>::max_size>& out)
     {
+        times::expert_timers.start("algorithm:graduation:list_intervals_to_refine");
         list_interval_to_refine_for_graduation(grad_width, ca, domain, mpi_neighbourhood, is_periodic, nb_cells_finest_level, out);
         if (!domain.empty())
         {
             list_interval_to_refine_for_contiguous_boundary_cells(half_stencil_width, ca, domain, is_periodic, out);
         }
+        times::expert_timers.stop("algorithm:graduation:list_intervals_to_refine");
     }
 
     // if add the intervals in add_m_interval
@@ -490,6 +502,7 @@ namespace samurai
                            const size_t half_stencil_width = 1 // half of width of the numerical scheme's stencil.
     )
     {
+        times::expert_timers.start("algorithm:graduation:make_graduation");
         using ca_type    = CellArray<dim, TInterval, max_size>;
         using coord_type = typename ca_type::lca_type::coord_type;
 
@@ -532,6 +545,7 @@ namespace samurai
         for (nit = 0; new_ca != ca; ++nit)
 #endif // SAMURAI_WITH_MPI
         {
+            times::expert_timers.start("algorithm:graduation:make_graduation:iteration");
             // test if mesh is correctly graduated.
             // We first build a set of non-graduated cells
             // Then, if the non-graduated is not tagged as keep, we coarsen it
@@ -544,6 +558,7 @@ namespace samurai
             add_p_idx.clear();
             for (size_t level = min_level; level != max_level + 1; ++level)
             {
+                times::expert_timers.start("algorithm:graduation:make_graduation:process_level");
                 remove_m_all[level].remove_overlapping_intervals();
                 const size_t imax = remove_m_all[level].size();
                 for (size_t i = 0; i != imax; ++i)
@@ -578,8 +593,10 @@ namespace samurai
                         add_p_idx.clear();
                     }
                 } // end for remove_m_all
+                times::expert_timers.stop("algorithm:graduation:make_graduation:process_level");
             } // end for level
             // We then create new_ca as ca U ca_add
+            times::expert_timers.start("algorithm:graduation:make_graduation:create_new_ca");
             new_ca.clear();
             for (std::size_t level = min_level; level != max_level + 1; ++level)
             {
@@ -590,10 +607,13 @@ namespace samurai
                         new_ca[level].add_interval_back(x_interval, yz);
                     });
             }
+            times::expert_timers.stop("algorithm:graduation:make_graduation:create_new_ca");
             //
             std::swap(new_ca, ca);
+            times::expert_timers.stop("algorithm:graduation:make_graduation:iteration");
         }
 
+        times::expert_timers.stop("algorithm:graduation:make_graduation");
         return nit - 1;
     }
 
@@ -615,6 +635,7 @@ namespace samurai
     template <std::size_t dim, class TInterval, size_t max_size, class Tag>
     CellArray<dim, TInterval, max_size> update_cell_array_from_tag(const CellArray<dim, TInterval, max_size>& old_ca, const Tag& tag)
     {
+        times::expert_timers.start("algorithm:graduation:update_cell_array_from_tag");
         using size_type        = unsigned int;
         using value_t          = typename TInterval::value_t;
         using unsigned_value_t = typename std::make_unsigned_t<value_t>;
@@ -703,6 +724,7 @@ namespace samurai
                     new_ca[level].add_interval_back(x_interval, yz);
                 });
         }
+        times::expert_timers.stop("algorithm:graduation:update_cell_array_from_tag");
         return new_ca;
     }
 

@@ -256,6 +256,7 @@ namespace samurai
         std::size_t min_level = mesh.min_level();
         std::size_t max_level = mesh.max_level();
 
+        times::expert_timers.start("mr:adapt:init_tag");
         for_each_cell(mesh[mesh_id_t::cells],
                       [&](auto& cell)
                       {
@@ -266,9 +267,12 @@ namespace samurai
         {
             update_tag_subdomains(level, m_tag, true);
         }
+        times::expert_timers.stop("mr:adapt:init_tag");
 
         times::timers.stop("mesh adaptation");
+        times::expert_timers.start("mr:adapt:update_ghost_mr");
         update_ghost_mr(m_fields);
+        times::expert_timers.stop("mr:adapt:update_ghost_mr");
         times::timers.start("mesh adaptation");
 
         //--------------------//
@@ -286,6 +290,7 @@ namespace samurai
             contract_directions[d]     = !mesh.is_periodic(d);
         }
 
+        times::expert_timers.start("mr:adapt:detail_computation");
         for (std::size_t level = ((min_level > 0) ? min_level - 1 : 0); level < max_level - ite; ++level)
         {
             // 1. detail computation in the cells (at level+1)
@@ -321,13 +326,18 @@ namespace samurai
                 }
             }
         }
+        times::expert_timers.stop("mr:adapt:detail_computation");
 
         if (cfg.relative_detail())
         {
+            times::expert_timers.start("mr:adapt:relative_detail");
             compute_relative_detail(m_detail, m_fields);
+            times::expert_timers.stop("mr:adapt:relative_detail");
         }
 
+        times::expert_timers.start("mr:adapt:update_ghost_subdomains");
         update_ghost_subdomains(m_detail);
+        times::expert_timers.stop("mr:adapt:update_ghost_subdomains");
 
         for (std::size_t level = min_level; level <= max_level - ite; ++level)
         {
@@ -338,19 +348,24 @@ namespace samurai
 
             auto subset_1 = intersection(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::all_cells][level - 1]).on(level - 1);
 
+            times::expert_timers.start("mr:adapt:to_coarsen_refine");
             subset_1.apply_op(to_coarsen_mr(m_detail, m_tag, eps_l, min_level),
                               to_refine_mr(m_detail,
                                            m_tag,
                                            (pow(2.0, regularity_to_use)) * eps_l,
                                            max_level)); // Refinement according to Harten
+            times::expert_timers.stop("mr:adapt:to_coarsen_refine");
             update_tag_subdomains(level, m_tag, true);
         }
 
         if (args::refine_boundary) // cppcheck-suppress knownConditionTrueFalse
         {
+            times::expert_timers.start("mr:adapt:keep_boundary_refined");
             keep_boundary_refined(mesh, m_tag);
+            times::expert_timers.stop("mr:adapt:keep_boundary_refined");
         }
 
+        times::expert_timers.start("mr:adapt:keep_around_refine");
         for (std::size_t level = min_level; level <= max_level - ite; ++level)
         {
             auto subset_2 = intersection(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level]);
@@ -367,7 +382,9 @@ namespace samurai
             update_tag_periodic(level, m_tag);
             update_tag_subdomains(level, m_tag);
         }
+        times::expert_timers.stop("mr:adapt:keep_around_refine");
 
+        times::expert_timers.start("mr:adapt:maximum");
         for (std::size_t level = max_level; level > 0; --level)
         {
             auto keep_subset = intersection(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::all_cells][level - 1]).on(level - 1);
@@ -377,15 +394,22 @@ namespace samurai
 
             keep_subset.apply_op(maximum(m_tag));
         }
+        times::expert_timers.stop("mr:adapt:maximum");
         using ca_type = typename mesh_t::ca_type;
 
+        times::expert_timers.start("mr:adapt:update_cell_array_from_tag");
         ca_type new_ca = update_cell_array_from_tag(mesh[mesh_id_t::cells], m_tag);
+        times::expert_timers.stop("mr:adapt:update_cell_array_from_tag");
+        
+        times::expert_timers.start("mr:adapt:make_graduation");
         make_graduation(new_ca,
                         mesh.domain(),
                         mesh.mpi_neighbourhood(),
                         mesh.periodicity(),
                         mesh_t::config::graduation_width,
                         mesh_t::config::max_stencil_width);
+        times::expert_timers.stop("mr:adapt:make_graduation");
+        
         mesh_t new_mesh{new_ca, mesh};
 #ifdef SAMURAI_WITH_MPI
         mpi::communicator world;
@@ -401,10 +425,14 @@ namespace samurai
         }
 
         times::timers.stop("mesh adaptation");
+        times::expert_timers.start("mr:adapt:update_ghost_mr_other");
         update_ghost_mr(other_fields...);
+        times::expert_timers.stop("mr:adapt:update_ghost_mr_other");
         times::timers.start("mesh adaptation");
 
+        times::expert_timers.start("mr:adapt:update_fields");
         update_fields(std::forward<PredictionFn>(m_prediction_fn), new_mesh, m_fields, other_fields...);
+        times::expert_timers.stop("mr:adapt:update_fields");
         m_fields.mesh().swap(new_mesh);
         return false;
     }

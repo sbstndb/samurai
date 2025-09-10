@@ -238,6 +238,7 @@ namespace samurai
         requires IsField<Field>
     void apply_field_bc(std::size_t level, const DirectionVector<Field::dim>& direction, Field& field)
     {
+        times::expert_timers.start("bc:apply_field_bc");
         static constexpr std::size_t max_stencil_size_implemented_BC = Bc<Field>::max_stencil_size_implemented;
 
         for (auto& bc : field.get_bc())
@@ -253,12 +254,14 @@ namespace samurai
                     }
                 });
         }
+        times::expert_timers.stop("bc:apply_field_bc");
     }
 
     template <class Field>
         requires IsField<Field>
     void apply_field_bc(Field& field, const DirectionVector<Field::dim>& direction)
     {
+        times::expert_timers.start("bc:apply_field_bc_direction");
         using mesh_id_t = typename Field::mesh_t::mesh_id_t;
         auto& mesh      = field.mesh()[mesh_id_t::reference];
 
@@ -266,12 +269,14 @@ namespace samurai
         {
             apply_field_bc(level, direction, field);
         }
+        times::expert_timers.stop("bc:apply_field_bc_direction");
     }
 
     template <class Field>
         requires IsField<Field>
     void apply_field_bc(Field& field, std::size_t direction_index)
     {
+        times::expert_timers.start("bc:apply_field_bc_direction_index");
         DirectionVector<Field::dim> direction;
         direction.fill(0);
 
@@ -280,12 +285,14 @@ namespace samurai
 
         direction[direction_index] = -1;
         apply_field_bc(field, direction);
+        times::expert_timers.stop("bc:apply_field_bc_direction_index");
     }
 
     template <class Field>
         requires IsField<Field>
     void apply_field_bc(std::size_t level, Field& field, std::size_t direction_index)
     {
+        times::expert_timers.start("bc:apply_field_bc_level_direction_index");
         DirectionVector<Field::dim> direction;
         direction.fill(0);
 
@@ -294,17 +301,20 @@ namespace samurai
 
         direction[direction_index] = -1;
         apply_field_bc(level, direction, field);
+        times::expert_timers.stop("bc:apply_field_bc_level_direction_index");
     }
 
     template <class Field>
         requires IsField<Field>
     void apply_field_bc(Field& field)
     {
+        times::expert_timers.start("bc:apply_field_bc_all");
         for_each_cartesian_direction<Field::dim>(
             [&](const auto& direction)
             {
                 apply_field_bc(field, direction);
             });
+        times::expert_timers.stop("bc:apply_field_bc_all");
     }
 
     template <class Field, class... Fields>
@@ -317,8 +327,10 @@ namespace samurai
     template <class Field>
     void update_outer_corners_by_polynomial_extrapolation(std::size_t level, const DirectionVector<Field::dim>& direction, Field& field)
     {
+        times::expert_timers.start("bc:update_outer_corners_by_polynomial_extrapolation");
         if constexpr (Field::dim == 1)
         {
+            times::expert_timers.stop("bc:update_outer_corners_by_polynomial_extrapolation");
             return; // No outer corners in 1D
         }
 
@@ -330,15 +342,18 @@ namespace samurai
         auto corner = self(field.mesh().corner(direction)).on(level);
 
         __apply_extrapolation_bc__cells<extrap_stencil_size>(bc, level, field, direction, corner);
+        times::expert_timers.stop("bc:update_outer_corners_by_polynomial_extrapolation");
     }
 
     template <class Field>
     void update_outer_corners_by_polynomial_extrapolation(std::size_t level, Field& field)
     {
+        times::expert_timers.start("bc:update_outer_corners_by_polynomial_extrapolation_level");
         static constexpr std::size_t dim = Field::dim;
 
         if constexpr (dim == 1)
         {
+            times::expert_timers.stop("bc:update_outer_corners_by_polynomial_extrapolation_level");
             return; // No outer corners in 1D
         }
 
@@ -361,11 +376,13 @@ namespace samurai
                     update_outer_corners_by_polynomial_extrapolation(level, direction, field);
                 }
             });
+        times::expert_timers.stop("bc:update_outer_corners_by_polynomial_extrapolation_level");
     }
 
     template <class Field>
     void update_further_ghosts_by_polynomial_extrapolation(std::size_t level, const DirectionVector<Field::dim>& direction, Field& field)
     {
+        times::expert_timers.start("bc:update_further_ghosts_by_polynomial_extrapolation");
         static constexpr std::size_t ghost_width                     = Field::mesh_t::config::ghost_width;
         static constexpr std::size_t max_stencil_size_implemented_PE = PolynomialExtrapolation<Field, 2>::max_stencil_size_implemented_PE;
 
@@ -427,11 +444,13 @@ namespace samurai
                     }
                 });
         }
+        times::expert_timers.stop("bc:update_further_ghosts_by_polynomial_extrapolation");
     }
 
     template <class Field>
     void update_further_ghosts_by_polynomial_extrapolation(Field& field, const DirectionVector<Field::dim>& direction)
     {
+        times::expert_timers.start("bc:update_further_ghosts_by_polynomial_extrapolation_direction");
         using mesh_id_t = typename Field::mesh_t::mesh_id_t;
         auto& mesh      = field.mesh()[mesh_id_t::reference];
 
@@ -439,22 +458,27 @@ namespace samurai
         {
             update_further_ghosts_by_polynomial_extrapolation(level, direction, field);
         }
+        times::expert_timers.stop("bc:update_further_ghosts_by_polynomial_extrapolation_direction");
     }
 
     template <class Field>
     void update_further_ghosts_by_polynomial_extrapolation(Field& field)
     {
+        times::expert_timers.start("bc:update_further_ghosts_by_polynomial_extrapolation_all");
         for_each_cartesian_direction<Field::dim>(
             [&](const auto& direction)
             {
                 update_further_ghosts_by_polynomial_extrapolation(field, direction);
             });
+        times::expert_timers.stop("bc:update_further_ghosts_by_polynomial_extrapolation_all");
     }
 
     template <class Field, class... Fields>
     void update_further_ghosts_by_polynomial_extrapolation(Field& field, Fields&... other_fields)
     {
+        times::expert_timers.start("bc:update_further_ghosts_by_polynomial_extrapolation_multiple");
         update_further_ghosts_by_polynomial_extrapolation(field);
         update_further_ghosts_by_polynomial_extrapolation(other_fields...);
+        times::expert_timers.stop("bc:update_further_ghosts_by_polynomial_extrapolation_multiple");
     }
 }

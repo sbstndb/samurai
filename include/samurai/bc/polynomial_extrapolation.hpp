@@ -18,7 +18,8 @@ namespace samurai
 
         apply_function_t get_apply_function(constant_stencil_size_t, const direction_t&) const override
         {
-            return [](Field& u, const stencil_cells_t& cells, const value_t&)
+            times::expert_timers.start("bc:polynomial_extrapolation_apply_function");
+            auto result = [](Field& u, const stencil_cells_t& cells, const value_t&)
             {
                 /*
                                 u[0]  u[1]  u[2]   ?
@@ -73,6 +74,8 @@ namespace samurai
                     u[ghost] = u[cells[0]] - u[cells[1]] * 5.0 + u[cells[2]] * 1.0E+1 - u[cells[3]] * 1.0E+1 + u[cells[4]] * 5.0;
                 }
             };
+            times::expert_timers.stop("bc:polynomial_extrapolation_apply_function");
+            return result;
         }
     };
 

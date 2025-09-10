@@ -65,7 +65,9 @@ namespace samurai
         local_type inv_max_fields;
         inv_max_fields.fill(std::numeric_limits<value_t>::min());
 
+        times::expert_timers.start("mr:rel_detail:set_inv_max_field");
         detail::set_inv_max_field(inv_max_fields, fields);
+        times::expert_timers.stop("mr:rel_detail:set_inv_max_field");
 
 #ifdef SAMURAI_WITH_MPI
         mpi::communicator world;
@@ -74,6 +76,7 @@ namespace samurai
         samurai::times::timers.stop("mpi:rel_detail:all_reduce:max_fields");
 #endif
 
+        times::expert_timers.start("mr:rel_detail:compute_inv");
         for (std::size_t i = 0; i < inv_max_fields.size(); ++i)
         {
             if (inv_max_fields[i] < std::numeric_limits<value_t>::epsilon())
@@ -82,8 +85,11 @@ namespace samurai
             }
             inv_max_fields[i] = 1. / inv_max_fields[i];
         }
+        times::expert_timers.stop("mr:rel_detail:compute_inv");
 
+        times::expert_timers.start("mr:rel_detail:apply_scaling");
         auto inv_max_fields_xt = xt::adapt(inv_max_fields);
         detail.array() *= inv_max_fields_xt;
+        times::expert_timers.stop("mr:rel_detail:apply_scaling");
     }
 }

@@ -502,8 +502,10 @@ namespace samurai
     template <class Field, class... Fields>
     void update_outer_ghosts(std::size_t level, Field& field, Fields&... fields)
     {
+        times::expert_timers.start("algorithm:update:update_outer_ghosts");
         update_outer_ghosts(level, field);
         update_outer_ghosts(level, fields...);
+        times::expert_timers.stop("algorithm:update:update_outer_ghosts");
     }
 
     template <class Field>
@@ -529,35 +531,52 @@ namespace samurai
         constexpr std::size_t pred_order = Field::mesh_t::config::prediction_order;
 
         times::timers.start("ghost update");
+        times::expert_timers.start("algorithm:update:update_ghost_mr");
 
         auto& mesh            = field.mesh();
         auto max_level        = mesh.max_level();
         std::size_t min_level = 0;
 
+        times::expert_timers.start("algorithm:update:update_ghost_mr:outer_ghosts_max_level");
         update_outer_ghosts(max_level, field, other_fields...);
+        times::expert_timers.stop("algorithm:update:update_ghost_mr:outer_ghosts_max_level");
 
         for (std::size_t level = max_level; level > min_level; --level)
         {
+            times::expert_timers.start("algorithm:update:update_ghost_mr:level_down");
+            times::expert_timers.start("algorithm:update:update_ghost_mr:periodic_subdomains");
             update_ghost_periodic(level, field, other_fields...);
             update_ghost_subdomains(level, field, other_fields...);
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:periodic_subdomains");
 
+            times::expert_timers.start("algorithm:update:update_ghost_mr:projection");
             auto set_at_levelm1 = intersection(mesh[mesh_id_t::reference][level], mesh[mesh_id_t::proj_cells][level - 1]).on(level - 1);
             set_at_levelm1.apply_op(variadic_projection(field, other_fields...));
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:projection");
 
+            times::expert_timers.start("algorithm:update:update_ghost_mr:outer_ghosts");
             update_outer_ghosts(level - 1, field, other_fields...);
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:outer_ghosts");
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:level_down");
         }
 
         if (min_level > 0 && min_level != max_level)
         {
+            times::expert_timers.start("algorithm:update:update_ghost_mr:min_level_minus_1");
             update_ghost_periodic(min_level - 1, field, other_fields...);
             update_ghost_subdomains(min_level - 1, field, other_fields...);
             update_outer_ghosts(min_level - 1, field, other_fields...);
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:min_level_minus_1");
         }
+        
+        times::expert_timers.start("algorithm:update:update_ghost_mr:min_level");
         update_ghost_periodic(min_level, field, other_fields...);
         update_ghost_subdomains(min_level, field, other_fields...);
+        times::expert_timers.stop("algorithm:update:update_ghost_mr:min_level");
 
         for (std::size_t level = min_level + 1; level <= max_level; ++level)
         {
+            times::expert_timers.start("algorithm:update:update_ghost_mr:level_up");
             auto pred_ghosts = difference(mesh[mesh_id_t::all_cells][level],
                                           union_(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::proj_cells][level]));
             auto expr        = intersection(pred_ghosts, mesh.subdomain(), mesh[mesh_id_t::all_cells][level - 1]).on(level);
@@ -565,12 +584,14 @@ namespace samurai
             expr.apply_op(variadic_prediction<pred_order, false>(field, other_fields...));
             update_ghost_periodic(level, field, other_fields...);
             update_ghost_subdomains(level, field, other_fields...);
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:level_up");
         }
         // save(fs::current_path(), "update_ghosts", {true, true}, mesh, field);
 
         field.ghosts_updated() = true;
         ((other_fields.ghosts_updated() = true), ...);
 
+        times::expert_timers.stop("algorithm:update:update_ghost_mr");
         times::timers.stop("ghost update");
     }
 
@@ -733,8 +754,10 @@ namespace samurai
     template <class Field, class... Fields>
     void update_ghost_subdomains(std::size_t level, Field& field, Fields&... other_fields)
     {
+        times::expert_timers.start("algorithm:update:update_ghost_subdomains");
         update_ghost_subdomains(level, field);
         update_ghost_subdomains(level, other_fields...);
+        times::expert_timers.stop("algorithm:update:update_ghost_subdomains");
     }
 
     template <class Field>
@@ -1112,8 +1135,10 @@ namespace samurai
     template <class Field, class... Fields>
     void update_ghost_periodic(std::size_t level, Field& field, Fields&... other_fields)
     {
+        times::expert_timers.start("algorithm:update:update_ghost_periodic");
         update_ghost_periodic(level, field);
         update_ghost_periodic(level, other_fields...);
+        times::expert_timers.stop("algorithm:update:update_ghost_periodic");
     }
 
     template <class Field>

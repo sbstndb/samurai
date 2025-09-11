@@ -12,6 +12,7 @@
 #include <samurai/field.hpp>
 #include <samurai/io/hdf5.hpp>
 #include <samurai/io/restart.hpp>
+#include <samurai/print.hpp>
 #include <samurai/samurai.hpp>
 
 #include "stencil_field.hpp"
@@ -269,7 +270,7 @@ int main(int argc, char* argv[])
         std::size_t ite_adapt = 0;
         while (true)
         {
-            fmt::print("\tmesh adaptation: {}\n", ite_adapt++);
+            samurai::io::print("\tmesh adaptation: {}\n", ite_adapt++);
             samurai::update_ghost(phi);
             tag.resize();
             AMR_criteria(phi, tag);
@@ -287,7 +288,7 @@ int main(int argc, char* argv[])
             t = Tf;
         }
 
-        fmt::print("iteration {}: t = {}, dt = {}\n", nt++, t, dt);
+        samurai::io::print("iteration {}: t = {}, dt = {}\n", nt++, t, dt);
 
         // Numerical scheme
         samurai::update_ghost(phi);

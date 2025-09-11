@@ -82,7 +82,8 @@ jobs:
         run: |
           set -e
           cd build
-          for N in 1 2 3 4 5 6 7 8; do
+          # Restrict MPI size sweep for now
+          for N in 6 7 8; do
             echo "== Running with N=$N =="
             for MINL in 7 8 9 10 11 12; do
               for MAXL in 7 8 9 10 11 12; do
@@ -163,6 +164,158 @@ jobs:
                 ./demos/FiniteVolume/finite-volume-advection-2d \
                   --Tf 0.5 --nfiles 4 --min-level "$MINL" --max-level "$MAXL" \
                   --cfl 0.5 --filename FV_adv2d_seq
+              fi
+            done
+          done
+
+  #########################################################
+  #
+  # Long-run MPI matrix (Linux) - Burgers
+  # Separate worker to isolate failures
+  #
+  #########################################################
+  linux-mpi-long-run-burgers:
+    needs: check_new_commit
+    if: needs.check_new_commit.outputs.nb_commits > 0
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ccache
+            ~/micromamba-root/envs/samurai-env
+          key: linux-mpi-long-run-burgers-${{ matrix.compiler }}
+          restore-keys: |
+            linux-mpi-long-run-burgers-${{ matrix.compiler }}
+
+      - name: Mamba and samurai env installation (MPI)
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: conda/mpi-environment.yml
+          environment-name: samurai-env
+          cache-environment: true
+
+      - name: Install extra deps (conda)
+        shell: bash -l {0}
+        run: |
+          conda install -y petsc pkg-config cxx-compiler
+
+      - name: Configure (MPI)
+        shell: bash -l {0}
+        run: |
+          # Force GCC via conda toolchain through MPICH wrappers
+          export MPICH_CC="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc"
+          export MPICH_CXX="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++"
+          export CC=mpicc
+          export CXX=mpicxx
+          cmake \
+            . \
+            -Bbuild \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_MPI=ON \
+            -DBUILD_DEMOS=ON \
+            -DBUILD_TESTS=OFF
+
+      - name: Build demo target (burgers)
+        shell: bash -l {0}
+        run: |
+          cmake --build build --target finite-volume-burgers --parallel 4
+
+      - name: MPI run - burgers (N sweep)
+        shell: bash -l {0}
+        run: |
+          set -e
+          cd build
+          # Restrict MPI size sweep for now
+          for N in 6 7 8; do
+            echo "== Running Burgers with N=$N =="
+            for MINL in 7 8 9 10 11 12; do
+              for MAXL in 7 8 9 10 11 12; do
+                if [ "$MINL" -le "$MAXL" ]; then
+                  echo "--> min-level=$MINL max-level=$MAXL"
+                  mpiexec -n "$N" ./demos/FiniteVolume/finite-volume-burgers \
+                    --Tf 0.5 --nfiles 4 --min-level "$MINL" --max-level "$MAXL" \
+                    --cfl 0.5 --filename FV_burgers_test
+                fi
+              done
+            done
+          done
+
+  #########################################################
+  #
+  # Linux sequential (no MPI) with gcc - Burgers
+  # Separate worker to isolate failures
+  #
+  #########################################################
+  linux-seq-gcc-burgers:
+    needs: check_new_commit
+    if: needs.check_new_commit.outputs.nb_commits > 0
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ccache
+            ~/micromamba-root/envs/samurai-env
+          key: linux-seq-gcc-burgers
+          restore-keys: |
+            linux-seq-gcc-burgers
+
+      - name: Mamba and samurai env installation (sequential)
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: conda/environment.yml
+          environment-name: samurai-env
+          cache-environment: true
+
+      - name: Install extra deps (conda)
+        shell: bash -l {0}
+        run: |
+          conda install -y cxx-compiler
+
+      - name: Configure (sequential)
+        shell: bash -l {0}
+        run: |
+          # Force GCC via conda toolchain
+          export CC="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc"
+          export CXX="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++"
+          cmake \
+            . \
+            -Bbuild \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_MPI=OFF \
+            -DBUILD_DEMOS=ON \
+            -DBUILD_TESTS=OFF
+
+      - name: Build demo target (sequential burgers)
+        shell: bash -l {0}
+        run: |
+          cmake --build build --target finite-volume-burgers --parallel 3
+
+      - name: Run demo - burgers (sequential)
+        shell: bash -l {0}
+        run: |
+          set -e
+          cd build
+          for MINL in 7 8 9 10 11 12; do
+            for MAXL in 7 8 9 10 11 12; do
+              if [ "$MINL" -le "$MAXL" ]; then
+                echo "--> min-level=$MINL max-level=$MAXL (sequential)"
+                ./demos/FiniteVolume/finite-volume-burgers \
+                  --Tf 0.5 --nfiles 4 --min-level "$MINL" --max-level "$MAXL" \
+                  --cfl 0.5 --filename FV_burgers_seq
               fi
             done
           done

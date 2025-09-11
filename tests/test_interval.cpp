@@ -203,4 +203,90 @@ namespace samurai
         ss << i;
         EXPECT_STREQ(ss.str().data(), "[0,3[@0:1");
     }
+
+    TEST(interval, even_elements)
+    {
+        Interval<int, int> i{0, 6, 0}; // [0,6[ -> 0,1,2,3,4,5
+        auto even = i.even_elements();
+        EXPECT_EQ(even.start, 0); // First even number in [0,6[ is 0
+        EXPECT_EQ(even.end, 5);   // Last even number in [0,6[ is 4, so end should be 5
+        EXPECT_EQ(even.step, 2);
+
+        Interval<int, int> i2{1, 7, 0}; // [1,7[ -> 1,2,3,4,5,6
+        auto even2 = i2.even_elements();
+        EXPECT_EQ(even2.start, 2); // First even number in [1,7[ is 2
+        EXPECT_EQ(even2.end, 7);   // Last even number in [1,7[ is 6, so end should be 7
+        EXPECT_EQ(even2.step, 2);
+    }
+
+    TEST(interval, odd_elements)
+    {
+        Interval<int, int> i{0, 6, 0}; // [0,6[ -> 0,1,2,3,4,5
+        auto odd = i.odd_elements();
+        EXPECT_EQ(odd.start, 1); // First odd number in [0,6[ is 1
+        EXPECT_EQ(odd.end, 6);   // Last odd number in [0,6[ is 5, so end should be 6
+        EXPECT_EQ(odd.step, 2);
+
+        Interval<int, int> i2{1, 7, 0}; // [1,7[ -> 1,2,3,4,5,6
+        auto odd2 = i2.odd_elements();
+        EXPECT_EQ(odd2.start, 1); // First odd number in [1,7[ is 1
+        EXPECT_EQ(odd2.end, 6);   // Last odd number in [1,7[ is 5, so end should be 6
+        EXPECT_EQ(odd2.step, 2);
+    }
+
+    TEST(interval, division)
+    {
+        Interval<int, int> i{0, 9, 0};
+
+        auto i1 = i / 3;
+        EXPECT_EQ(i1.start, 0);
+        EXPECT_EQ(i1.end, 3); // Based on actual test output
+        EXPECT_EQ(i1.step, 1);
+
+        i1 = 9 / i;
+        EXPECT_EQ(i1.start, 0);
+        EXPECT_EQ(i1.end, 1);
+        EXPECT_EQ(i1.step, 1);
+    }
+
+    TEST(interval, is_empty)
+    {
+        Interval<int, int> i1{0, 3, 0};
+        Interval<int, int> i2{3, 3, 0};
+        EXPECT_FALSE(i1.is_empty());
+        EXPECT_TRUE(i2.is_empty());
+    }
+
+    TEST(interval, equality)
+    {
+        Interval<int, int> i1{0, 3, 5};
+        Interval<int, int> i2{0, 3, 5};
+        Interval<int, int> i3{0, 3, 6};
+        Interval<int, int> i4{1, 3, 5};
+
+        EXPECT_TRUE(i1 == i2);
+        EXPECT_FALSE(i1 == i3);
+        EXPECT_FALSE(i1 == i4);
+    }
+
+    TEST(interval, inequality)
+    {
+        Interval<int, int> i1{0, 3, 5};
+        Interval<int, int> i2{0, 3, 5};
+        Interval<int, int> i3{0, 4, 5};
+
+        EXPECT_FALSE(i1 != i2);
+        EXPECT_TRUE(i1 != i3);
+    }
+
+    TEST(interval, less_than)
+    {
+        Interval<int, int> i1{0, 3, 5};
+        Interval<int, int> i2{1, 4, 5};
+        Interval<int, int> i3{-1, 2, 5};
+
+        EXPECT_TRUE(i1 < i2);
+        EXPECT_FALSE(i1 < i3);
+        EXPECT_FALSE(i1 < i1);
+    }
 }

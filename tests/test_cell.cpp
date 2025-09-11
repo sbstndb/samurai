@@ -167,7 +167,7 @@ namespace samurai
     TEST(cell, second_constructor)
     {
         double scaling_factor = 1;
-        int i = 1;
+        int i                 = 1;
         xt::xtensor_fixed<int, xt::xshape<1>> others{1};
 
         Cell<2, Interval<int>> c{
@@ -211,31 +211,25 @@ namespace samurai
 
     TEST(cell, one_dimensional)
     {
-        auto indices = xt::xtensor_fixed<int, xt::xshape<1>>({2});
+        auto indices          = xt::xtensor_fixed<int, xt::xshape<1>>({2});
         double scaling_factor = 1;
-        Cell<1, Interval<int>> c{
-            {0},
-            scaling_factor,
-            1,
-            indices,
-            0
-        };
+        Cell<1, Interval<int>> c{{0}, scaling_factor, 1, indices, 0};
 
         EXPECT_EQ(c.length, 0.5);
-        
+
         xt::xarray<double> expected_center{1.25};
         EXPECT_EQ(c.center(), expected_center);
-        
+
         xt::xarray<double> expected_corner{1.0};
         EXPECT_EQ(c.corner(), expected_corner);
-        
+
         EXPECT_EQ(c.center(0), 1.25);
         EXPECT_EQ(c.corner(0), 1.0);
     }
 
     TEST(cell, three_dimensional)
     {
-        auto indices = xt::xtensor_fixed<int, xt::xshape<3>>({1, 2, 3});
+        auto indices          = xt::xtensor_fixed<int, xt::xshape<3>>({1, 2, 3});
         double scaling_factor = 1;
         Cell<3, Interval<int>> c{
             {0, 0, 0},
@@ -246,17 +240,17 @@ namespace samurai
         };
 
         EXPECT_EQ(c.length, 0.5);
-        
+
         xt::xarray<double> expected_center{0.75, 1.25, 1.75};
         EXPECT_EQ(c.center(), expected_center);
-        
+
         xt::xarray<double> expected_corner{0.5, 1.0, 1.5};
         EXPECT_EQ(c.corner(), expected_corner);
-        
+
         EXPECT_EQ(c.center(0), 0.75);
         EXPECT_EQ(c.center(1), 1.25);
         EXPECT_EQ(c.center(2), 1.75);
-        
+
         EXPECT_EQ(c.corner(0), 0.5);
         EXPECT_EQ(c.corner(1), 1.0);
         EXPECT_EQ(c.corner(2), 1.5);

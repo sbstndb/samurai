@@ -140,4 +140,117 @@ namespace samurai
         u.name() = "new_name";
         EXPECT_EQ(u.name(), "new_name");
     }
+
+    TEST(field, vector_field_creation)
+    {
+        Box<double, 1> box{{0}, {1}};
+        using Config = UniformConfig<1>;
+        auto mesh    = UniformMesh<Config>(box, 3);
+
+        // Test creation of vector field
+        auto u = make_vector_field<double, 3>("u", mesh);
+        EXPECT_EQ(u.name(), "u");
+        EXPECT_EQ(u.mesh(), mesh);
+    }
+
+    TEST(field, vector_field_fill)
+    {
+        Box<double, 1> box{{0}, {1}};
+        using Config = UniformConfig<1>;
+        auto mesh    = UniformMesh<Config>(box, 3);
+
+        // Test filling vector field with a value
+        auto u = make_vector_field<double, 3>("u", mesh, 2.0);
+
+        for_each_cell(mesh,
+                      [&](auto cell)
+                      {
+                          auto value = u[cell];
+                          EXPECT_TRUE(compare(value, samurai::Array<double, 3, false>{2.0, 2.0, 2.0}));
+                      });
+    }
+
+    TEST(field, vector_field_function_init)
+    {
+        Box<double, 1> box{{0}, {1}};
+        using Config = UniformConfig<1>;
+        auto mesh    = UniformMesh<Config>(box, 3);
+
+        // Test initializing vector field with a function
+        auto u = make_vector_field<double, 2>("u",
+                                              mesh,
+                                              [](const auto& coords)
+                                              {
+                                                  return samurai::Array<double, 2, false>{coords[0], coords[0] * 2};
+                                              });
+
+        for_each_cell(mesh,
+                      [&](auto cell)
+                      {
+                          auto center = cell.center();
+                          auto value  = u[cell];
+                          EXPECT_TRUE(compare(value, samurai::Array<double, 2, false>{center[0], center[0] * 2}));
+                      });
+    }
+
+    TEST(field, field_comparison)
+    {
+        Box<double, 1> box{{0}, {1}};
+        using Config = UniformConfig<1>;
+        auto mesh    = UniformMesh<Config>(box, 3);
+
+        // Test comparing two identical fields
+        auto u1 = make_scalar_field<double>("u1", mesh, 1.0);
+        auto u2 = make_scalar_field<double>("u2", mesh, 1.0);
+
+        // Note: There's no direct operator== for fields in the current implementation
+        // but we can compare their arrays
+        EXPECT_TRUE(compare(u1.array(), u2.array()));
+    }
+
+    TEST(field, field_fill)
+    {
+        Box<double, 1> box{{0}, {1}};
+        using Config = UniformConfig<1>;
+        auto mesh    = UniformMesh<Config>(box, 3);
+
+        // Test filling a field with a value
+        auto u = make_scalar_field<double>("u", mesh);
+        u.fill(5.0);
+
+        for_each_cell(mesh,
+                      [&](auto cell)
+                      {
+                          EXPECT_EQ(u[cell], 5.0);
+                      });
+    }
+
+    TEST(field, vector_field_indexing)
+    {
+        Box<double, 1> box{{0}, {1}};
+        using Config = UniformConfig<1>;
+        auto mesh    = UniformMesh<Config>(box, 3);
+
+        // Test vector field indexing
+        auto u = make_vector_field<double, 2>("u", mesh);
+
+        std::size_t index = 0;
+        for_each_cell(mesh,
+                      [&](auto cell)
+                      {
+                          u[cell] = samurai::Array<double, 2, false>{static_cast<double>(index), static_cast<double>(index * 2)};
+                          index++;
+                      });
+
+        // Check values
+        index = 0;
+        for_each_cell(
+            mesh,
+            [&](auto cell)
+            {
+                auto value = u[cell];
+                EXPECT_TRUE(compare(value, samurai::Array<double, 2, false>{static_cast<double>(index), static_cast<double>(index * 2)}));
+                index++;
+            });
+    }
 }

@@ -114,6 +114,97 @@ namespace samurai
         EXPECT_STREQ(ss.str().data(), "Box({-1, -1}, {1, 1})");
     }
 
+    TEST(box, min_length)
+    {
+        Box<int, 2> box{
+            {0,  0},
+            {10, 5}
+        };
+        EXPECT_EQ(box.min_length(), 5);
+
+        Box<int, 2> box2{
+            {-5, -10},
+            {10, 5  }
+        };
+        EXPECT_EQ(box2.min_length(), 15);
+    }
+
+    TEST(box, intersects)
+    {
+        Box<int, 2> box1{
+            {0, 0},
+            {5, 5}
+        };
+        Box<int, 2> box2{
+            {3, 3},
+            {8, 8}
+        };
+        Box<int, 2> box3{
+            {6,  6 },
+            {10, 10}
+        };
+
+        EXPECT_TRUE(box1.intersects(box2));  // Overlapping boxes
+        EXPECT_FALSE(box1.intersects(box3)); // Non-overlapping boxes
+    }
+
+    TEST(box, intersection)
+    {
+        Box<int, 2> box1{
+            {0, 0},
+            {5, 5}
+        };
+        Box<int, 2> box2{
+            {3, 3},
+            {8, 8}
+        };
+
+        auto intersection = box1.intersection(box2);
+        xt::xarray<int> expected_min{3, 3};
+        xt::xarray<int> expected_max{5, 5};
+
+        EXPECT_EQ(intersection.min_corner(), expected_min);
+        EXPECT_EQ(intersection.max_corner(), expected_max);
+    }
+
+    TEST(box, equality)
+    {
+        Box<int, 2> box1{
+            {0, 0},
+            {5, 5}
+        };
+        Box<int, 2> box2{
+            {0, 0},
+            {5, 5}
+        };
+        Box<int, 2> box3{
+            {1, 1},
+            {5, 5}
+        };
+
+        EXPECT_TRUE(box1 == box2);
+        EXPECT_FALSE(box1 == box3);
+    }
+
+    TEST(box, inequality)
+    {
+        Box<int, 2> box1{
+            {0, 0},
+            {5, 5}
+        };
+        Box<int, 2> box2{
+            {0, 0},
+            {5, 5}
+        };
+        Box<int, 2> box3{
+            {1, 1},
+            {5, 5}
+        };
+
+        EXPECT_FALSE(box1 != box2);
+        EXPECT_TRUE(box1 != box3);
+    }
+
     TEST(box, approximate_box_exact)
     {
         Box<double, 2> box{

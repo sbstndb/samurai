@@ -2,7 +2,14 @@
 // SPDX-License-Identifier:  BSD-3-Clause
 #pragma once
 
+#if defined(__GNUC__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
 #include <CLI/CLI.hpp>
+#if defined(__GNUC__)
+#  pragma GCC diagnostic pop
+#endif
 
 namespace samurai
 {

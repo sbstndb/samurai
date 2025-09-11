@@ -19,12 +19,21 @@ namespace fs = std::filesystem;
 #undef H5_USE_BOOST
 #endif
 
+#if defined(__GNUC__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#  pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#  pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 #include <highfive/H5Easy.hpp>
 #include <highfive/H5PropertyList.hpp>
 #include <pugixml.hpp>
 #include <xtensor/xadapt.hpp>
 #include <xtensor/xarray.hpp>
 #include <xtensor/xview.hpp>
+#if defined(__GNUC__)
+#  pragma GCC diagnostic pop
+#endif
 
 #include <fmt/core.h>
 
@@ -85,6 +94,12 @@ namespace samurai
     template <class Mesh>
     auto extract_coords_and_connectivity(const Mesh& mesh)
     {
+        #if defined(__GNUC__)
+        #  pragma GCC diagnostic push
+        #  pragma GCC diagnostic ignored "-Warray-bounds"
+        #  pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+        #  pragma GCC diagnostic ignored "-Wstringop-overflow"
+        #endif
         static constexpr std::size_t dim = Mesh::dim;
         std::size_t nb_cells             = mesh.nb_cells();
 
@@ -142,6 +157,9 @@ namespace samurai
             auto coords_view = xt::view(coords, idx, xt::range(0, dim));
             coords_view      = xt::adapt(e.first);
         }
+        #if defined(__GNUC__)
+        #  pragma GCC diagnostic pop
+        #endif
         return std::make_pair(coords, connectivity);
     }
 

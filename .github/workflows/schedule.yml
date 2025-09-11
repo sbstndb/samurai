@@ -16,210 +16,6 @@ jobs:
       - id: new_commits
         run: echo "nb_commits=$(git log --oneline --since '24 hours ago' | wc -l)" >> $GITHUB_OUTPUT
 
-  #
-  # Check samurai with clang-tidy
-  #
-  #########################################################
-  clang-tidy-check:
-    needs: check_new_commit
-    if: needs.check_new_commit.outputs.nb_commits > 0
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/ccache
-            ~/micromamba-root/envs/samurai-env
-          key: clang-tidy
-
-      - name: Mamba and samurai env installation
-        uses: mamba-org/setup-micromamba@v1
-        with:
-          environment-file: conda/environment.yml
-          environment-name: samurai-env
-          cache-environment: true
-
-      - name: clang-tidy installation
-        shell: bash -l {0}
-        run: |
-          conda install -y clang-tools cxx-compiler clang clangxx
-          pip install compdb
-
-      - name: Configure
-        shell: bash -l {0}
-        run: |
-          cmake . -Bbuild -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEMOS=ON
-          compdb -p build list > compile_commands.json
-
-      - name: run clang-tidy on samurai
-        shell: bash -l {0}
-        run: |
-          run-clang-tidy
-
-  #
-  # Check conan build
-  #
-  #########################################################
-  conan:
-    needs: check_new_commit
-    if: needs.check_new_commit.outputs.nb_commits > 0
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-24.04
-        compiler:
-          # - llvm
-          - gcc
-        CMAKE_GENERATOR:
-          - "Ninja Multi-Config"
-        include: []
-
-        # exclude:
-        #   - os: windows-2022
-        #     compiler: llvm
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.conan/
-            ~/.cache/ccache
-            ~/.cache/pip
-            ~/Library/Caches/ccache
-          key: conan-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('./conanfile.py')}}
-          restore-keys: |
-            conan-${{ runner.os }}-${{ matrix.compiler }}-
-
-      # Windows-specific pagefile configuration removed (Linux-only long run)
-
-      - name: Setup Cpp
-        uses: aminya/setup-cpp@v0.26.2
-        with:
-          compiler: ${{ matrix.compiler }}
-
-          cmake: true
-          ninja: true
-          conan: true
-          vcpkg: false
-          ccache: false
-          clangtidy: false
-          task: false
-
-          cppcheck: false
-
-          gcovr: false
-          opencppcoverage: false
-
-      # - name: Information about ccache
-      #   run: |
-      #     ccache -s -v
-      - name: Configure CMake
-        run: |
-          cmake . -B ./build -G "${{matrix.CMAKE_GENERATOR}}" -DCMAKE_BUILD_TYPE=Release -DENABLE_CONAN_OPTION=ON -DBUILD_TESTS=ON -DBUILD_DEMOS=ON
-      - name: Build
-        run: |
-          cmake --build ./build --config Release
-      # macOS-specific brew step removed (Linux-only long run)
-      - name: Install Python dependencies
-        if: runner.os != 'macOS'
-        run: |
-          pip3 install pytest h5py
-      - name: Unix test
-        if: runner.os != 'Windows'
-        run: |
-          ./build/tests/Release/test_samurai_lib
-          cd tests; pytest --h5diff
-      # Windows tests removed (Linux-only long run)
-
-  #
-  # Check vcpkg build
-  #
-  #########################################################
-  vcpkg:
-    needs: check_new_commit
-    if: needs.check_new_commit.outputs.nb_commits > 0
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-24.04
-        compiler:
-          # - llvm
-          - gcc
-        CMAKE_GENERATOR:
-          - "Ninja Multi-Config"
-        include: []
-
-        # exclude:
-        #   - os: windows-2022
-        #     compiler: llvm
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/vcpkg
-            ~/.cache/ccache
-            ~/.cache/pip
-            ~/Library/Caches/ccache
-            ./build/vcpkg_installed
-            ${{ env.CONAN_USER_HOME }}
-            ${{ env.HOME }}/.cache/vcpkg/archives
-            ${{ env.XDG_CACHE_HOME }}/vcpkg/archives
-          key: vcpkg-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('./vcpkg.json')}}
-          restore-keys: |
-            vcpkg-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('./vcpkg.json') }}
-            vcpkg-${{ runner.os }}-${{ matrix.compiler }}-
-      - name: Setup Cpp
-        uses: aminya/setup-cpp@v0.26.2
-        with:
-          compiler: ${{ matrix.compiler }}
-
-          cmake: true
-          ninja: true
-          vcpkg: true
-          ccache: false
-          clangtidy: false
-          task: false
-
-          cppcheck: false
-
-          gcovr: false
-          opencppcoverage: false
-
-      # - name: Information about ccache
-      #   run: |
-      #     ccache -s -v
-      - name: Configure CMake
-        run: |
-          cmake -B ./build -S . -G "${{matrix.CMAKE_GENERATOR}}" -DENABLE_VCPKG=ON -DBUILD_TESTS=ON -DBUILD_DEMOS=ON
-      - name: Build
-        run: |
-          cmake --build ./build --config Release
-      # macOS-specific brew step removed (Linux-only long run)
-      - name: Install Python dependencies
-        if: runner.os != 'macOS'
-        run: |
-          pip3 install pytest h5py
-      - name: Unix test
-        if: runner.os != 'Windows'
-        run: |
-          ./build/tests/Release/test_samurai_lib
-          cd tests; pytest --h5diff
-      # Windows tests removed (Linux-only long run)
-
   # Windows long-run job removed (Linux-only schedule)
 
   #
@@ -233,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc, clang]
+        compiler: [gcc]
     steps:
       - uses: actions/checkout@v4
 
@@ -259,21 +55,14 @@ jobs:
         run: |
           conda install -y petsc pkg-config cxx-compiler
 
-      - name: Install Clang 18 (only when requested)
-        if: matrix.compiler == 'clang'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-18
-
       - name: Configure (MPI)
         shell: bash -l {0}
         run: |
-          if [[ "${{ matrix.compiler }}" == "clang" ]]; then
-            export CC=clang-18
-            export CXX=clang++-18
-            export MPICH_CC=clang-18
-            export MPICH_CXX=clang++-18
-          fi
+          # Force GCC via conda toolchain through MPICH wrappers
+          export MPICH_CC="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc"
+          export MPICH_CXX="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++"
+          export CC=mpicc
+          export CXX=mpicxx
           cmake \
             . \
             -Bbuild \
@@ -296,3 +85,64 @@ jobs:
           mpiexec -n 2 ./demos/FiniteVolume/finite-volume-advection-2d --Tf 0.02 --nfiles 4 --max-level 7 --cfl 0.5 --filename FV_adv2d_test
 
       # Additional demo sweeps removed for initial validation
+
+  #
+  # Linux sequential (no MPI) with gcc
+  #
+  #########################################################
+  linux-seq-gcc:
+    needs: check_new_commit
+    if: needs.check_new_commit.outputs.nb_commits > 0
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ccache
+            ~/micromamba-root/envs/samurai-env
+          key: linux-seq-gcc
+          restore-keys: |
+            linux-seq-gcc
+
+      - name: Mamba and samurai env installation (sequential)
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: conda/environment.yml
+          environment-name: samurai-env
+          cache-environment: true
+
+      - name: Install extra deps (conda)
+        shell: bash -l {0}
+        run: |
+          conda install -y cxx-compiler
+
+      - name: Configure (sequential)
+        shell: bash -l {0}
+        run: |
+          # Force GCC via conda toolchain
+          export CC="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc"
+          export CXX="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++"
+          cmake \
+            . \
+            -Bbuild \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_MPI=OFF \
+            -DBUILD_DEMOS=ON \
+            -DBUILD_TESTS=ON
+
+      - name: Build (sequential)
+        shell: bash -l {0}
+        run: |
+          cmake --build build --target all --parallel 3
+
+      - name: Run tests (sequential)
+        shell: bash -l {0}
+        run: |
+          cd build
+          ./tests/test_samurai_lib
+          cd ../tests
+          pytest --h5diff

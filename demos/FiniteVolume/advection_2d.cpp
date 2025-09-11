@@ -16,47 +16,15 @@
 #include <samurai/stencil_field.hpp>
 #include <samurai/subset/node.hpp>
 
+// Try to use the experimental C++20 module for init/save; fallback to header.
+#if defined(SAMURAI_USE_MODULE_ADVECTION_UTILS)
+import samurai.advection_utils;
+#else
+#include "advection_utils.hpp"
+#endif
+
 #include <filesystem>
 namespace fs = std::filesystem;
-
-template <class Field>
-void init(Field& u)
-{
-    auto& mesh = u.mesh();
-    u.resize();
-
-    samurai::for_each_cell(
-        mesh,
-        [&](auto& cell)
-        {
-            auto center           = cell.center();
-            const double radius   = .2;
-            const double x_center = 0.3;
-            const double y_center = 0.3;
-            if (((center[0] - x_center) * (center[0] - x_center) + (center[1] - y_center) * (center[1] - y_center)) <= radius * radius)
-            {
-                u[cell] = 1;
-            }
-            else
-            {
-                u[cell] = 0;
-            }
-        });
-}
-
-template <class Field>
-void save(const fs::path& path, const std::string& filename, const Field& u, const std::string& suffix = "")
-{
-    auto& mesh = u.mesh();
-
-#ifdef SAMURAI_WITH_MPI
-    mpi::communicator world;
-    samurai::save(path, fmt::format("{}_size_{}{}", filename, world.size(), suffix), mesh, u);
-#else
-    samurai::save(path, fmt::format("{}{}", filename, suffix), mesh, u);
-    samurai::dump(path, fmt::format("{}_restart{}", filename, suffix), mesh, u);
-#endif
-}
 
 int main(int argc, char* argv[])
 {

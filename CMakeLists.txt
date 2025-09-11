@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
 
+# Enable C++20 module support when available (CMake >= 3.28)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.28")
+  # Opt into CMake's C++ modules API and dynamic dependency scanning
+  set(CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API "cxx_modules")
+  set(CMAKE_EXPERIMENTAL_CXX_MODULE_DYNDEP 1)
+  set(CMAKE_CXX_SCAN_FOR_MODULES ON)
+endif()
+
 # Set version
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/version.txt")
   file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" SAMURAI_VERSION)
@@ -51,6 +59,7 @@ option(WITH_MPI "Enable MPI" OFF)
 option(WITH_OPENMP "Enable OpenMP" OFF)
 option(WITH_PETSC "Enable PETSc" OFF)
 option(SAMURAI_CONTAINER_LAYOUT_COL_MAJOR "Set the containers' layout to column-major" OFF)
+option(SAMURAI_USE_MODULES "Enable experimental C++20 modules when supported" ON)
 
 set(FIELD_CONTAINER_LIST "xtensor" "eigen3")
 set(SAMURAI_FIELD_CONTAINER "xtensor" CACHE STRING "Container to store fields: ${FIELD_CONTAINER_LIST}")

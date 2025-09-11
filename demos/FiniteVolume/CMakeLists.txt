@@ -54,6 +54,40 @@ foreach(demo_entry ${STANDARD_DEMOS})
 
     add_executable(${executable_name} ${source_file})
     target_link_libraries(${executable_name} samurai CLI11::CLI11)
+
+    # Experimental: add a small C++20 module to advection_2d if supported by CMake/Compiler
+    if(executable_name STREQUAL "finite-volume-advection-2d")
+        # Guard on CMake version and generator for C++20 modules integration
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.28" AND SAMURAI_USE_MODULES)
+            # Restrict to compilers with supported module scanning (Clang/MSVC)
+            if((CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR MSVC) AND (CMAKE_GENERATOR MATCHES "Ninja" OR (MSVC AND CMAKE_GENERATOR MATCHES "Visual Studio")))
+                # Enable module scanning in newer CMake when available
+                set(CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API "cxx_modules")
+                # Ensure scanning is enabled (default ON in recent CMake, explicit here for clarity)
+                set(CMAKE_CXX_SCAN_FOR_MODULES ON)
+                if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+                    # Try both unversioned and versioned scanner binaries
+                    find_program(CLANG_SCAN_DEPS_EXECUTABLE NAMES clang-scan-deps clang-scan-deps-20 clang-scan-deps-19 clang-scan-deps-18)
+                    if(NOT CLANG_SCAN_DEPS_EXECUTABLE)
+                        message(STATUS "clang++ detected but 'clang-scan-deps' not found; disabling modules for ${executable_name}. Using header fallback.")
+                        set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+                    endif()
+                endif()
+                if(CMAKE_CXX_SCAN_FOR_MODULES)
+                    # Enable dynamic dependency scanning for Clang + Ninja
+                    set(CMAKE_EXPERIMENTAL_CXX_MODULE_DYNDEP 1)
+                    target_sources(${executable_name}
+                        PRIVATE
+                            FILE_SET advection_mods TYPE CXX_MODULES FILES
+                                ${CMAKE_CURRENT_SOURCE_DIR}/advection_utils.ixx
+                    )
+                    target_compile_definitions(${executable_name} PRIVATE SAMURAI_USE_MODULE_ADVECTION_UTILS)
+                endif()
+            else()
+                message(STATUS "C++20 modules disabled for ${executable_name} (compiler '${CMAKE_CXX_COMPILER_ID}' and generator '${CMAKE_GENERATOR}' not supported). Using header fallback.")
+            endif()
+        endif()
+    endif()
 endforeach()
 
 # Specific options for MSVC

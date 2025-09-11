@@ -158,7 +158,7 @@ jobs:
                   --cfl 0.5 --filename FV_burgers_seq
               fi
           done
-        done
+          done
 
   #########################################################
   # Linux sequential (no MPI) with gcc - Linear Convection

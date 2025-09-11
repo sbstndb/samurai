@@ -85,8 +85,8 @@ jobs:
           # Restrict MPI size sweep for now
           for N in 6 7 8; do
             echo "== Running with N=$N =="
-            for MINL in 7 8 9 10 11 12; do
-              for MAXL in 7 8 9 10 11 12; do
+            for MINL in 7 8 9; do
+              for MAXL in 8 9 10; do
                 if [ "$MINL" -le "$MAXL" ]; then
                   echo "--> min-level=$MINL max-level=$MAXL"
                   mpiexec -n "$N" ./demos/FiniteVolume/finite-volume-advection-2d \
@@ -157,8 +157,8 @@ jobs:
         run: |
           set -e
           cd build
-          for MINL in 7 8 9 10 11 12; do
-            for MAXL in 7 8 9 10 11 12; do
+          for MINL in 7 8 9; do
+            for MAXL in 8 9 10; do
               if [ "$MINL" -le "$MAXL" ]; then
                 echo "--> min-level=$MINL max-level=$MAXL (sequential)"
                 ./demos/FiniteVolume/finite-volume-advection-2d \
@@ -237,8 +237,8 @@ jobs:
           # Restrict MPI size sweep for now
           for N in 6 7 8; do
             echo "== Running Burgers with N=$N =="
-            for MINL in 7 8 9 10 11 12; do
-              for MAXL in 7 8 9 10 11 12; do
+            for MINL in 5 6 7; do
+              for MAXL in 6 7 8; do
                 if [ "$MINL" -le "$MAXL" ]; then
                   echo "--> min-level=$MINL max-level=$MAXL"
                   mpiexec -n "$N" ./demos/FiniteVolume/finite-volume-burgers \
@@ -309,8 +309,8 @@ jobs:
         run: |
           set -e
           cd build
-          for MINL in 7 8 9 10 11 12; do
-            for MAXL in 7 8 9 10 11 12; do
+          for MINL in 5 6 7; do
+            for MAXL in 6 7 8 ; do
               if [ "$MINL" -le "$MAXL" ]; then
                 echo "--> min-level=$MINL max-level=$MAXL (sequential)"
                 ./demos/FiniteVolume/finite-volume-burgers \

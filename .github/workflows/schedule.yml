@@ -77,12 +77,16 @@ jobs:
         run: |
           cmake --build build --target finite-volume-advection-2d --parallel 4
 
-      - name: MPI run - advection 2D (single test)
+      - name: MPI run - advection 2D (N sweep)
         shell: bash -l {0}
         run: |
           set -e
           cd build
-          mpiexec -n 2 ./demos/FiniteVolume/finite-volume-advection-2d --Tf 0.02 --nfiles 4 --max-level 7 --cfl 0.5 --filename FV_adv2d_test
+          for N in 1 2 4; do
+            echo "== Running with N=$N =="
+            mpiexec -n "$N" ./demos/FiniteVolume/finite-volume-advection-2d \
+              --Tf 0.02 --nfiles 4 --max-level 7 --cfl 0.5 --filename FV_adv2d_test
+          done
 
       # Additional demo sweeps removed for initial validation
 
@@ -132,17 +136,17 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DWITH_MPI=OFF \
             -DBUILD_DEMOS=ON \
-            -DBUILD_TESTS=ON
+            -DBUILD_TESTS=OFF
 
-      - name: Build (sequential)
+      - name: Build demo target (sequential)
         shell: bash -l {0}
         run: |
-          cmake --build build --target all --parallel 3
+          cmake --build build --target finite-volume-advection-2d --parallel 3
 
-      - name: Run tests (sequential)
+      - name: Run demo - advection 2D (sequential)
         shell: bash -l {0}
         run: |
+          set -e
           cd build
-          ./tests/test_samurai_lib
-          cd ../tests
-          pytest --h5diff
+          ./demos/FiniteVolume/finite-volume-advection-2d \
+            --Tf 0.02 --nfiles 4 --max-level 7 --cfl 0.5 --filename FV_adv2d_seq

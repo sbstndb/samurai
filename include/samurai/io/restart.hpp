@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -124,8 +126,12 @@ namespace samurai
     {
 #ifdef SAMURAI_WITH_MPI
         mpi::communicator world;
-        auto min_level = mpi::all_reduce(world, ca.min_level(), mpi::minimum<std::size_t>());
-        auto max_level = mpi::all_reduce(world, ca.max_level(), mpi::maximum<std::size_t>());
+        std::array<std::size_t, 2> levels{ca.min_level(), ca.max_level()};
+        levels = mpi::all_reduce(world, levels, [](const auto& a, const auto& b) {
+            return std::array<std::size_t, 2>{std::min(a[0], b[0]), std::max(a[1], b[1])};
+        });
+        auto min_level = levels[0];
+        auto max_level = levels[1];
         auto size      = world.size();
 #else
         std::size_t min_level = ca.min_level();

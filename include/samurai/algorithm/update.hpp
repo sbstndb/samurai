@@ -89,9 +89,18 @@ namespace samurai
             //                                          mesh[mesh_id_t::cells_and_ghosts][level])))
             //             .on(level);
 
-            auto expr = intersection(
-                difference(mesh[mesh_id_t::all_cells][level], union_(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::proj_cells][level])),
-                self(mesh.domain()).on(level));
+        auto ghost_cells_to_remove = samurai::union_(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::proj_cells][level]);
+
+        // CSIR PROTOTYPE for difference(all_cells, union_(...))
+        using lca_t = typename decltype(mesh[mesh_id_t::all_cells][level])::self_type;
+        auto all_cells_lca = mesh[mesh_id_t::all_cells][level];
+        auto to_remove_lca = lca_t(ghost_cells_to_remove);
+
+        auto lhs_csir = csir::to_csir_level(all_cells_lca);
+        auto rhs_csir = csir::to_csir_level(to_remove_lca);
+        auto result_csir = csir::difference(lhs_csir, rhs_csir);
+        auto result_lca = csir::from_csir_level(result_csir);
+        auto expr = self(result_lca);
 
             expr.apply_op(prediction<pred_order, false>(field));
         }

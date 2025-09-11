@@ -508,7 +508,11 @@ namespace samurai
         {
             lca_type box_lca(start_level, box, origin_point_, approx_box_tol, scaling_factor);
             lca_type current_domain_lca(domain_cl[start_level]);
-            auto new_domain_set = union_(current_domain_lca, box_lca);
+            // CSIR PROTOTYPE
+        auto lhs_csir = csir::to_csir_level(current_domain_lca);
+        auto rhs_csir = csir::to_csir_level(box_lca);
+        auto result_csir = csir::union_(lhs_csir, rhs_csir);
+        auto new_domain_set = csir::from_csir_level(result_csir);
             domain_cl           = cl_type(origin_point_, scaling_factor);
             new_domain_set(
                 [&](const auto& i, const auto& index)
@@ -520,7 +524,11 @@ namespace samurai
         {
             lca_type hole_lca(start_level, box, origin_point_, approx_box_tol, scaling_factor);
             lca_type current_domain_lca(domain_cl[start_level]);
-            auto new_domain_set = difference(current_domain_lca, hole_lca);
+            // CSIR PROTOTYPE
+        auto lhs_csir = csir::to_csir_level(current_domain_lca);
+        auto rhs_csir = csir::to_csir_level(hole_lca);
+        auto result_csir = csir::difference(lhs_csir, rhs_csir);
+        auto new_domain_set = csir::from_csir_level(result_csir);
             domain_cl           = cl_type(origin_point_, scaling_factor);
             new_domain_set(
                 [&](const auto& i, const auto& index)

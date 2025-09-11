@@ -632,9 +632,14 @@ namespace samurai
             {
                 for (std::size_t level = 0; level <= mesh().max_level(); ++level)
                 {
-                    auto ghosts = difference(mesh()[mesh_id_t::reference][level], mesh()[mesh_id_t::cells][level]);
-
-                    for_each_cell(mesh(),
+                                               auto lhs_lca = mesh()[mesh_id_t::reference][level];
+                                               auto rhs_lca = mesh()[mesh_id_t::cells][level];
+                    
+                                               auto lhs_csir = csir::to_csir_level(lhs_lca);
+                                               auto rhs_csir = csir::to_csir_level(rhs_lca);
+                                               auto result_csir = csir::difference(lhs_csir, rhs_csir);
+                                               auto ghosts = csir::from_csir_level(result_csir);
+                                        for_each_cell(mesh(),
                                   ghosts,
                                   [&](auto& ghost)
                                   {

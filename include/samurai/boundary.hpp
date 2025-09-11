@@ -1,5 +1,6 @@
 #pragma once
 #include "stencil.hpp"
+#include "csir.hpp" // Include the new CSIR header
 
 namespace samurai
 {
@@ -8,10 +9,18 @@ namespace samurai
     boundary_layer(const Mesh& mesh, const typename Mesh::lca_type& domain, std::size_t level, const Vector& direction, std::size_t layer_width)
     {
         using mesh_id_t = typename Mesh::mesh_id_t;
+        using lca_t = typename Mesh::lca_type;
 
         auto& cells = mesh[mesh_id_t::cells][level];
+        auto translated_domain = translate(self(domain).on(level), -layer_width * direction);
 
-        return difference(cells, translate(self(domain).on(level), -layer_width * direction));
+        // CSIR PROTOTYPE
+        auto lhs_csir = csir::to_csir_level(cells);
+        auto rhs_lca = lca_t(translated_domain);
+        auto rhs_csir = csir::to_csir_level(rhs_lca);
+        auto result_csir = csir::difference(lhs_csir, rhs_csir);
+        auto result_lca = csir::from_csir_level(result_csir);
+        return self(result_lca);
     }
 
     template <class Mesh, class Vector>
@@ -42,10 +51,18 @@ namespace samurai
     inline auto domain_boundary(const Mesh& mesh, std::size_t level)
     {
         using mesh_id_t = typename Mesh::mesh_id_t;
+        using lca_t = typename Mesh::lca_type;
 
         auto& cells = mesh[mesh_id_t::cells][level];
+        auto contracted_domain = contract(self(mesh.domain()).on(level), 1);
 
-        return difference(cells, contract(self(mesh.domain()).on(level), 1));
+        // CSIR PROTOTYPE
+        auto lhs_csir = csir::to_csir_level(cells);
+        auto rhs_lca = lca_t(contracted_domain);
+        auto rhs_csir = csir::to_csir_level(rhs_lca);
+        auto result_csir = csir::difference(lhs_csir, rhs_csir);
+        auto result_lca = csir::from_csir_level(result_csir);
+        return self(result_lca);
     }
 
     template <class Mesh>
@@ -105,14 +122,29 @@ namespace samurai
                                       const StencilAnalyzer<stencil_size, Mesh::dim>& stencil,
                                       const std::array<Equation, nb_equations>& equations,
                                       Func&& func)
-    {
+    {        
         using mesh_id_t         = typename Mesh::mesh_id_t;
         using equation_coeffs_t = typename Equation::equation_coeffs_t;
+        using lca_t = typename Mesh::lca_type;
 
         for_each_level(mesh,
                        [&](std::size_t level)
                        {
-                           auto bdry = intersection(mesh[mesh_id_t::cells][level], boundary_region).on(level);
+                           // CSIR PROTOTYPE IMPLEMENTATION
+                           // 1. Convert inputs to LevelCellArray
+                           auto lhs_lca = mesh[mesh_id_t::cells][level];
+                           auto rhs_lca = lca_t(boundary_region.on(level));
+
+                           // 2. Convert LevelCellArray to CSIR_Level
+                           auto lhs_csir = csir::to_csir_level(lhs_lca);
+                           auto rhs_csir = csir::to_csir_level(rhs_lca);
+
+                           // 3. Perform CSIR intersection
+                           auto result_csir = csir::intersection(lhs_csir, rhs_csir);
+
+                           // 4. Convert result back to LevelCellArray and wrap it for the rest of the code
+                           auto bdry_lca = csir::from_csir_level(result_csir);
+                           auto bdry = self(bdry_lca);
 
                            std::array<equation_coeffs_t, nb_equations> equations_coeffs;
                            for (std::size_t i = 0; i < nb_equations; ++i)

@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
     using Config                     = samurai::MRConfig<dim, 3>;
     using Mesh                       = samurai::MRMesh<Config>;
 
-    std::cout << "------------------------- Linear convection -------------------------" << std::endl;
+    fmt::print("------------------------- Linear convection -------------------------\n");
 
     //--------------------//
     // Program parameters //
@@ -145,7 +145,7 @@ int main(int argc, char* argv[])
             dt += Tf - t;
             t = Tf;
         }
-        std::cout << fmt::format("iteration {}: t = {:.2f}, dt = {}", nt++, t, dt) << std::flush;
+        fmt::print("{}", fmt::format("iteration {}: t = {:.2f}, dt = {}", nt++, t, dt));
 
         // Mesh adaptation
 
@@ -185,7 +185,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        std::cout << std::endl;
+        fmt::print("\n");
     }
 
     samurai::finalize();

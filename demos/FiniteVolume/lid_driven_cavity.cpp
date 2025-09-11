@@ -148,7 +148,7 @@ int main(int argc, char* argv[])
 
     auto box = samurai::Box<double, dim>({0, 0}, {1, 1});
 
-    std::cout << "lid-driven cavity" << std::endl;
+    fmt::print("lid-driven cavity\n");
 
     //-------------------- 1 -----------------------------------------------------------------
     //
@@ -322,7 +322,7 @@ int main(int argc, char* argv[])
             t              = Tf;
             dt_has_changed = true;
         }
-        std::cout << fmt::format("iteration {}: t = {:.2f}, dt = {}", nt++, t, dt);
+        fmt::print("{}", fmt::format("iteration {}: t = {:.2f}, dt = {}", nt++, t, dt));
 
         // Mesh adaptation for Navier-Stokes
         if (min_level != max_level)
@@ -338,9 +338,9 @@ int main(int argc, char* argv[])
                 zero.resize();
                 rhs.resize();
             }
-            std::cout << ", levels " << min_level_np1 << "-" << max_level_np1;
+            fmt::print(", levels {}-{}", min_level_np1, max_level_np1);
         }
-        std::cout << std::endl;
+        fmt::print("\n");
 
         // Update solver
         if (mesh_has_changed || dt_has_changed)

@@ -82,10 +82,18 @@ jobs:
         run: |
           set -e
           cd build
-          for N in 1 2 4; do
+          for N in 1 2 3 4 5 6 7 8; do
             echo "== Running with N=$N =="
-            mpiexec -n "$N" ./demos/FiniteVolume/finite-volume-advection-2d \
-              --Tf 0.02 --nfiles 4 --max-level 7 --cfl 0.5 --filename FV_adv2d_test
+            for MINL in 7 8 9 10 11 12; do
+              for MAXL in 7 8 9 10 11 12; do
+                if [ "$MINL" -le "$MAXL" ]; then
+                  echo "--> min-level=$MINL max-level=$MAXL"
+                  mpiexec -n "$N" ./demos/FiniteVolume/finite-volume-advection-2d \
+                    --Tf 0.5 --nfiles 4 --min-level "$MINL" --max-level "$MAXL" \
+                    --cfl 0.5 --filename FV_adv2d_test
+                fi
+              done
+            done
           done
 
       # Additional demo sweeps removed for initial validation
@@ -148,5 +156,13 @@ jobs:
         run: |
           set -e
           cd build
-          ./demos/FiniteVolume/finite-volume-advection-2d \
-            --Tf 0.02 --nfiles 4 --max-level 7 --cfl 0.5 --filename FV_adv2d_seq
+          for MINL in 7 8 9 10 11 12; do
+            for MAXL in 7 8 9 10 11 12; do
+              if [ "$MINL" -le "$MAXL" ]; then
+                echo "--> min-level=$MINL max-level=$MAXL (sequential)"
+                ./demos/FiniteVolume/finite-volume-advection-2d \
+                  --Tf 0.5 --nfiles 4 --min-level "$MINL" --max-level "$MAXL" \
+                  --cfl 0.5 --filename FV_adv2d_seq
+              fi
+            done
+          done

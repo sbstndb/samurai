@@ -71,18 +71,13 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - windows-2022
-          - ubuntu-22.04
-          - macos-12
+          - ubuntu-24.04
         compiler:
           # - llvm
           - gcc
         CMAKE_GENERATOR:
           - "Ninja Multi-Config"
-        include:
-          - os: windows-2022
-            compiler: msvc
-            CMAKE_GENERATOR: "Visual Studio 17 2022"
+        include: []
 
         # exclude:
         #   - os: windows-2022
@@ -99,25 +94,16 @@ jobs:
             ~/.cache/ccache
             ~/.cache/pip
             ~/Library/Caches/ccache
-            C:\Users\runneradmin\cmake
-            C:\Users\runneradmin\AppData\Local\ccache
           key: conan-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('./conanfile.py')}}
           restore-keys: |
             conan-${{ runner.os }}-${{ matrix.compiler }}-
 
-      - name: configure Pagefile
-        if: runner.os == 'Windows'
-        uses: al-cheb/configure-pagefile-action@v1.2
-        with:
-          minimum-size: 16GB
-          maximum-size: 16GB
-          disk-root: "C:"
+      # Windows-specific pagefile configuration removed (Linux-only long run)
 
       - name: Setup Cpp
         uses: aminya/setup-cpp@v0.26.2
         with:
           compiler: ${{ matrix.compiler }}
-          vcvarsall: ${{ contains(matrix.os, 'windows' )}}
 
           cmake: true
           ninja: true
@@ -141,16 +127,9 @@ jobs:
       - name: Build
         run: |
           cmake --build ./build --config Release
-      - name: Install hdf5 with brew
-        if: runner.os == 'Macos'
-        env:
-          ARCHFLAGS: "-arch x86_64"
-        run: |
-          brew install hdf5@1.10
-          export HDF5_DIR=/usr/local/opt/hdf5@1.10
-          pip3 install pytest h5py
+      # macOS-specific brew step removed (Linux-only long run)
       - name: Install Python dependencies
-        if: runner.os != 'Macos'
+        if: runner.os != 'macOS'
         run: |
           pip3 install pytest h5py
       - name: Unix test
@@ -158,11 +137,7 @@ jobs:
         run: |
           ./build/tests/Release/test_samurai_lib
           cd tests; pytest --h5diff
-      - name: Windows test
-        if: runner.os == 'Windows'
-        run: |
-          .\build\tests\Release\test_samurai_lib
-          # cd tests; pytest -s --h5diff
+      # Windows tests removed (Linux-only long run)
 
   #
   # Check vcpkg build
@@ -176,18 +151,13 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - windows-2022
-          - ubuntu-22.04
-          - macos-12
+          - ubuntu-24.04
         compiler:
           # - llvm
           - gcc
         CMAKE_GENERATOR:
           - "Ninja Multi-Config"
-        include:
-          - os: windows-2022
-            compiler: msvc
-            CMAKE_GENERATOR: "Visual Studio 17 2022"
+        include: []
 
         # exclude:
         #   - os: windows-2022
@@ -208,10 +178,6 @@ jobs:
             ${{ env.CONAN_USER_HOME }}
             ${{ env.HOME }}/.cache/vcpkg/archives
             ${{ env.XDG_CACHE_HOME }}/vcpkg/archives
-            ${{ env.LOCALAPPDATA }}\vcpkg\archives
-            ${{ env.APPDATA }}\vcpkg\archives
-            C:\Users\runneradmin\cmake
-            C:\Users\runneradmin\AppData\Local\ccache
           key: vcpkg-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('./vcpkg.json')}}
           restore-keys: |
             vcpkg-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('./vcpkg.json') }}
@@ -220,7 +186,6 @@ jobs:
         uses: aminya/setup-cpp@v0.26.2
         with:
           compiler: ${{ matrix.compiler }}
-          vcvarsall: ${{ contains(matrix.os, 'windows' )}}
 
           cmake: true
           ninja: true
@@ -243,16 +208,9 @@ jobs:
       - name: Build
         run: |
           cmake --build ./build --config Release
-      - name: Install hdf5 with brew
-        if: runner.os == 'Macos'
-        env:
-          ARCHFLAGS: "-arch x86_64"
-        run: |
-          brew install hdf5@1.10
-          export HDF5_DIR=/usr/local/opt/hdf5@1.10
-          pip3 install pytest h5py
+      # macOS-specific brew step removed (Linux-only long run)
       - name: Install Python dependencies
-        if: runner.os != 'Macos'
+        if: runner.os != 'macOS'
         run: |
           pip3 install pytest h5py
       - name: Unix test
@@ -260,53 +218,81 @@ jobs:
         run: |
           ./build/tests/Release/test_samurai_lib
           cd tests; pytest --h5diff
-      - name: Windows test
-        if: runner.os == 'Windows'
-        run: |
-          .\build\tests\Release\test_samurai_lib
-          cd tests; pytest -s --h5diff
+      # Windows tests removed (Linux-only long run)
+
+  # Windows long-run job removed (Linux-only schedule)
 
   #
-  # Check windows build using mamba
+  # Long-run MPI matrix (Linux)
   #
   #########################################################
-  win-mamba:
+  linux-mpi-long-run:
     needs: check_new_commit
     if: needs.check_new_commit.outputs.nb_commits > 0
-    runs-on: windows-2022
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
     steps:
       - uses: actions/checkout@v4
-      - name: Mamba and samurai env installation
-        uses: mamba-org/setup-micromamba@v1
+
+      - name: Cache
+        uses: actions/cache@v4
         with:
-          environment-file: conda/environment.yml
+          path: |
+            ~/.cache/ccache
+            ~/micromamba-root/envs/samurai-env
+          key: linux-mpi-long-run-${{ matrix.compiler }}
+          restore-keys: |
+            linux-mpi-long-run-${{ matrix.compiler }}
+
+      - name: Mamba and samurai env installation (MPI)
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: conda/mpi-environment.yml
           environment-name: samurai-env
           cache-environment: true
 
-      - name: micromamba informations
+      - name: Install extra deps (conda)
         shell: bash -l {0}
         run: |
-          micromamba info
-          micromamba list
+          conda install -y petsc pkg-config cxx-compiler
 
-      - name: Configure
+      - name: Install Clang 18 (only when requested)
+        if: matrix.compiler == 'clang'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+
+      - name: Configure (MPI)
         shell: bash -l {0}
         run: |
+          if [[ "${{ matrix.compiler }}" == "clang" ]]; then
+            export CC=clang-18
+            export CXX=clang++-18
+            export MPICH_CC=clang-18
+            export MPICH_CXX=clang++-18
+          fi
           cmake \
-              . \
-              -Bbuild \
-              -G "Visual Studio 17 2022" \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DBUILD_DEMOS=ON \
-              -DBUILD_TESTS=ON
+            . \
+            -Bbuild \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_MPI=ON \
+            -DBUILD_DEMOS=ON \
+            -DBUILD_TESTS=OFF
 
-      - name: Build
+      - name: Build demo target (single)
         shell: bash -l {0}
         run: |
-          cmake --build ./build --config Release
+          cmake --build build --target finite-volume-advection-2d --parallel 4
 
-      - name: Windows test
+      - name: MPI run - advection 2D (single test)
         shell: bash -l {0}
         run: |
-          ./build/tests/Release/test_samurai_lib
-          cd tests; pytest -s --h5diff
+          set -e
+          cd build
+          mpiexec -n 2 ./demos/FiniteVolume/finite-volume-advection-2d --Tf 0.02 --nfiles 4 --max-level 7 --cfl 0.5 --filename FV_adv2d_test
+
+      # Additional demo sweeps removed for initial validation

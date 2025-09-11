@@ -5,6 +5,7 @@
 #include <samurai/io/hdf5.hpp>
 #include <samurai/mr/adapt.hpp>
 #include <samurai/mr/mesh.hpp>
+#include <samurai/print.hpp>
 #include <samurai/samurai.hpp>
 #include <samurai/schemes/fv.hpp>
 
@@ -39,7 +40,7 @@ int main(int argc, char* argv[])
     using Config                     = samurai::MRConfig<dim, 3>;
     using Mesh                       = samurai::MRMesh<Config>;
 
-    fmt::print("------------------------- Linear convection -------------------------\n");
+    samurai::io::print("------------------------- Linear convection -------------------------\n");
 
     //--------------------//
     // Program parameters //
@@ -145,7 +146,7 @@ int main(int argc, char* argv[])
             dt += Tf - t;
             t = Tf;
         }
-        fmt::print("{}", fmt::format("iteration {}: t = {:.2f}, dt = {}", nt++, t, dt));
+        samurai::io::print("{}", fmt::format("iteration {}: t = {:.2f}, dt = {}", nt++, t, dt));
 
         // Mesh adaptation
 
@@ -185,7 +186,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        fmt::print("\n");
+        samurai::io::print("\n");
     }
 
     samurai::finalize();

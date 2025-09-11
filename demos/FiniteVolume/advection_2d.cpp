@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
             t = Tf;
         }
 
-        fmt::print("iteration {}: t = {}, dt = {}\n", nt++, t, dt);
+        samurai::io::print("iteration {}: t = {}, dt = {}\n", nt++, t, dt);
 
         samurai::update_ghost_mr(u);
         unp1.resize();

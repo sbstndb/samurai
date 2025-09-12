@@ -638,7 +638,7 @@ namespace samurai
                                                auto lhs_csir = csir::to_csir_level(lhs_lca);
                                                auto rhs_csir = csir::to_csir_level(rhs_lca);
                                                auto result_csir = csir::difference(lhs_csir, rhs_csir);
-                                               auto ghosts = csir::from_csir_level(result_csir);
+                                               auto ghosts = csir::from_csir_level(result_csir, mesh().origin_point(), mesh().scaling_factor());
                                         for_each_cell(mesh(),
                                   ghosts,
                                   [&](auto& ghost)

@@ -513,7 +513,7 @@ namespace samurai
         auto lhs_csir = csir::to_csir_level(current_domain_lca);
         auto rhs_csir = csir::to_csir_level(box_lca);
         auto result_csir = csir::union_(lhs_csir, rhs_csir);
-        auto new_domain_set = csir::from_csir_level(result_csir);
+        auto new_domain_set = csir::from_csir_level(result_csir, origin_point_, scaling_factor);
             domain_cl           = cl_type(origin_point_, scaling_factor);
             new_domain_set(
                 [&](const auto& i, const auto& index)
@@ -529,7 +529,7 @@ namespace samurai
         auto lhs_csir = csir::to_csir_level(current_domain_lca);
         auto rhs_csir = csir::to_csir_level(hole_lca);
         auto result_csir = csir::difference(lhs_csir, rhs_csir);
-        auto new_domain_set = csir::from_csir_level(result_csir);
+        auto new_domain_set = csir::from_csir_level(result_csir, origin_point_, scaling_factor);
             domain_cl           = cl_type(origin_point_, scaling_factor);
             new_domain_set(
                 [&](const auto& i, const auto& index)

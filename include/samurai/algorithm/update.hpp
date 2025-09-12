@@ -56,7 +56,7 @@ namespace samurai
                     auto ref_m1_csir   = csir::to_csir_level(ref_m1_lca);
                     auto proj_on_m1    = csir::project_to_level(proj_lvl_csir, level - 1);
                     auto inter_csir    = csir::intersection(proj_on_m1, ref_m1_csir);
-                    auto subset        = self(csir::from_csir_level(inter_csir));
+                    auto subset        = self(csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor()));
                     subset.apply_op(variadic_projection(field, fields...));
                 }
             }
@@ -75,7 +75,7 @@ namespace samurai
                 auto ref_m1_csir   = csir::to_csir_level(ref_m1_lca);
                 auto ref_on_lvl    = csir::project_to_level(ref_m1_csir, level);
                 auto inter_csir    = csir::intersection(pred_lvl_csir, ref_on_lvl);
-                auto subset        = self(csir::from_csir_level(inter_csir));
+                auto subset        = self(csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor()));
                 subset.apply_op(variadic_prediction<pred_order, false>(field, fields...));
             }
         }
@@ -136,7 +136,7 @@ namespace samurai
         auto lhs_csir = csir::to_csir_level(all_cells_lca);
         auto rhs_csir = csir::to_csir_level(to_remove_lca);
         auto result_csir = csir::difference(lhs_csir, rhs_csir);
-        auto result_lca = csir::from_csir_level(result_csir);
+        auto result_lca = csir::from_csir_level(result_csir, mesh.origin_point(), mesh.scaling_factor());
         auto expr = self(result_lca);
 
             expr.apply_op(prediction<pred_order, false>(field));
@@ -152,14 +152,10 @@ namespace samurai
 
         auto& mesh = field.mesh();
 
+        // Revert to original lazy pipeline (stable before):
         auto domain = self(mesh.domain()).on(proj_level);
-
         auto& inner = mesh.get_union()[proj_level];
-        // auto inner = self(mesh[mesh_id_t::cells][proj_level + 1]).on(proj_level);
-
-        // We want only 1 layer (the further one),
-        // so we remove all closer layers by making the difference with the domain translated by (layer - 1) * direction
-        auto outside_layer     = difference(translate(inner, layer * direction), translate(domain, (layer - 1) * direction));
+        auto outside_layer = difference(translate(inner, layer * direction), translate(domain, (layer - 1) * direction));
         auto projection_ghosts = intersection(outside_layer, mesh[mesh_id_t::reference][proj_level]).on(proj_level);
 
         if (mesh.domain().is_box())
@@ -335,6 +331,7 @@ namespace samurai
         // auto bc_ghosts = difference(translate(cells, n_bc_ghosts * direction), self(mesh.domain()).on(pred_level - 1));
         auto bc_ghosts = domain_boundary_outer_layer(mesh, pred_level - 1, direction, n_bc_ghosts);
 
+        // Revert to original lazy intersection materialization at pred_level (stable)
         auto outside_prediction_ghosts = intersection(bc_ghosts, mesh[mesh_id_t::reference][pred_level]).on(pred_level);
 
         if (mesh.domain().is_box())

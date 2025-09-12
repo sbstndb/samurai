@@ -177,6 +177,35 @@ auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_f
   auto outer    = difference(translate(inner, layer * direction), domain_subset);
   ```
 
+### Boundary outer layer: lifetime-safe complete recipe
+
+```cpp
+// 1) Materialize domain[level] once and keep LCA alive
+auto dom_csir   = csir::to_csir_level(mesh.domain());
+auto domain_on  = csir::project_to_level(dom_csir, level);
+auto domain_lca = csir::from_csir_level(domain_on, mesh.origin_point(), mesh.scaling_factor());
+auto domain     = self(domain_lca);
+
+// 2) Build inner boundary from CSIR and keep its LCA alive
+auto cells_csir = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
+std::array<int, Mesh::dim> dir_neg{}; for (std::size_t k=0;k<Mesh::dim;++k) dir_neg[k] = -direction[k];
+auto dom_shift  = csir::translate(domain_on, dir_neg);
+auto inner_csir = csir::difference(cells_csir, dom_shift);
+auto inner_lca  = csir::from_csir_level(inner_csir, mesh.origin_point(), mesh.scaling_factor());
+auto inner      = self(inner_lca);
+
+// 3) Now it is safe to use lazy translates/differences to build outer layers
+for (std::size_t layer = 1; layer <= layer_width; ++layer)
+{
+    auto outer_layer = difference(translate(inner, layer * direction), domain);
+    outer_layer([&](const auto& i, const auto& idx){ outer_boundary_lcl[idx].add_interval({i}); });
+}
+```
+
+Notes:
+- Keeping both `domain_lca` and `inner_lca` as named variables avoids dangling references during lazy traversal.
+- The sign is `-direction` when translating the domain to create the inner boundary.
+
 ## Interface traversal: keep explicit level scoping
 
 - After CSIR intersections used to compute contact sets, use `.on(level)` or `.on(level+1)` on `self(...)` to preserve original traversal semantics:
@@ -190,6 +219,17 @@ auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_f
 
 - Complex BC paths (`project_bc`, `predict_bc`, `project_corner_below`) heavily rely on lazy traversal semantics and subset lifetime across nested translates. If a full-CSIR rewrite is not carefully lifetimed, prefer keeping the original lazy chain and only materialize at stable boundaries.
 - If you must mix, materialize intermediate results into named LCAs so their lifetime dominates the traversal.
+
+### Current safe choices in BC/update paths
+- Keep lazy implementations for `project_bc`, `predict_bc`, and `project_corner_below`, while ensuring any domain/inner sets are materialized to LCAs beforehand when needed.
+- Use CSIR for set algebra where both operands are concrete LCAs and immediately convert back with geometry.
+
+## Geometry reminders outside BC
+
+- Always pass geometry in `from_csir_level`:
+  - `mesh.hpp` domain construction (added/removed boxes)
+  - PETSc FV assembly (`set_0_for_all_ghosts`) when materializing ghost sets
+- Missing geometry can shift indices silently and only surface during traversal or assembly.
 
 ## Crash signature to watch for
 

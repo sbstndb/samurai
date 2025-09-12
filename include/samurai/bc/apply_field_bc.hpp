@@ -6,6 +6,7 @@
 #include "../boundary.hpp"
 #include "../concepts.hpp"
 #include "polynomial_extrapolation.hpp"
+#include <type_traits>
 
 namespace samurai
 {
@@ -206,8 +207,12 @@ namespace samurai
         {
             auto a = translate(mesh[mesh_id_t::reference][level], -(layers    ) * direction);
             auto b = translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction);
-            using lca_t = typename Mesh::lca_type;
-            lca_t al(a.on(level)), bl(b.on(level));
+            using lca_t = typename Mesh::lca_type; using lcl_t = typename Mesh::lcl_type;
+            lcl_t alcl(level, mesh.origin_point(), mesh.scaling_factor());
+            a.on(level)([&](const auto& i, const auto& idx){ alcl[idx].add_interval(i); });
+            lcl_t blcl(level, mesh.origin_point(), mesh.scaling_factor());
+            b.on(level)([&](const auto& i, const auto& idx){ blcl[idx].add_interval(i); });
+            lca_t al(alcl), bl(blcl);
             auto ac = csir::to_csir_level(al);
             auto bc = csir::to_csir_level(bl);
             auto ic = csir::intersection(ac, bc);
@@ -218,8 +223,11 @@ namespace samurai
             auto a = translate(mesh[mesh_id_t::reference][level], -(layers    ) * direction);
             auto b = translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction);
             auto c = translate(mesh[mesh_id_t::reference][level], -(layers - 2) * direction);
-            using lca_t = typename Mesh::lca_type;
-            lca_t al(a.on(level)), bl(b.on(level)), cl(c.on(level));
+            using lca_t = typename Mesh::lca_type; using lcl_t = typename Mesh::lcl_type;
+            lcl_t alcl(level, mesh.origin_point(), mesh.scaling_factor()); a.on(level)([&](const auto& i, const auto& idx){ alcl[idx].add_interval(i); });
+            lcl_t blcl(level, mesh.origin_point(), mesh.scaling_factor()); b.on(level)([&](const auto& i, const auto& idx){ blcl[idx].add_interval(i); });
+            lcl_t clcl(level, mesh.origin_point(), mesh.scaling_factor()); c.on(level)([&](const auto& i, const auto& idx){ clcl[idx].add_interval(i); });
+            lca_t al(alcl), bl(blcl), cl(clcl);
             auto ac = csir::to_csir_level(al);
             auto bc = csir::to_csir_level(bl);
             auto cc = csir::to_csir_level(cl);
@@ -233,8 +241,12 @@ namespace samurai
             auto b = translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction);
             auto c = translate(mesh[mesh_id_t::reference][level], -(layers - 2) * direction);
             auto d = translate(mesh[mesh_id_t::reference][level], -(layers - 3) * direction);
-            using lca_t = typename Mesh::lca_type;
-            lca_t al(a.on(level)), bl(b.on(level)), cl(c.on(level)), dl(d.on(level));
+            using lca_t = typename Mesh::lca_type; using lcl_t = typename Mesh::lcl_type;
+            lcl_t alcl(level, mesh.origin_point(), mesh.scaling_factor()); a.on(level)([&](const auto& i, const auto& idx){ alcl[idx].add_interval(i); });
+            lcl_t blcl(level, mesh.origin_point(), mesh.scaling_factor()); b.on(level)([&](const auto& i, const auto& idx){ blcl[idx].add_interval(i); });
+            lcl_t clcl(level, mesh.origin_point(), mesh.scaling_factor()); c.on(level)([&](const auto& i, const auto& idx){ clcl[idx].add_interval(i); });
+            lcl_t dlcl(level, mesh.origin_point(), mesh.scaling_factor()); d.on(level)([&](const auto& i, const auto& idx){ dlcl[idx].add_interval(i); });
+            lca_t al(alcl), bl(blcl), cl(clcl), dl(dlcl);
             auto ac = csir::to_csir_level(al);
             auto bc = csir::to_csir_level(bl);
             auto cc = csir::to_csir_level(cl);
@@ -251,8 +263,13 @@ namespace samurai
             auto c = translate(mesh[mesh_id_t::reference][level], -(layers - 2) * direction);
             auto d = translate(mesh[mesh_id_t::reference][level], -(layers - 3) * direction);
             auto e = translate(mesh[mesh_id_t::reference][level], -(layers - 4) * direction);
-            using lca_t = typename Mesh::lca_type;
-            lca_t al(a.on(level)), bl(b.on(level)), cl(c.on(level)), dl(d.on(level)), el(e.on(level));
+            using lca_t = typename Mesh::lca_type; using lcl_t = typename Mesh::lcl_type;
+            lcl_t alcl(level, mesh.origin_point(), mesh.scaling_factor()); a.on(level)([&](const auto& i, const auto& idx){ alcl[idx].add_interval(i); });
+            lcl_t blcl(level, mesh.origin_point(), mesh.scaling_factor()); b.on(level)([&](const auto& i, const auto& idx){ blcl[idx].add_interval(i); });
+            lcl_t clcl(level, mesh.origin_point(), mesh.scaling_factor()); c.on(level)([&](const auto& i, const auto& idx){ clcl[idx].add_interval(i); });
+            lcl_t dlcl(level, mesh.origin_point(), mesh.scaling_factor()); d.on(level)([&](const auto& i, const auto& idx){ dlcl[idx].add_interval(i); });
+            lcl_t elcl(level, mesh.origin_point(), mesh.scaling_factor()); e.on(level)([&](const auto& i, const auto& idx){ elcl[idx].add_interval(i); });
+            lca_t al(alcl), bl(blcl), cl(clcl), dl(dlcl), el(elcl);
             auto ac = csir::to_csir_level(al);
             auto bc = csir::to_csir_level(bl);
             auto cc = csir::to_csir_level(cl);
@@ -290,10 +307,38 @@ namespace samurai
         auto stencil          = convert_for_direction(stencil_0, direction);
         auto stencil_analyzer = make_stencil_analyzer(stencil);
 
-        auto translated_outer_nghbr           = translated_outer_neighbours<stencil_size / 2>(mesh, level, direction);
+        auto translated_outer_nghbr = translated_outer_neighbours<stencil_size / 2>(mesh, level, direction);
         using lca_t = typename Field::mesh_t::lca_type;
-        lca_t trans_lca(translated_outer_nghbr.on(level));
-        lca_t inner_lca(inner_ghosts_location.on(level));
+        using lcl_t = typename Field::mesh_t::lcl_type;
+
+        // Unify: build lca for translated_outer_nghbr regardless of whether it is already an LCA or a Subset
+        lca_t trans_lca = [&]() -> lca_t {
+            if constexpr (std::is_same_v<decltype(translated_outer_nghbr), lca_t>)
+            {
+                return translated_outer_nghbr;
+            }
+            else
+            {
+                lcl_t trans_lcl(level, mesh.origin_point(), mesh.scaling_factor());
+                translated_outer_nghbr.on(level)(
+                    [&](const auto& i, const auto& index)
+                    {
+                        trans_lcl[index].add_interval(i);
+                    });
+                return lca_t(trans_lcl);
+            }
+        }();
+
+        // Materialize inner_ghosts_location (always a Subset)
+        lca_t inner_lca = [&]() -> lca_t {
+            lcl_t inner_lcl(level, mesh.origin_point(), mesh.scaling_factor());
+            inner_ghosts_location.on(level)(
+                [&](const auto& i, const auto& index)
+                {
+                    inner_lcl[index].add_interval(i);
+                });
+            return lca_t(inner_lcl);
+        }();
 
         auto trans_csir   = csir::to_csir_level(trans_lca);
         auto inner_csir   = csir::to_csir_level(inner_lca);

@@ -161,7 +161,7 @@ namespace samurai::amr
             auto cag    = csir::to_csir_level(this->cells()[mesh_id_t::cells_and_ghosts][level]);
             auto uni    = csir::to_csir_level(this->get_union()[level]);
             auto cells  = csir::to_csir_level(this->cells()[mesh_id_t::cells][level]);
-            auto dom    = csir::to_csir_level(self(this->domain()).on(level));
+            auto dom    = csir::project_to_level(csir::to_csir_level(this->domain()), level);
             auto uni2   = csir::union_(uni, cells);
             auto diff   = csir::difference(cag, uni2);
             auto inter  = csir::intersection(diff, dom);

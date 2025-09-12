@@ -822,24 +822,20 @@ namespace samurai
         for_each_diagonal_direction<dim>(
             [&](const auto& direction)
             {
-                auto dom_csir = csir::to_csir_level(m_domain);
                 if constexpr (dim == 2)
                 {
-                    auto t1    = csir::translate(dom_csir, direction_t{-direction[0], 0});
-                    auto t2    = csir::translate(dom_csir, direction_t{0, -direction[1]});
-                    auto uni   = csir::union_(t1, t2);
-                    auto diff  = csir::difference(dom_csir, uni);
-                    m_corners.push_back(csir::from_csir_level(diff, m_domain.origin_point(), m_domain.scaling_factor()));
+                    m_corners.push_back(
+                        difference(m_domain,
+                                   union_(translate(m_domain, direction_t{-direction[0], 0}),
+                                          translate(m_domain, direction_t{0, -direction[1]}))));
                 }
                 else if constexpr (dim == 3)
                 {
-                    auto t1    = csir::translate(dom_csir, direction_t{-direction[0], 0, 0});
-                    auto t2    = csir::translate(dom_csir, direction_t{0, -direction[1], 0});
-                    auto t3    = csir::translate(dom_csir, direction_t{0, 0, -direction[2]});
-                    auto uni12 = csir::union_(t1, t2);
-                    auto uni   = csir::union_(uni12, t3);
-                    auto diff  = csir::difference(dom_csir, uni);
-                    m_corners.push_back(csir::from_csir_level(diff, m_domain.origin_point(), m_domain.scaling_factor()));
+                    m_corners.push_back(
+                        difference(m_domain,
+                                   union_(translate(m_domain, direction_t{-direction[0], 0, 0}),
+                                          translate(m_domain, direction_t{0, -direction[1], 0}),
+                                          translate(m_domain, direction_t{0, 0, -direction[2]}))));
                 }
             });
     }

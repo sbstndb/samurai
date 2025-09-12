@@ -400,7 +400,24 @@ namespace samurai
         auto& domain = detail::get_mesh(field.mesh());
         PolynomialExtrapolation<Field, extrap_stencil_size> bc(domain, ConstantBc<Field>(), true);
 
-        auto corner = self(field.mesh().corner(direction)).on(level);
+        // CSIR: corner(level, direction) = project_to_level( domain \\ (⋃_k translate(domain, -e_k*dir_k)), level )
+        auto dom_csir = csir::to_csir_level(field.mesh().domain());
+        // Build per-axis shifts and union them at domain's native level
+        auto union_shifts = dom_csir; bool first = true;
+        for (std::size_t ax = 0; ax < Field::dim; ++ax) {
+            if (direction[ax] == 0) continue;
+            std::array<int, Field::dim> s{}; s.fill(0); s[ax] = -direction[ax];
+            auto t = csir::translate(dom_csir, s);
+            if (first) { union_shifts = t; first = false; }
+            else { union_shifts = csir::union_(union_shifts, t); }
+        }
+        if (first) { // no axes set; nothing to extrapolate
+            return;
+        }
+        auto corner_dom = csir::difference(dom_csir, union_shifts);
+        auto corner_cs  = csir::project_to_level(corner_dom, level);
+        auto corner_lc = csir::from_csir_level(corner_cs, field.mesh().origin_point(), field.mesh().scaling_factor());
+        auto corner    = self(corner_lc);
 
         __apply_extrapolation_bc__cells<extrap_stencil_size>(bc, level, field, direction, corner);
     }

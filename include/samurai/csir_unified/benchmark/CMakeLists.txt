@@ -1,0 +1,3 @@
+add_executable(csir_unified_benchmarks benchmark_1d.cpp benchmark_2d.cpp benchmark_3d.cpp)
+
+target_link_libraries(csir_unified_benchmarks benchmark::benchmark_main csir_unified_lib)

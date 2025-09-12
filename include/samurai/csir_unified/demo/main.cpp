@@ -1,5 +1,5 @@
 #include <iostream>
-#include "csir.hpp"
+#include "src/csir.hpp"
 #include <random>
 #include <algorithm>
 

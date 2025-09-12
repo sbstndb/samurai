@@ -19,8 +19,8 @@ add_library(csir_cuda_lib src/csir_cuda.cu)
 # --- Demos ---
 if(CSIR_CUDA_BUILD_DEMOS)
     # Placeholder for demo targets
-    # add_executable(demo_1d_cuda demo/demo_1d.cu)
-    # target_link_libraries(demo_1d_cuda PRIVATE csir_cuda_lib)
+    add_executable(demo_1d_cuda demo/demo_1d.cu)
+    target_link_libraries(demo_1d_cuda PRIVATE csir_cuda_lib)
 
     # add_executable(demo_2d_cuda demo/demo_2d.cu)
     # target_link_libraries(demo_2d_cuda PRIVATE csir_cuda_lib)

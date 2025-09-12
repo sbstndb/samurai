@@ -6,6 +6,8 @@
 #include <type_traits>
 
 #include <xtensor/xfixed.hpp>
+#include "csir_unified/src/csir.hpp"
+#include "subset/concepts.hpp"
 
 namespace samurai
 {
@@ -97,18 +99,45 @@ namespace samurai
     template <class LCA_OR_SET, size_t dim_min = 0, size_t dim_max = LCA_OR_SET::dim>
     auto nestedExpand(const LCA_OR_SET& lca, const int width)
     {
-        static constexpr std::size_t index_size = LCA_OR_SET::dim;
-        using index_type                        = typename detail::NestedExpand<index_size, dim_max - 1, dim_min>::index_type;
-        index_type idx;
-        for (size_t i = 0; i != dim_min; ++i)
+        static constexpr std::size_t dim = LCA_OR_SET::dim;
+        if constexpr (samurai::IsLCA<LCA_OR_SET>)
         {
-            idx[i] = 0;
+            if (width == 0 || lca.empty())
+            {
+                return lca;
+            }
+            auto csir_set = csir::to_csir_level(lca);
+            auto absw = static_cast<std::size_t>(width >= 0 ? width : -width);
+            if constexpr (dim == 1)
+            {
+                auto out_csir = csir::nested_expand(csir_set, absw);
+                return csir::from_csir_level(out_csir, lca.origin_point(), lca.scaling_factor());
+            }
+            else if constexpr (dim == 2)
+            {
+                std::array<bool, 2> mask{false, false};
+                for (std::size_t d = dim_min; d < dim_max && d < 2; ++d) mask[d] = true;
+                auto out_csir = csir::nested_expand(csir_set, absw, mask);
+                return csir::from_csir_level(out_csir, lca.origin_point(), lca.scaling_factor());
+            }
+            else // dim == 3
+            {
+                std::array<bool, 3> mask{false, false, false};
+                for (std::size_t d = dim_min; d < dim_max && d < 3; ++d) mask[d] = true;
+                auto out_csir = csir::nested_expand(csir_set, absw, mask);
+                return csir::from_csir_level(out_csir, lca.origin_point(), lca.scaling_factor());
+            }
         }
-        for (size_t i = dim_max; i != index_size; ++i)
+        else
         {
-            idx[i] = 0;
+            // Fallback: keep lazy behavior for non-LCA inputs
+            static constexpr std::size_t index_size = LCA_OR_SET::dim;
+            using index_type                        = typename detail::NestedExpand<index_size, dim_max - 1, dim_min>::index_type;
+            index_type idx;
+            for (size_t i = 0; i != dim_min; ++i) idx[i] = 0;
+            for (size_t i = dim_max; i != index_size; ++i) idx[i] = 0;
+            return detail::NestedExpand<index_size, dim_max - 1, dim_min>::run(idx, lca, width);
         }
-        return detail::NestedExpand<index_size, dim_max - 1, dim_min>::run(idx, lca, width);
     }
 
     template <size_t index_size, size_t dim_min, size_t dim_max, typename Function>

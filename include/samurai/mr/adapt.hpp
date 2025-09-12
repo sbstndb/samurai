@@ -12,6 +12,7 @@
 #include "../algorithm/update.hpp"
 #include "../arguments.hpp"
 #include "../boundary.hpp"
+#include "../csir_unified/src/csir.hpp"
 #include "../field.hpp"
 #include "../timers.hpp"
 #include "config.hpp"
@@ -288,36 +289,53 @@ namespace samurai
 
         for (std::size_t level = ((min_level > 0) ? min_level - 1 : 0); level < max_level - ite; ++level)
         {
-            // 1. detail computation in the cells (at level+1)
-            auto ghosts_below_cells = intersection(mesh[mesh_id_t::all_cells][level], mesh[mesh_id_t::cells][level + 1]).on(level);
-            ghosts_below_cells.apply_op(compute_detail(m_detail, m_fields)); // 'compute_detail' applies 1 level above the set
-                                                                             // it is applied to, i.e. level+1
+            // Materialize with CSIR (non-lazy) to remove subset laziness.
+            // Build CSIR sets at the appropriate levels
+            auto all_lca_lvl      = mesh[mesh_id_t::all_cells][level];
+            auto cells_lca_lvlp1  = mesh[mesh_id_t::cells][level + 1];
+
+            auto all_csir         = csir::to_csir_level(all_lca_lvl);
+            auto cells_p1_csir    = csir::to_csir_level(cells_lca_lvlp1);
+            auto cells_on_lvl_csir = csir::project_to_level(cells_p1_csir, level);
+
+            // 1. detail computation in the cells (at level+1):
+            auto ghosts_below_cells_csir = csir::intersection(all_csir, cells_on_lvl_csir);
+            auto ghosts_below_cells_lca  = csir::from_csir_level(ghosts_below_cells_csir);
+            auto ghosts_below_cells      = self(ghosts_below_cells_lca);
+            ghosts_below_cells.apply_op(compute_detail(m_detail, m_fields));
 
             // 2. detail computation in the ghosts below cells (at level)
             if (level >= min_level)
             {
                 if (periodic_in_all_directions)
                 {
-                    auto ghosts_2_levels_below_cells = intersection(mesh[mesh_id_t::all_cells][level - 1], ghosts_below_cells).on(level - 1);
+                    auto all_lca_lvlm1      = mesh[mesh_id_t::all_cells][level - 1];
+                    auto all_lvlm1_csir     = csir::to_csir_level(all_lca_lvlm1);
+                    auto gbc_on_lvlm1_csir  = csir::project_to_level(ghosts_below_cells_csir, level - 1);
+                    auto ghosts2_csir       = csir::intersection(all_lvlm1_csir, gbc_on_lvlm1_csir);
+                    auto ghosts2_lca        = csir::from_csir_level(ghosts2_csir);
+                    auto ghosts_2_levels_below_cells = self(ghosts2_lca);
                     ghosts_2_levels_below_cells.apply_op(compute_detail(m_detail, m_fields));
                 }
                 else
                 {
-                    // We don't want to compute the detail in the ghosts below the boundary cells. In those ghosts, we want to keep the
-                    // detail to 0. We do that because that detail would use the outer ghost cells at level L-2, which holds the BC
-                    // projected 2 times, and this method actually does not work well. So we're removing a layer of 4 boundary cells
-                    // from the domain. This number of 4 ensures that the outer ghost at level L-2 will not be used in the prediction
-                    // stencil of interior ghosts. Note: where we don't compute the detail, it stays at its initial value of 0.
+                    // Remove up to 4 boundary layers in non-periodic directions at level+1
+                    auto domain_lca         = mesh.domain();
+                    auto domain_csir        = csir::to_csir_level(domain_lca);
+                    auto domain_on_lvlp1    = csir::project_to_level(domain_csir, level + 1);
+                    auto domain_wo_bdry_csir = csir::contract(domain_on_lvlp1, 4, contract_directions);
 
-                    // contract the domain only in non-periodic directions
-                    auto domain_without_bdry = contract(self(mesh.domain()).on(level + 1), 4, contract_directions);
-                    auto cells_without_bdry  = intersection(mesh[mesh_id_t::cells][level + 1], domain_without_bdry);
-                    auto ghosts_below_cells2 = intersection(mesh[mesh_id_t::all_cells][level], cells_without_bdry).on(level);
-                    auto ghosts_2_levels_below_cells = intersection(mesh[mesh_id_t::all_cells][level - 1], ghosts_below_cells2).on(level - 1);
-                    ghosts_2_levels_below_cells.apply_op(compute_detail(m_detail, m_fields)); // 'compute_detail' applies 1
-                                                                                              // level above the set it is
-                                                                                              // applied to, i.e. 1 level below
-                                                                                              // cells
+                    auto cells_wo_bdry_csir = csir::intersection(cells_p1_csir, domain_wo_bdry_csir);
+                    auto cells_wo_on_lvl     = csir::project_to_level(cells_wo_bdry_csir, level);
+                    auto ghosts_below_cells2_csir = csir::intersection(all_csir, cells_wo_on_lvl);
+
+                    auto all_lca_lvlm1      = mesh[mesh_id_t::all_cells][level - 1];
+                    auto all_lvlm1_csir     = csir::to_csir_level(all_lca_lvlm1);
+                    auto ghosts2_on_lvlm1   = csir::project_to_level(ghosts_below_cells2_csir, level - 1);
+                    auto ghosts2_csir       = csir::intersection(all_lvlm1_csir, ghosts2_on_lvlm1);
+                    auto ghosts2_lca        = csir::from_csir_level(ghosts2_csir);
+                    auto ghosts_2_levels_below_cells = self(ghosts2_lca);
+                    ghosts_2_levels_below_cells.apply_op(compute_detail(m_detail, m_fields));
                 }
             }
         }

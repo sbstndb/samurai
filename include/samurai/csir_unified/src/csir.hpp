@@ -6,6 +6,12 @@
 #include <cmath>
 #include <map>
 #include <array>
+#include <limits>
+#include <xtensor/xfixed.hpp>
+
+// Samurai conversions (LCA <-> CSIR)
+// These helpers allow using CSIR set algebra with Samurai data structures.
+#include "../../level_cell_array.hpp"
 
 namespace csir
 {
@@ -789,5 +795,214 @@ namespace csir
     inline CSIR_Level_3D expand(const CSIR_Level_3D& set, std::size_t width)
     {
         return expand(set, width, std::array<bool, 3>{true, true, true});
+    }
+
+    // Convenience overloads for dimension-generic calls
+    inline CSIR_Level_3D project_to_level(const CSIR_Level_3D& source, std::size_t target_level)
+    {
+        return project_to_level_3d(source, target_level);
+    }
+
+    inline CSIR_Level_3D intersection(const CSIR_Level_3D& a, const CSIR_Level_3D& b)
+    {
+        return intersection_3d(a, b);
+    }
+
+    inline CSIR_Level_1D contract(const CSIR_Level_1D& set, std::size_t width, const std::array<bool, 1>& mask)
+    {
+        if (width == 0 || (!mask[0])) return set;
+        return contract(set, width);
+    }
+
+    // ----------------- Samurai interop (LCA <-> CSIR) -----------------
+    // 1D
+    template <class TInterval>
+    inline CSIR_Level_1D to_csir_level(const samurai::LevelCellArray<1, TInterval>& lca)
+    {
+        CSIR_Level_1D out;
+        out.level = lca.level();
+        if (lca.empty()) return out;
+        const auto& x_intervals = lca[0];
+        out.intervals.reserve(x_intervals.size());
+        for (const auto& itv : x_intervals)
+        {
+            out.intervals.push_back({itv.start, itv.end});
+        }
+        return out;
+    }
+
+    inline samurai::LevelCellArray<1> from_csir_level(const CSIR_Level_1D& level_1d)
+    {
+        samurai::LevelCellArray<1> out(level_1d.level);
+        using value_t = typename samurai::LevelCellArray<1>::value_t;
+        xt::xtensor_fixed<value_t, xt::xshape<0>> yz; // empty yz for 1D
+        for (const auto& itv : level_1d.intervals)
+        {
+            out.add_interval_back({itv.start, itv.end}, yz);
+        }
+        return out;
+    }
+
+    // 2D
+    template <class TInterval>
+    inline CSIR_Level to_csir_level(const samurai::LevelCellArray<2, TInterval>& lca)
+    {
+        CSIR_Level result;
+        result.level = lca.level();
+        if (lca.empty()) { result.intervals_ptr.push_back(0); return result; }
+
+        result.intervals_ptr.reserve(lca.shape()[1] + 1);
+        result.intervals_ptr.push_back(0);
+
+        bool have_row = false;
+        int current_y = 0;
+        std::size_t before = 0;
+
+        for (auto it = lca.cbegin(); it != lca.cend(); ++it)
+        {
+            int y = it.index()[0];
+            if (!have_row)
+            {
+                have_row = true;
+                current_y = y;
+                before = result.intervals.size();
+            }
+            else if (y != current_y)
+            {
+                if (result.intervals.size() > before)
+                {
+                    result.y_coords.push_back(current_y);
+                    result.intervals_ptr.push_back(result.intervals.size());
+                }
+                current_y = y;
+                before = result.intervals.size();
+            }
+
+            const auto& itv = *it;
+            result.intervals.push_back({itv.start, itv.end});
+        }
+        // flush last row
+        if (have_row && result.intervals.size() > result.intervals_ptr.back())
+        {
+            result.y_coords.push_back(current_y);
+            result.intervals_ptr.push_back(result.intervals.size());
+        }
+        return result;
+    }
+
+    inline samurai::LevelCellArray<2> from_csir_level(const CSIR_Level& level_2d)
+    {
+        samurai::LevelCellArray<2> out(level_2d.level);
+        using value_t = typename samurai::LevelCellArray<2>::value_t;
+        xt::xtensor_fixed<value_t, xt::xshape<1>> yz;
+        for (std::size_t ri = 0; ri < level_2d.y_coords.size(); ++ri)
+        {
+            yz[0] = level_2d.y_coords[ri];
+            auto s = level_2d.intervals_ptr[ri];
+            auto e = level_2d.intervals_ptr[ri + 1];
+            for (std::size_t k = s; k < e; ++k)
+            {
+                const auto& itv = level_2d.intervals[k];
+                out.add_interval_back({itv.start, itv.end}, yz);
+            }
+        }
+        return out;
+    }
+
+    // 3D
+    template <class TInterval>
+    inline CSIR_Level_3D to_csir_level(const samurai::LevelCellArray<3, TInterval>& lca)
+    {
+        CSIR_Level_3D out;
+        out.level = lca.level();
+        if (lca.empty()) return out;
+
+        // Build slices by z (k)
+        struct RowAccum { int y; std::size_t before; bool active; RowAccum(): y(0), before(0), active(false) {} };
+        std::map<int, RowAccum> accums;
+
+        int current_k = std::numeric_limits<int>::min();
+        for (auto it = lca.cbegin(); it != lca.cend(); ++it)
+        {
+            int y = it.index()[0];
+            int z = it.index()[1];
+            auto& slice = out.slices[z];
+            if (slice.intervals_ptr.empty()) slice.intervals_ptr.push_back(0);
+
+            // detect z change
+            if (z != current_k)
+            {
+                // flush any pending row of previous z
+                auto it_acc = accums.find(current_k);
+                if (it_acc != accums.end() && it_acc->second.active)
+                {
+                    auto& prev_slice = out.slices[current_k];
+                    if (prev_slice.intervals.size() > it_acc->second.before)
+                    {
+                        prev_slice.y_coords.push_back(it_acc->second.y);
+                        prev_slice.intervals_ptr.push_back(prev_slice.intervals.size());
+                    }
+                    it_acc->second.active = false;
+                }
+                current_k = z;
+                accums[z] = RowAccum{};
+            }
+
+            auto& row = accums[z];
+            if (!row.active)
+            {
+                row.active = true;
+                row.y = y;
+                row.before = slice.intervals.size();
+            }
+            else if (y != row.y)
+            {
+                if (slice.intervals.size() > row.before)
+                {
+                    slice.y_coords.push_back(row.y);
+                    slice.intervals_ptr.push_back(slice.intervals.size());
+                }
+                row.y = y;
+                row.before = slice.intervals.size();
+            }
+
+            const auto& itv = *it;
+            slice.intervals.push_back({itv.start, itv.end});
+        }
+        // flush last row of last slice
+        auto it_acc = accums.find(current_k);
+        if (it_acc != accums.end() && it_acc->second.active)
+        {
+            auto& slice = out.slices[current_k];
+            if (slice.intervals.size() > it_acc->second.before)
+            {
+                slice.y_coords.push_back(it_acc->second.y);
+                slice.intervals_ptr.push_back(slice.intervals.size());
+            }
+        }
+        return out;
+    }
+
+    inline samurai::LevelCellArray<3> from_csir_level(const CSIR_Level_3D& level_3d)
+    {
+        samurai::LevelCellArray<3> out(level_3d.level);
+        using value_t = typename samurai::LevelCellArray<3>::value_t;
+        xt::xtensor_fixed<value_t, xt::xshape<2>> yz;
+        for (const auto& [z, slice] : level_3d.slices)
+        {
+            yz[1] = z;
+            for (std::size_t ri = 0; ri < slice.y_coords.size(); ++ri)
+            {
+                yz[0] = slice.y_coords[ri];
+                auto s = slice.intervals_ptr[ri];
+                auto e = slice.intervals_ptr[ri + 1];
+                for (std::size_t k = s; k < e; ++k)
+                {
+                    const auto& itv = slice.intervals[k];
+                    out.add_interval_back({itv.start, itv.end}, yz);
+                }
+            }
+        }
+        return out;
     }
 } // namespace csir

@@ -1,6 +1,6 @@
 #pragma once
 #include "stencil.hpp"
-#include "csir.hpp" // Include the new CSIR header
+#include "csir_unified/src/csir.hpp" // CSIR unified API
 
 namespace samurai
 {

@@ -17,6 +17,8 @@
 #include "../timers.hpp"
 #include "graduation.hpp"
 #include "utils.hpp"
+// CSIR set algebra (non-lazy)
+#include "../csir_unified/src/csir.hpp"
 
 #ifndef NDEBUG
 #include "../io/hdf5.hpp"
@@ -44,16 +46,38 @@ namespace samurai
         update_outer_ghosts(max_level, field, fields...);
         for (std::size_t level = max_level; level >= 1; --level)
         {
-            auto set_at_levelm1 = intersection(mesh[mesh_id_t::proj_cells][level], mesh[mesh_id_t::reference][level - 1]).on(level - 1);
-            set_at_levelm1.apply_op(variadic_projection(field, fields...));
+            // CSIR: (proj_cells[level] -> level-1) ∩ reference[level-1]
+            {
+                auto proj_lvl_lca  = mesh[mesh_id_t::proj_cells][level];
+                auto ref_m1_lca    = mesh[mesh_id_t::reference][level - 1];
+                if (!proj_lvl_lca.empty() && !ref_m1_lca.empty())
+                {
+                    auto proj_lvl_csir = csir::to_csir_level(proj_lvl_lca);
+                    auto ref_m1_csir   = csir::to_csir_level(ref_m1_lca);
+                    auto proj_on_m1    = csir::project_to_level(proj_lvl_csir, level - 1);
+                    auto inter_csir    = csir::intersection(proj_on_m1, ref_m1_csir);
+                    auto subset        = self(csir::from_csir_level(inter_csir));
+                    subset.apply_op(variadic_projection(field, fields...));
+                }
+            }
             update_outer_ghosts(level - 1, field, fields...);
         }
 
         update_outer_ghosts(0, field, fields...);
         for (std::size_t level = mesh[mesh_id_t::reference].min_level(); level <= max_level; ++level)
         {
-            auto set_at_level = intersection(mesh[mesh_id_t::pred_cells][level], mesh[mesh_id_t::reference][level - 1]).on(level);
-            set_at_level.apply_op(variadic_prediction<pred_order, false>(field, fields...));
+            // CSIR: pred_cells[level] ∩ (reference[level-1] -> level)
+            auto pred_lvl_lca = mesh[mesh_id_t::pred_cells][level];
+            auto ref_m1_lca   = mesh[mesh_id_t::reference][level - 1];
+            if (!pred_lvl_lca.empty() && !ref_m1_lca.empty())
+            {
+                auto pred_lvl_csir = csir::to_csir_level(pred_lvl_lca);
+                auto ref_m1_csir   = csir::to_csir_level(ref_m1_lca);
+                auto ref_on_lvl    = csir::project_to_level(ref_m1_csir, level);
+                auto inter_csir    = csir::intersection(pred_lvl_csir, ref_on_lvl);
+                auto subset        = self(csir::from_csir_level(inter_csir));
+                subset.apply_op(variadic_prediction<pred_order, false>(field, fields...));
+            }
         }
     }
 

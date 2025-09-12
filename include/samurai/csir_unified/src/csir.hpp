@@ -12,6 +12,7 @@
 // Samurai conversions (LCA <-> CSIR)
 // These helpers allow using CSIR set algebra with Samurai data structures.
 #include "../../level_cell_array.hpp"
+#include "../../box.hpp"
 
 namespace csir
 {
@@ -41,6 +42,13 @@ namespace csir
 
     // --- Forward declarations ---
     inline CSIR_Level intersection(const CSIR_Level& a, const CSIR_Level& b);
+    inline CSIR_Level_3D intersection(const CSIR_Level_3D& a, const CSIR_Level_3D& b);
+    // Samurai interop forward decls (needed for templates below)
+    template <class TInterval>
+    CSIR_Level to_csir_level(const samurai::LevelCellArray<2, TInterval>& lca);
+    template <class TInterval>
+    CSIR_Level_3D to_csir_level(const samurai::LevelCellArray<3, TInterval>& lca);
+    inline CSIR_Level_3D project_to_level(const CSIR_Level_3D& source, std::size_t target_level);
 
     // --- Union (Optimized) ---
     inline void union_1d(std::vector<Interval>::const_iterator a_begin, std::vector<Interval>::const_iterator a_end,
@@ -273,6 +281,16 @@ namespace csir
         return out;
     }
 
+    inline CSIR_Level_1D translate(const CSIR_Level_1D& src, const std::array<int, 1>& d)
+    {
+        return translate(src, d[0]);
+    }
+
+    inline CSIR_Level_1D translate(const CSIR_Level_1D& src, const xt::xtensor_fixed<int, xt::xshape<1>>& d)
+    {
+        return translate(src, d(0));
+    }
+
     inline CSIR_Level_1D contract(const CSIR_Level_1D& set, std::size_t width)
     {
         if (set.empty()) return set;
@@ -291,6 +309,23 @@ namespace csir
             r = union_(r, translate(set, -static_cast<int>(k)));
         }
         return r;
+    }
+
+    inline CSIR_Level_1D expand(const CSIR_Level_1D& set, std::size_t width, const std::array<bool, 1>& mask)
+    {
+        if (!mask[0]) return set;
+        return expand(set, width);
+    }
+
+    // Nested expand: union of translations by {-w,0,+w} per axis (includes diagonals)
+    inline CSIR_Level_1D nested_expand(const CSIR_Level_1D& set, std::size_t width)
+    {
+        if (width == 0 || set.empty()) return set;
+        CSIR_Level_1D out = set;
+        int w = static_cast<int>(width);
+        out = union_(out, translate(set, -w));
+        out = union_(out, translate(set,  w));
+        return out;
     }
 
     inline CSIR_Level_1D project_to_level(const CSIR_Level_1D& source, std::size_t target_level)
@@ -367,6 +402,17 @@ namespace csir
         return out;
     }
 
+    // Generalized translate overloads (2D)
+    inline CSIR_Level translate(const CSIR_Level& src, const std::array<int, 2>& d)
+    {
+        return translate(src, d[0], d[1]);
+    }
+
+    inline CSIR_Level translate(const CSIR_Level& src, const xt::xtensor_fixed<int, xt::xshape<2>>& d)
+    {
+        return translate(src, d(0), d(1));
+    }
+
     inline CSIR_Level contract(const CSIR_Level& set, std::size_t width, const std::array<bool, 2>& dir_mask)
     {
         if (set.empty())
@@ -427,6 +473,27 @@ namespace csir
     inline CSIR_Level expand(const CSIR_Level& set, std::size_t width)
     {
         return expand(set, width, std::array<bool, 2>{true, true});
+    }
+
+    inline CSIR_Level nested_expand(const CSIR_Level& set, std::size_t width, const std::array<bool, 2>& mask)
+    {
+        if (set.empty()) return set;
+        CSIR_Level out = set;
+        std::array<int,3> vals = { -static_cast<int>(width), 0, static_cast<int>(width) };
+        for (int dx : (mask[0] ? std::array<int,3>{vals[0], vals[1], vals[2]} : std::array<int,3>{0,0,0}))
+        {
+            for (int dy : (mask[1] ? std::array<int,3>{vals[0], vals[1], vals[2]} : std::array<int,3>{0,0,0}))
+            {
+                if (dx == 0 && dy == 0) continue;
+                out = union_(out, translate(set, dx, dy));
+            }
+        }
+        return out;
+    }
+
+    inline CSIR_Level nested_expand(const CSIR_Level& set, std::size_t width)
+    {
+        return nested_expand(set, width, std::array<bool,2>{true, true});
     }
 
     // --- Geometric Operations ---
@@ -693,6 +760,17 @@ namespace csir
         return out;
     }
 
+    // Generalized translate overloads (3D)
+    inline CSIR_Level_3D translate(const CSIR_Level_3D& src, const std::array<int, 3>& d)
+    {
+        return translate(src, d[0], d[1], d[2]);
+    }
+
+    inline CSIR_Level_3D translate(const CSIR_Level_3D& src, const xt::xtensor_fixed<int, xt::xshape<3>>& d)
+    {
+        return translate(src, d(0), d(1), d(2));
+    }
+
     inline CSIR_Level_3D union_3d(const CSIR_Level_3D& a, const CSIR_Level_3D& b)
     {
         CSIR_Level_3D result;
@@ -840,6 +918,79 @@ namespace csir
     inline CSIR_Level_3D expand(const CSIR_Level_3D& set, std::size_t width)
     {
         return expand(set, width, std::array<bool, 3>{true, true, true});
+    }
+
+    inline CSIR_Level_3D nested_expand(const CSIR_Level_3D& set, std::size_t width, const std::array<bool,3>& mask)
+    {
+        CSIR_Level_3D out = set;
+        int w = static_cast<int>(width);
+        std::array<int,3> vals = { -w, 0, w };
+        auto xs = mask[0] ? std::array<int,3>{vals[0], vals[1], vals[2]} : std::array<int,3>{0,0,0};
+        auto ys = mask[1] ? std::array<int,3>{vals[0], vals[1], vals[2]} : std::array<int,3>{0,0,0};
+        auto zs = mask[2] ? std::array<int,3>{vals[0], vals[1], vals[2]} : std::array<int,3>{0,0,0};
+        for (int dx : xs)
+        {
+            for (int dy : ys)
+            {
+                for (int dz : zs)
+                {
+                    if (dx == 0 && dy == 0 && dz == 0) continue;
+                    out = union_(out, translate(set, dx, dy, dz));
+                }
+            }
+        }
+        return out;
+    }
+
+    inline CSIR_Level_3D nested_expand(const CSIR_Level_3D& set, std::size_t width)
+    {
+        return nested_expand(set, width, std::array<bool,3>{true, true, true});
+    }
+
+    // Dimension-generic alias for project_to_level
+    template <class Set>
+    inline Set restrict_to_level(const Set& source, std::size_t target_level)
+    {
+        return project_to_level(source, target_level);
+    }
+
+    // Box / domain helpers
+    template <class T>
+    inline CSIR_Level to_csir_box(const samurai::Box<T, 2>& box, std::size_t level)
+    {
+        samurai::LevelCellArray<2> lca(level, box);
+        return to_csir_level(lca);
+    }
+
+    template <class T>
+    inline CSIR_Level_3D to_csir_box(const samurai::Box<T, 3>& box, std::size_t level)
+    {
+        samurai::LevelCellArray<3> lca(level, box);
+        return to_csir_level(lca);
+    }
+
+    // Restrict a set to a domain LCA at a target level (2D)
+    template <class TInterval>
+    inline CSIR_Level restrict_to_domain(const CSIR_Level& set,
+                                         const samurai::LevelCellArray<2, TInterval>& domain_lca,
+                                         std::size_t target_level)
+    {
+        auto set_on_l     = project_to_level(set, target_level);
+        auto dom_csir     = to_csir_level(domain_lca);
+        auto dom_on_l     = project_to_level(dom_csir, target_level);
+        return intersection(set_on_l, dom_on_l);
+    }
+
+    // Restrict a set to a domain LCA at a target level (3D)
+    template <class TInterval>
+    inline CSIR_Level_3D restrict_to_domain(const CSIR_Level_3D& set,
+                                            const samurai::LevelCellArray<3, TInterval>& domain_lca,
+                                            std::size_t target_level)
+    {
+        auto set_on_l     = project_to_level(set, target_level);
+        auto dom_csir     = to_csir_level(domain_lca);
+        auto dom_on_l     = project_to_level(dom_csir, target_level);
+        return intersection(set_on_l, dom_on_l);
     }
 
     // Convenience overloads for dimension-generic calls

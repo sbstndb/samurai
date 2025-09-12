@@ -134,68 +134,82 @@ namespace samurai::amr
         this->cells()[mesh_id_t::proj_cells][min_level] = {min_level};
         for (std::size_t level = min_level + 1; level <= max_level; ++level)
         {
-            auto expr = difference(union_(intersection(this->cells()[mesh_id_t::cells_and_ghosts][level - 1], this->get_union()[level - 1]),
-                                          this->cells()[mesh_id_t::proj_cells][level - 1]),
-                                   this->cells()[mesh_id_t::cells][level - 1])
-                            .on(level);
+            // CSIR: project_to_level( ( (cag[level-1] ∩ union[level-1]) ∪ proj[level-1] ) \ cells[level-1], level )
+            auto cag_m1   = csir::to_csir_level(this->cells()[mesh_id_t::cells_and_ghosts][level - 1]);
+            auto uni_m1   = csir::to_csir_level(this->get_union()[level - 1]);
+            auto inter    = csir::intersection(cag_m1, uni_m1);
+            auto prj_m1   = csir::to_csir_level(this->cells()[mesh_id_t::proj_cells][level - 1]);
+            auto added    = csir::union_(inter, prj_m1);
+            auto cells_m1 = csir::to_csir_level(this->cells()[mesh_id_t::cells][level - 1]);
+            auto diff     = csir::difference(added, cells_m1);
+            auto proj     = csir::project_to_level(diff, level);
+            auto proj_lca = csir::from_csir_level(proj, this->origin_point(), this->scaling_factor());
 
             lcl_type lcl{level};
-            expr(
-                [&](const auto& interval, const auto& index_yz)
-                {
-                    lcl[index_yz].add_interval({interval.start, interval.end});
-                });
-
+            for_each_interval(proj_lca,
+                              [&](std::size_t /*lvl*/, const auto& interval, const auto& index_yz)
+                              {
+                                  lcl[index_yz].add_interval({interval.start, interval.end});
+                              });
             this->cells()[mesh_id_t::proj_cells][level] = {lcl};
         }
 
         // construction of prediction cells
         for (std::size_t level = min_level + 1; level <= max_level; ++level)
         {
-            auto expr = intersection(difference(this->cells()[mesh_id_t::cells_and_ghosts][level],
-                                                union_(this->get_union()[level], this->cells()[mesh_id_t::cells][level])),
-                                     self(this->domain()).on(level));
+            // CSIR: (cells_and_ghosts[level] \ (union[level] ∪ cells[level])) ∩ domain[level]
+            auto cag    = csir::to_csir_level(this->cells()[mesh_id_t::cells_and_ghosts][level]);
+            auto uni    = csir::to_csir_level(this->get_union()[level]);
+            auto cells  = csir::to_csir_level(this->cells()[mesh_id_t::cells][level]);
+            auto dom    = csir::to_csir_level(self(this->domain()).on(level));
+            auto uni2   = csir::union_(uni, cells);
+            auto diff   = csir::difference(cag, uni2);
+            auto inter  = csir::intersection(diff, dom);
+            auto inter_lca = csir::from_csir_level(inter, this->origin_point(), this->scaling_factor());
 
             lcl_type lcl{level};
-            expr(
-                [&](const auto& interval, const auto& index_yz)
-                {
-                    lcl[index_yz].add_interval(interval);
-                });
-
+            for_each_interval(inter_lca,
+                              [&](std::size_t /*lvl*/, const auto& interval, const auto& index_yz)
+                              {
+                                  lcl[index_yz].add_interval(interval);
+                              });
             this->cells()[mesh_id_t::pred_cells][level] = {lcl};
         }
 
         for (std::size_t level = min_level; level <= max_level; ++level)
         {
-            auto expr = intersection(this->cells()[mesh_id_t::pred_cells][level], this->cells()[mesh_id_t::pred_cells][level]).on(level - 1);
+            // CSIR: project_to_level(pred_cells[level], level-1) (self-intersection is identity)
+            auto pred      = csir::to_csir_level(this->cells()[mesh_id_t::pred_cells][level]);
+            auto pred_m1   = csir::project_to_level(pred, level - 1);
+            auto pred_lca  = csir::from_csir_level(pred_m1, this->origin_point(), this->scaling_factor());
 
             lcl_type& lcl = cl[level - 1];
-
-            expr(
-                [&](const auto& interval, const auto& index_yz)
-                {
-                    // add ghosts for the prediction
-                    static_nested_loop<dim - 1, -config::prediction_order, config::prediction_order + 1>(
-                        [&](auto stencil)
-                        {
-                            auto index = xt::eval(index_yz + stencil);
-                            lcl[index].add_interval({interval.start - config::prediction_order, interval.end + config::prediction_order});
-                        });
-                });
+            for_each_interval(pred_lca,
+                              [&](std::size_t /*lvl*/, const auto& interval, const auto& index_yz)
+                              {
+                                  static_nested_loop<dim - 1, -config::prediction_order, config::prediction_order + 1>(
+                                      [&](auto stencil)
+                                      {
+                                          auto index = xt::eval(index_yz + stencil);
+                                          lcl[index].add_interval({interval.start - config::prediction_order, interval.end + config::prediction_order});
+                                      });
+                              });
         }
         this->cells()[mesh_id_t::cells_and_ghosts] = {cl, false};
 
         for (std::size_t level = min_level; level <= max_level; ++level)
         {
+            // CSIR: union of two LCAs at same level
             lcl_type lcl{level};
-            auto expr = union_(this->cells()[mesh_id_t::cells_and_ghosts][level], this->cells()[mesh_id_t::proj_cells][level]);
-            expr(
-                [&](const auto& interval, const auto& index_yz)
-                {
-                    lcl[index_yz].add_interval(interval);
-                });
-
+            auto cag   = csir::to_csir_level(this->cells()[mesh_id_t::cells_and_ghosts][level]);
+            auto prj   = csir::to_csir_level(this->cells()[mesh_id_t::proj_cells][level]);
+            auto uni   = csir::union_(cag, prj);
+            auto uni_l = csir::from_csir_level(uni, this->origin_point(), this->scaling_factor());
+            for_each_interval(uni_l,
+                              [&](std::size_t /*lvl*/, const auto& interval, const auto& index_yz)
+                              {
+                                  lcl[index_yz].add_interval(interval);
+                              });
             this->cells()[mesh_id_t::all_cells][level] = {lcl};
         }
     }

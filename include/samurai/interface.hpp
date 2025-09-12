@@ -62,7 +62,15 @@ namespace samurai
 
         auto apply_on_interface = [&](const auto& cells, const auto& shifted_cells)
         {
-            auto intersect = intersection(cells, shifted_cells);
+            // CSIR: intersection(cells, shifted_cells)
+            using lca_t = typename Mesh::lca_type;
+            lca_t lhs_lca(cells);
+            lca_t rhs_lca(shifted_cells);
+            auto lhs_csir = csir::to_csir_level(lhs_lca);
+            auto rhs_csir = csir::to_csir_level(rhs_lca);
+            auto inter    = csir::intersection(lhs_csir, rhs_csir);
+            auto inter_l  = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+            auto intersect = self(inter_l);
 
             for_each_meshinterval<mesh_interval_t, run_type>(
                 intersect,
@@ -158,7 +166,15 @@ namespace samurai
         auto apply_on_interface = [&](const auto& coarse_cells, const auto& fine_cells)
         {
             auto shifted_fine_cells = translate(fine_cells, -direction);
-            auto fine_intersect     = intersection(coarse_cells, shifted_fine_cells).on(level + 1);
+            // CSIR: intersection(coarse_cells[level], project_to_level(shifted_fine_cells[level+1], level+1))
+            using lca_t = typename Mesh::lca_type;
+            lca_t coarse_lca(coarse_cells);
+            lca_t fine_lca(shifted_fine_cells);
+            auto coarse_csir = csir::to_csir_level(coarse_lca);
+            auto fine_csir   = csir::to_csir_level(fine_lca);
+            auto inter_csir  = csir::intersection(coarse_csir, fine_csir);
+            auto inter_lca   = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+            auto fine_intersect = self(inter_lca).on(level + 1);
 
             for_each_meshinterval<mesh_interval_t, run_type>(
                 fine_intersect,
@@ -259,7 +275,14 @@ namespace samurai
         auto apply_on_interface = [&](const auto& coarse_cells, const auto& fine_cells)
         {
             auto shifted_fine_cells = translate(fine_cells, direction);
-            auto fine_intersect     = intersection(coarse_cells, shifted_fine_cells).on(level + 1);
+            using lca_t = typename Mesh::lca_type;
+            lca_t coarse_lca(coarse_cells);
+            lca_t fine_lca(shifted_fine_cells);
+            auto coarse_csir = csir::to_csir_level(coarse_lca);
+            auto fine_csir   = csir::to_csir_level(fine_lca);
+            auto inter_csir  = csir::intersection(coarse_csir, fine_csir);
+            auto inter_lca   = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+            auto fine_intersect = self(inter_lca).on(level + 1);
 
             for_each_meshinterval<mesh_interval_t, run_type>(
                 fine_intersect,

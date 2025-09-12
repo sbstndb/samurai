@@ -156,7 +156,7 @@ namespace samurai
                 auto ref_lvlm1_csir  = csir::to_csir_level(ref_lvlm1_lca);
                 auto cells_on_lvlm1  = csir::project_to_level(cells_lvl_csir, level - 1);
                 auto inter_csir      = csir::intersection(cells_on_lvlm1, ref_lvlm1_csir);
-                auto ghost_subset    = self(csir::from_csir_level(inter_csir));
+                auto ghost_subset    = self(csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor()));
                 ghost_subset.apply_op(tag_to_keep<0>(tag));
             }
 
@@ -186,7 +186,7 @@ namespace samurai
                 auto cells_m1_csir   = csir::to_csir_level(cells_lvlm1_lca);
                 auto parents_csir    = csir::project_to_level(cells_lvl_csir, level - 1);
                 auto inter_csir      = csir::intersection(parents_csir, cells_m1_csir);
-                auto keep_subset     = self(csir::from_csir_level(inter_csir));
+                auto keep_subset     = self(csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor()));
                 keep_subset.apply_op(keep_children_together(tag));
             }
 
@@ -221,7 +221,7 @@ namespace samurai
                     auto trans_csir   = csir::translate(cells_lvl_csir, sx);
                     auto coarse_up    = csir::project_to_level(cells_m1_csir, level);
                     auto inter_csir   = csir::intersection(trans_csir, coarse_up);
-                    auto subset       = self(csir::from_csir_level(inter_csir));
+                    auto subset       = self(csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor()));
                     subset.apply_op(graduate(tag, s));
                 }
                 else if constexpr (Tag::dim == 2)
@@ -231,7 +231,7 @@ namespace samurai
                     auto trans_csir   = csir::translate(cells_lvl_csir, sx, sy);
                     auto coarse_up    = csir::project_to_level(cells_m1_csir, level);
                     auto inter_csir   = csir::intersection(trans_csir, coarse_up);
-                    auto subset       = self(csir::from_csir_level(inter_csir));
+                    auto subset       = self(csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor()));
                     subset.apply_op(graduate(tag, s));
                 }
                 else if constexpr (Tag::dim == 3)
@@ -242,7 +242,7 @@ namespace samurai
                     auto trans_csir   = csir::translate(cells_lvl_csir, sx, sy, sz);
                     auto coarse_up    = csir::project_to_level(cells_m1_csir, level);
                     auto inter_csir   = csir::intersection(trans_csir, coarse_up);
-                    auto subset       = self(csir::from_csir_level(inter_csir));
+                    auto subset       = self(csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor()));
                     subset.apply_op(graduate(tag, s));
                 }
             }
@@ -264,12 +264,54 @@ namespace samurai
                 for (std::size_t is = 0; is < stencil.shape()[0]; ++is)
                 {
                     auto s   = xt::view(stencil, is);
-                    auto set = intersection(translate(mesh[level], s), mesh[level_below]).on(level_below);
-                    set(
-                        [&cond](const auto&, const auto&)
-                        {
-                            cond = false;
-                        });
+                    // CSIR: intersection(project_to_level(translate(mesh[level], s), level_below), mesh[level_below])
+                    auto fine_csir   = csir::to_csir_level(mesh[level]);
+                    if constexpr (Mesh::dim == 1)
+                    {
+                        int sx = static_cast<int>(s(0));
+                        auto trans = csir::translate(fine_csir, sx);
+                        auto down  = csir::project_to_level(trans, level_below);
+                        auto coarse = csir::to_csir_level(mesh[level_below]);
+                        auto inter  = csir::intersection(down, coarse);
+                        auto set    = self(csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor()));
+                        set(
+                            [&cond](const auto&, const auto&)
+                            {
+                                cond = false;
+                            });
+                    }
+                    else if constexpr (Mesh::dim == 2)
+                    {
+                        int sx = static_cast<int>(s(0));
+                        int sy = static_cast<int>(s(1));
+                        auto trans = csir::translate(fine_csir, sx, sy);
+                        auto down  = csir::project_to_level(trans, level_below);
+                        auto coarse = csir::to_csir_level(mesh[level_below]);
+                        auto inter  = csir::intersection(down, coarse);
+                        auto set_lca = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        self(set_lca)(
+                            [&cond](const auto&, const auto&)
+                            {
+                                cond = false;
+                            });
+                    }
+                    else if constexpr (Mesh::dim == 3)
+                    {
+                        int sx = static_cast<int>(s(0));
+                        int sy = static_cast<int>(s(1));
+                        int sz = static_cast<int>(s(2));
+                        auto fine3 = csir::to_csir_level(mesh[level]);
+                        auto trans = csir::translate(fine3, sx, sy, sz);
+                        auto down  = csir::project_to_level(trans, level_below);
+                        auto coarse = csir::to_csir_level(mesh[level_below]);
+                        auto inter  = csir::intersection(down, coarse);
+                        auto set_lca = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        self(set_lca)(
+                            [&cond](const auto&, const auto&)
+                            {
+                                cond = false;
+                            });
+                    }
                     if (!cond)
                     {
                         return false;

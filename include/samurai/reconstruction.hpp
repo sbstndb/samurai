@@ -10,6 +10,7 @@
 #include "numeric/prediction.hpp"
 #include "samurai_config.hpp"
 #include "subset/node.hpp"
+#include "csir_unified/src/csir.hpp"
 #include "utils.hpp"
 
 namespace samurai
@@ -544,7 +545,13 @@ namespace samurai
 
         for (std::size_t level = min_level; level <= max_level; ++level)
         {
-            auto set = intersection(mesh[mesh_id_t::cells][level], reconstruct_mesh[reconstruct_level]).on(level);
+            // CSIR: intersection(cells[level], project_to_level(reconstruct_mesh[reconstruct_level], level))
+            auto cells_csir    = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
+            auto recon_csir    = csir::to_csir_level(reconstruct_mesh[reconstruct_level]);
+            auto recon_on_lvl  = csir::project_to_level(recon_csir, level);
+            auto inter_csir    = csir::intersection(cells_csir, recon_on_lvl);
+            auto inter_lca     = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+            auto set           = self(inter_lca);
             set.apply_op(make_reconstruction(reconstruct_level, reconstruct_field, field));
         }
         return reconstruct_field;
@@ -823,7 +830,12 @@ namespace samurai
 
             for (std::size_t level_src = level_dst + 1; level_src <= mesh_src.max_level(); ++level_src)
             {
-                auto proj_cell = intersection(mesh_dst[mesh_id_t::cells][level_dst], mesh_src[mesh_id_t::cells][level_src]).on(level_src);
+                // CSIR: intersection(project_to_level(dst[level_dst], level_src), src[level_src]) at level_src
+                auto dst_csir   = csir::to_csir_level(mesh_dst[mesh_id_t::cells][level_dst]);
+                auto src_csir   = csir::to_csir_level(mesh_src[mesh_id_t::cells][level_src]);
+                auto dst_on_src = csir::project_to_level(dst_csir, level_src);
+                auto inter_csir = csir::intersection(dst_on_src, src_csir);
+                auto proj_cell = self(csir::from_csir_level(inter_csir, mesh_dst.origin_point(), mesh_dst.scaling_factor()));
 
                 proj_cell(
                     [&](const auto& i, const auto& index)
@@ -860,7 +872,12 @@ namespace samurai
 
             for (std::size_t level_src = mesh_src.min_level(); level_src < level_dst; ++level_src)
             {
-                auto pred_cell = intersection(mesh_dst[mesh_id_t::cells][level_dst], mesh_src[mesh_id_t::cells][level_src]).on(level_dst);
+                // CSIR: intersection(dst[level_dst], project_to_level(src[level_src], level_dst)) at level_dst
+                auto dst_csir2   = csir::to_csir_level(mesh_dst[mesh_id_t::cells][level_dst]);
+                auto src_csir2   = csir::to_csir_level(mesh_src[mesh_id_t::cells][level_src]);
+                auto src_on_dst  = csir::project_to_level(src_csir2, level_dst);
+                auto inter_csir2 = csir::intersection(dst_csir2, src_on_dst);
+                auto pred_cell = self(csir::from_csir_level(inter_csir2, mesh_dst.origin_point(), mesh_dst.scaling_factor()));
 
                 pred_cell(
                     [&](const auto& i, const auto& index)

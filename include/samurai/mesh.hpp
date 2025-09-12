@@ -14,6 +14,7 @@
 #include "static_algorithm.hpp"
 #include "stencil.hpp"
 #include "subset/node.hpp"
+#include "csir_unified/src/csir.hpp"
 
 #ifdef SAMURAI_WITH_MPI
 #include <boost/serialization/vector.hpp>
@@ -1022,13 +1023,18 @@ namespace samurai
         for (std::size_t level = max_lvl; level >= 1; --level)
         {
             lcl_type lcl{level - 1};
-            auto expr = union_(this->m_cells[mesh_id_t::cells][level], m_union[level]).on(level - 1);
+            // CSIR: project_to_level(union_(cells[level], union[level]), level-1)
+            auto cells_csir = csir::to_csir_level(this->m_cells[mesh_id_t::cells][level]);
+            auto uni_csir   = csir::to_csir_level(m_union[level]);
+            auto u_csir     = csir::union_(cells_csir, uni_csir);
+            auto proj_csir  = csir::project_to_level(u_csir, level - 1);
+            auto proj_lca   = csir::from_csir_level(proj_csir, this->origin_point(), this->scaling_factor());
 
-            expr(
-                [&](const auto& interval, const auto& index_yz)
-                {
-                    lcl[index_yz].add_interval(interval);
-                });
+            for_each_interval(proj_lca,
+                              [&](std::size_t /*lvl*/, const auto& interval, const auto& index_yz)
+                              {
+                                  lcl[index_yz].add_interval(interval);
+                              });
 
             m_union[level - 1] = {lcl};
         }
@@ -1047,7 +1053,13 @@ namespace samurai
         {
             if (i != static_cast<std::size_t>(world.rank()))
             {
-                auto set = intersection(nestedExpand(m_subdomain, 1), neighbours[i]);
+                // CSIR: intersection(nested_expand(subdomain[level],1), neighbours[i])
+                auto sub_csir = csir::to_csir_level(m_subdomain);
+                auto sub_on_l = csir::project_to_level(sub_csir, m_subdomain.level());
+                auto sub_exp  = csir::nested_expand(sub_on_l, 1);
+                auto nei_csir = csir::to_csir_level(neighbours[i]);
+                auto inter    = csir::intersection(sub_exp, nei_csir);
+                auto set      = csir::from_csir_level(inter, m_subdomain.origin_point(), m_subdomain.scaling_factor());
                 if (!set.empty())
                 {
                     set_neighbours.insert(static_cast<int>(i));
@@ -1057,12 +1069,20 @@ namespace samurai
                     if (m_periodic[d])
                     {
                         auto shift             = get_periodic_shift(m_domain, m_subdomain.level(), d);
-                        auto periodic_set_left = intersection(nestedExpand(m_subdomain, 1), translate(neighbours[i], -shift));
+                        // CSIR periodic left: intersection(nested_expand(subdomain,1), translate(neighbours[i], -shift))
+                        auto shift_vec = xt::xtensor_fixed<int, xt::xshape<dim>>{}; shift_vec.fill(0); shift_vec[d] = -shift;
+                        auto nei_left  = csir::translate(nei_csir, shift_vec);
+                        auto inter_l   = csir::intersection(sub_exp, nei_left);
+                        auto periodic_set_left = csir::from_csir_level(inter_l, m_subdomain.origin_point(), m_subdomain.scaling_factor());
                         if (!periodic_set_left.empty())
                         {
                             set_neighbours.insert(static_cast<int>(i));
                         }
-                        auto periodic_set_right = intersection(nestedExpand(m_subdomain, 1), translate(neighbours[i], shift));
+                        // CSIR periodic right: intersection(nested_expand(subdomain,1), translate(neighbours[i], +shift))
+                        shift_vec[d] = shift;
+                        auto nei_right  = csir::translate(nei_csir, shift_vec);
+                        auto inter_r    = csir::intersection(sub_exp, nei_right);
+                        auto periodic_set_right = csir::from_csir_level(inter_r, m_subdomain.origin_point(), m_subdomain.scaling_factor());
                         if (!periodic_set_right.empty())
                         {
                             set_neighbours.insert(static_cast<int>(i));

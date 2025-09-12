@@ -1,5 +1,6 @@
 #pragma once
 #include "algorithm.hpp"
+#include "csir_unified/src/csir.hpp"
 
 namespace samurai
 {
@@ -69,9 +70,15 @@ namespace samurai
 
         for (std::size_t level = min_level; level < max_level; ++level)
         {
-            auto projection_ghosts = intersection(mesh[mesh_id_t::cells_and_ghosts][level], mesh[mesh_id_t::cells][level + 1]).on(level);
+            // CSIR: intersection(cells_and_ghosts[level], project_to_level(cells[level+1], level))
+            auto cg_csir        = csir::to_csir_level(mesh[mesh_id_t::cells_and_ghosts][level]);
+            auto cells_p1_csir  = csir::to_csir_level(mesh[mesh_id_t::cells][level + 1]);
+            auto cells_on_l     = csir::project_to_level(cells_p1_csir, level);
+            auto inter_csir     = csir::intersection(cg_csir, cells_on_l);
+            auto projection_ghosts_lca = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+
             for_each_meshinterval<mesh_interval_t>(
-                projection_ghosts,
+                self(projection_ghosts_lca),
                 [&](auto mesh_interval)
                 {
                     auto& i = mesh_interval.i;
@@ -148,9 +155,18 @@ namespace samurai
 
         for (std::size_t level = min_level; level < max_level; ++level)
         {
-            auto set = intersection(mesh[mesh_id_t::cells_and_ghosts][level], mesh[mesh_id_t::cells][level + 1]).on(level);
+            // CSIR: intersection(cells_and_ghosts[level], project_to_level(cells[level+1], level))
+            auto cg_csir       = csir::to_csir_level(mesh[mesh_id_t::cells_and_ghosts][level]);
+            auto cells_p1_csir = csir::to_csir_level(mesh[mesh_id_t::cells][level + 1]);
+            auto cells_on_l    = csir::project_to_level(cells_p1_csir, level);
+            auto inter_csir    = csir::intersection(cg_csir, cells_on_l);
+            auto set_lca       = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
 
-            for_each_cell(mesh, set, std::forward<Func>(f));
+            for_each_interval(set_lca,
+                              [&](std::size_t /*lvl*/, const auto& i, const auto& index)
+                              {
+                                  for_each_cell(mesh, level, i, index, std::forward<Func>(f));
+                              });
         }
     }
 
@@ -168,9 +184,18 @@ namespace samurai
 
         for (std::size_t level = min_level + 1; level <= max_level; ++level)
         {
-            auto set = intersection(mesh[mesh_id_t::cells_and_ghosts][level], mesh[mesh_id_t::cells][level - 1]).on(level);
+            // CSIR: intersection(cells_and_ghosts[level], project_to_level(cells[level-1], level))
+            auto cg_csir      = csir::to_csir_level(mesh[mesh_id_t::cells_and_ghosts][level]);
+            auto cells_m1_csir = csir::to_csir_level(mesh[mesh_id_t::cells][level - 1]);
+            auto cells_on_l    = csir::project_to_level(cells_m1_csir, level);
+            auto inter_csir    = csir::intersection(cg_csir, cells_on_l);
+            auto set_lca       = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
 
-            for_each_cell(mesh, set, std::forward<Func>(f));
+            for_each_interval(set_lca,
+                              [&](std::size_t /*lvl*/, const auto& i, const auto& index)
+                              {
+                                  for_each_cell(mesh, level, i, index, std::forward<Func>(f));
+                              });
         }
     }
 
@@ -184,9 +209,18 @@ namespace samurai
 
         for (std::size_t level = min_level; level <= max_level; ++level)
         {
-            auto set = difference(mesh[mesh_id_t::reference][level], mesh.domain()).on(level);
+            // CSIR: difference(reference[level], project_to_level(domain, level))
+            auto ref_csir   = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
+            auto dom_csir   = csir::to_csir_level(mesh.domain());
+            auto dom_on_l   = csir::project_to_level(dom_csir, level);
+            auto diff_csir  = csir::difference(ref_csir, dom_on_l);
+            auto set_lca    = csir::from_csir_level(diff_csir, mesh.origin_point(), mesh.scaling_factor());
 
-            for_each_cell(mesh, set, std::forward<Func>(f));
+            for_each_interval(set_lca,
+                              [&](std::size_t /*lvl*/, const auto& i, const auto& index)
+                              {
+                                  for_each_cell(mesh, level, i, index, std::forward<Func>(f));
+                              });
         }
     }
 }

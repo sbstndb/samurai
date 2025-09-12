@@ -14,6 +14,7 @@
 #include "../stencil.hpp"
 #include "../subset/apply.hpp"
 #include "../subset/node.hpp"
+#include "../csir_unified/src/csir.hpp"
 
 using namespace xt::placeholders;
 
@@ -222,7 +223,8 @@ namespace samurai
                             });
                     });
 
-                auto expr_2 = intersection(this->cells()[mesh_id_t::cells][level], this->cells()[mesh_id_t::cells][level]);
+                // CSIR migration: trivial self-intersection becomes direct self on the LCA
+                auto expr_2 = self(this->cells()[mesh_id_t::cells][level]);
 
                 expr_2(
                     [&](const auto& interval, const auto& index_yz)
@@ -399,9 +401,17 @@ namespace samurai
             {
                 lcl_type& lcl = cell_list[level + 1];
                 lcl_type lcl_proj{level};
-                auto expr = intersection(this->cells()[mesh_id_t::all_cells][level], this->get_union()[level]);
+                // CSIR migration: intersection(all_cells[level], get_union()[level])
+                {
+                    auto all_lca   = this->cells()[mesh_id_t::all_cells][level];
+                    auto union_lca = this->get_union()[level];
+                    auto all_csir  = csir::to_csir_level(all_lca);
+                    auto uni_csir  = csir::to_csir_level(union_lca);
+                    auto inter     = csir::intersection(all_csir, uni_csir);
+                    auto inter_lca = csir::from_csir_level(inter, this->origin_point(), this->scaling_factor());
+                    auto expr      = self(inter_lca);
 
-                expr(
+                    expr(
                     [&](const auto& interval, const auto& index_yz)
                     {
                         static_nested_loop<dim - 1, 0, 2>(
@@ -411,6 +421,7 @@ namespace samurai
                             });
                         lcl_proj[index_yz].add_interval(interval);
                     });
+                }
                 this->cells()[mesh_id_t::all_cells][level + 1] = lcl;
                 this->cells()[mesh_id_t::proj_cells][level]    = lcl_proj;
             }

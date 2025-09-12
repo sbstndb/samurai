@@ -300,7 +300,7 @@ namespace samurai
 
             // 1. detail computation in the cells (at level+1):
             auto ghosts_below_cells_csir = csir::intersection(all_csir, cells_on_lvl_csir);
-            auto ghosts_below_cells_lca  = csir::from_csir_level(ghosts_below_cells_csir);
+            auto ghosts_below_cells_lca  = csir::from_csir_level(ghosts_below_cells_csir, mesh.origin_point(), mesh.scaling_factor());
             auto ghosts_below_cells      = self(ghosts_below_cells_lca);
             ghosts_below_cells.apply_op(compute_detail(m_detail, m_fields));
 
@@ -313,7 +313,7 @@ namespace samurai
                     auto all_lvlm1_csir     = csir::to_csir_level(all_lca_lvlm1);
                     auto gbc_on_lvlm1_csir  = csir::project_to_level(ghosts_below_cells_csir, level - 1);
                     auto ghosts2_csir       = csir::intersection(all_lvlm1_csir, gbc_on_lvlm1_csir);
-                    auto ghosts2_lca        = csir::from_csir_level(ghosts2_csir);
+                    auto ghosts2_lca        = csir::from_csir_level(ghosts2_csir, mesh.origin_point(), mesh.scaling_factor());
                     auto ghosts_2_levels_below_cells = self(ghosts2_lca);
                     ghosts_2_levels_below_cells.apply_op(compute_detail(m_detail, m_fields));
                 }
@@ -333,7 +333,7 @@ namespace samurai
                     auto all_lvlm1_csir     = csir::to_csir_level(all_lca_lvlm1);
                     auto ghosts2_on_lvlm1   = csir::project_to_level(ghosts_below_cells2_csir, level - 1);
                     auto ghosts2_csir       = csir::intersection(all_lvlm1_csir, ghosts2_on_lvlm1);
-                    auto ghosts2_lca        = csir::from_csir_level(ghosts2_csir);
+                    auto ghosts2_lca        = csir::from_csir_level(ghosts2_csir, mesh.origin_point(), mesh.scaling_factor());
                     auto ghosts_2_levels_below_cells = self(ghosts2_lca);
                     ghosts_2_levels_below_cells.apply_op(compute_detail(m_detail, m_fields));
                 }
@@ -362,7 +362,7 @@ namespace samurai
                 auto all_lvlm1_csir   = csir::to_csir_level(all_lvlm1_lca);
                 auto cells_on_lvlm1   = csir::project_to_level(cells_lvl_csir, level - 1);
                 auto inter_csir       = csir::intersection(cells_on_lvlm1, all_lvlm1_csir);
-                auto inter_lca        = csir::from_csir_level(inter_csir);
+                auto inter_lca        = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
                 auto subset_1         = self(inter_lca);
                 subset_1.apply_op(to_coarsen_mr(m_detail, m_tag, eps_l, min_level),
                                   to_refine_mr(m_detail,
@@ -404,7 +404,7 @@ namespace samurai
             auto all_lvlm1_csir   = csir::to_csir_level(all_lvlm1_lca);
             auto cells_on_lvlm1   = csir::project_to_level(cells_lvl_csir, level - 1);
             auto inter_csir       = csir::intersection(cells_on_lvlm1, all_lvlm1_csir);
-            auto inter_lca        = csir::from_csir_level(inter_csir);
+            auto inter_lca        = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
             auto keep_subset      = self(inter_lca);
 
             update_tag_periodic(level, m_tag);

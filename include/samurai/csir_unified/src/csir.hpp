@@ -41,6 +41,12 @@ namespace csir
                   std::vector<Interval>::const_iterator b_begin, std::vector<Interval>::const_iterator b_end,
                   std::vector<Interval>& result)
     {
+        // Reserve to avoid repeated reallocations (conservative upper bound)
+        const auto a_len = static_cast<std::size_t>(std::distance(a_begin, a_end));
+        const auto b_len = static_cast<std::size_t>(std::distance(b_begin, b_end));
+        if (a_len + b_len > 0) {
+            result.reserve(result.size() + a_len + b_len);
+        }
         if (a_begin == a_end) { result.insert(result.end(), b_begin, b_end); return; }
         if (b_begin == b_end) { result.insert(result.end(), a_begin, a_end); return; }
 
@@ -77,6 +83,14 @@ namespace csir
         if (a.empty()) return b;
         if (b.empty()) return a;
 
+        // Pre-allocate conservatively to reduce reallocations
+        result.y_coords.reserve(a.y_coords.size() + b.y_coords.size());
+        result.intervals.reserve(a.intervals.size() + b.intervals.size());
+        result.intervals_ptr.reserve(a.y_coords.size() + b.y_coords.size() + 1);
+        // Pre-allocate conservatively for result containers
+        result.y_coords.reserve(a.y_coords.size());
+        result.intervals.reserve(a.intervals.size());
+        result.intervals_ptr.reserve(a.y_coords.size() + 1);
         result.intervals_ptr.push_back(0);
         auto it_a = 0;
         auto it_b = 0;
@@ -117,25 +131,41 @@ namespace csir
                          std::vector<Interval>::const_iterator b_begin, std::vector<Interval>::const_iterator b_end,
                          std::vector<Interval>& result)
     {
-        while (a_begin != a_end) {
-            int current_start = a_begin->start;
-            int current_end = a_begin->end;
-            auto temp_b_begin = b_begin;
+        // Linear-time difference leveraging sorted, non-overlapping inputs.
+        // Reserve conservatively to reduce reallocations.
+        const auto a_len = static_cast<std::size_t>(std::distance(a_begin, a_end));
+        const auto b_len = static_cast<std::size_t>(std::distance(b_begin, b_end));
+        if (a_len + b_len > 0) {
+            result.reserve(result.size() + a_len + b_len);
+        }
 
-            while (temp_b_begin != b_end && temp_b_begin->start < current_end) {
-                if (temp_b_begin->end > current_start) {
-                    if (current_start < temp_b_begin->start) {
-                        result.push_back({current_start, temp_b_begin->start});
-                    }
-                    current_start = std::max(current_start, temp_b_begin->end);
+        auto ia = a_begin;
+        auto ib = b_begin;
+        while (ia != a_end) {
+            int a_s = ia->start;
+            const int a_e = ia->end;
+
+            // Skip all B intervals that end before or at a_s
+            while (ib != b_end && ib->end <= a_s) ++ib;
+
+            int cur = a_s;
+            while (ib != b_end && ib->start < a_e) {
+                // Emit gap before current overlapping B interval
+                if (ib->start > cur) {
+                    result.emplace_back(Interval{cur, std::min(ib->start, a_e)});
                 }
-                ++temp_b_begin;
+                // Advance cur past the overlap
+                if (ib->end >= a_e) {
+                    cur = a_e; // fully consumed
+                    break;
+                }
+                cur = std::max(cur, ib->end);
+                ++ib;
             }
-
-            if (current_start < current_end) {
-                result.push_back({current_start, current_end});
+            if (cur < a_e) {
+                result.emplace_back(Interval{cur, a_e});
             }
-            ++a_begin;
+            ++ia;
         }
     }
 
@@ -197,13 +227,14 @@ namespace csir
     {
         CSIR_Level_1D out; out.level = a.level;
         if (a.level != b.level || a.empty() || b.empty()) return out;
+        out.intervals.reserve(std::min(a.intervals.size(), b.intervals.size()));
         auto ia = a.intervals.begin();
         auto ib = b.intervals.begin();
         while (ia != a.intervals.end() && ib != b.intervals.end())
         {
             int s = std::max(ia->start, ib->start);
             int e = std::min(ia->end,   ib->end);
-            if (s < e) out.intervals.push_back({s,e});
+            if (s < e) out.intervals.emplace_back(Interval{s, e});
             if (ia->end < ib->end) ++ia; else ++ib;
         }
         return out;
@@ -214,6 +245,7 @@ namespace csir
         CSIR_Level_1D out; if (a.level != b.level) return out; out.level = a.level;
         if (a.empty()) { out = b; return out; }
         if (b.empty()) { out = a; return out; }
+        out.intervals.reserve(a.intervals.size() + b.intervals.size());
         union_1d(a.intervals.begin(), a.intervals.end(), b.intervals.begin(), b.intervals.end(), out.intervals);
         return out;
     }
@@ -222,6 +254,7 @@ namespace csir
     {
         CSIR_Level_1D out; if (a.level != b.level) return out; out.level = a.level;
         if (a.empty()) return out; if (b.empty()) { out = a; return out; }
+        out.intervals.reserve(a.intervals.size() + b.intervals.size());
         difference_1d(a.intervals.begin(), a.intervals.end(), b.intervals.begin(), b.intervals.end(), out.intervals);
         return out;
     }
@@ -274,11 +307,12 @@ namespace csir
             auto floor_div = [scale](int v) { return v >= 0 ? (v / scale) : -(((-v + scale - 1) / scale)); };
             auto ceil_div  = [scale](int v) { return v >= 0 ? ((v + scale - 1) / scale) : -((-v) / scale); };
             std::vector<Interval> tmp;
+            tmp.reserve(source.intervals.size());
             for (auto itv : source.intervals)
             {
                 int s = floor_div(itv.start);
                 int e = ceil_div(itv.end);
-                if (s < e) tmp.push_back({s,e});
+                if (s < e) tmp.emplace_back(Interval{s, e});
             }
             if (!tmp.empty())
             {
@@ -426,9 +460,6 @@ namespace csir
             // Downscaling (coarsening)
             int scale = 1 << (source.level - target_level);
 
-            // Aggregate intervals per coarse y
-            std::map<int, std::vector<Interval>> rows;
-
             auto floor_div = [scale](int v) {
                 return v >= 0 ? (v / scale) : -(((-v + scale - 1) / scale));
             };
@@ -436,10 +467,42 @@ namespace csir
                 return v >= 0 ? ((v + scale - 1) / scale) : -((-v) / scale);
             };
 
+            // Group contiguous fine rows mapping to the same coarse row
+            result.intervals_ptr.push_back(0);
+            bool have_group = false;
+            int current_cy = 0;
+            std::vector<Interval> bucket;
+            bucket.reserve(64);
+
+            auto flush = [&](int y) {
+                if (bucket.empty()) return;
+                std::sort(bucket.begin(), bucket.end(), [](const Interval& a, const Interval& b){ return a.start < b.start; });
+                size_t start_idx = result.intervals.size();
+                Interval cur = bucket.front();
+                for (size_t i = 1; i < bucket.size(); ++i) {
+                    if (bucket[i].start <= cur.end) {
+                        cur.end = std::max(cur.end, bucket[i].end);
+                    } else {
+                        result.intervals.push_back(cur);
+                        cur = bucket[i];
+                    }
+                }
+                result.intervals.push_back(cur);
+                if (result.intervals.size() > start_idx) {
+                    result.y_coords.push_back(y);
+                    result.intervals_ptr.push_back(result.intervals.size());
+                }
+                bucket.clear();
+            };
+
             for (size_t i = 0; i < source.y_coords.size(); ++i) {
                 int y_f = source.y_coords[i];
                 int y_c = floor_div(y_f);
-
+                if (!have_group) { have_group = true; current_cy = y_c; }
+                if (y_c != current_cy) {
+                    flush(current_cy);
+                    current_cy = y_c;
+                }
                 auto start_idx = source.intervals_ptr[i];
                 auto end_idx = source.intervals_ptr[i+1];
                 for (size_t k = start_idx; k < end_idx; ++k) {
@@ -447,34 +510,11 @@ namespace csir
                     int e = source.intervals[k].end;
                     int cs = floor_div(s);
                     int ce = ceil_div(e);
-                    if (cs < ce) rows[y_c].push_back({cs, ce});
+                    if (cs < ce) bucket.emplace_back(Interval{cs, ce});
                 }
             }
-
-            // Merge and flush
-            result.intervals_ptr.push_back(0);
-            for (auto& it : rows) {
-                int y = it.first;
-                auto& list = it.second;
-                std::sort(list.begin(), list.end(), [](const Interval& a, const Interval& b){ return a.start < b.start; });
-                std::vector<Interval> merged;
-                if (!list.empty()) {
-                    Interval cur = list.front();
-                    for (size_t i = 1; i < list.size(); ++i) {
-                        if (list[i].start <= cur.end) {
-                            cur.end = std::max(cur.end, list[i].end);
-                        } else {
-                            merged.push_back(cur);
-                            cur = list[i];
-                        }
-                    }
-                    merged.push_back(cur);
-                }
-                if (!merged.empty()) {
-                    result.y_coords.push_back(y);
-                    result.intervals.insert(result.intervals.end(), merged.begin(), merged.end());
-                    result.intervals_ptr.push_back(result.intervals.size());
-                }
+            if (have_group) {
+                flush(current_cy);
             }
             return result;
         }
@@ -518,11 +558,17 @@ namespace csir
                          std::vector<Interval>::const_iterator b_begin, std::vector<Interval>::const_iterator b_end,
                          std::vector<Interval>& result)
     {
+        // Reserve up to min sizes; intersection size cannot exceed min count
+        const auto a_len = static_cast<std::size_t>(std::distance(a_begin, a_end));
+        const auto b_len = static_cast<std::size_t>(std::distance(b_begin, b_end));
+        if (a_len > 0 && b_len > 0) {
+            result.reserve(result.size() + std::min(a_len, b_len));
+        }
         while (a_begin != a_end && b_begin != b_end)
         {
             auto max_start = std::max(a_begin->start, b_begin->start);
             auto min_end = std::min(a_begin->end, b_begin->end);
-            if (max_start < min_end) { result.push_back({max_start, min_end}); }
+            if (max_start < min_end) { result.emplace_back(Interval{max_start, min_end}); }
             if (a_begin->end < b_begin->end) { ++a_begin; } else { ++b_begin; }
         }
     }
@@ -533,6 +579,10 @@ namespace csir
         result.level = a.level;
         if (a.empty() || b.empty()) return result;
 
+        // Pre-allocate conservatively
+        result.y_coords.reserve(std::min(a.y_coords.size(), b.y_coords.size()));
+        result.intervals.reserve(std::min(a.intervals.size(), b.intervals.size()));
+        result.intervals_ptr.reserve(std::min(a.y_coords.size(), b.y_coords.size()) + 1);
         result.intervals_ptr.push_back(0);
         auto it_a = 0; 
         auto it_b = 0;

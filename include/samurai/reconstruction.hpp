@@ -821,12 +821,19 @@ namespace samurai
 
         for (std::size_t level_dst = mesh_dst.min_level(); level_dst <= mesh_dst.max_level(); ++level_dst)
         {
-            auto same_cell = intersection(mesh_dst[mesh_id_t::cells][level_dst], mesh_src[mesh_id_t::cells][level_dst]);
-            same_cell(
+            // CSIR: intersection(dst[level_dst], src[level_dst]) at level_dst
+            {
+                auto dst_csir   = csir::to_csir_level(mesh_dst[mesh_id_t::cells][level_dst]);
+                auto src_csir   = csir::to_csir_level(mesh_src[mesh_id_t::cells][level_dst]);
+                auto inter_csir = csir::intersection(dst_csir, src_csir);
+                auto inter_lca  = csir::from_csir_level(inter_csir, mesh_dst.origin_point(), mesh_dst.scaling_factor());
+                auto same_cell  = self(inter_lca).on(level_dst);
+                same_cell(
                 [&](const auto& i, const auto& index)
                 {
                     field_dst(level_dst, i, index) = field_src(level_dst, i, index);
                 });
+            }
 
             for (std::size_t level_src = level_dst + 1; level_src <= mesh_src.max_level(); ++level_src)
             {

@@ -165,6 +165,16 @@ auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_f
 - Unsafe patterns to avoid:
   - Creating a `self(lca_temp)` or `subset` from an rvalue LCA returned by a helper inside a larger expression; the LCA can be destroyed before traversal starts.
 
+### Prefer returning LCA from helpers, not `Self<...>`
+
+- Helper APIs such as `domain_boundary(...)` and `boundary_layer(...)` should return a `LevelCellArray` (LCA), not a `Self<...>` subset. This gives the caller ownership of the data structure and avoids dangling `Self` wrappers over temporaries.
+- Call sites should bind the returned LCA to a local variable and explicitly wrap it via `self(lca)` for traversal:
+  ```cpp
+  auto bdry_lca = domain_boundary(mesh, level, direction);
+  auto bdry     = self(bdry_lca);
+  for_each_meshinterval<...>(bdry, [&](auto mi){ ... });
+  ```
+
 ## Boundary layers: correct translate sign and lifetime
 
 - Inner boundary is `cells[level] \ translate(domain[level], -direction)` (minus sign). Using `+direction` flips the face and breaks layer logic.
@@ -205,6 +215,51 @@ for (std::size_t layer = 1; layer <= layer_width; ++layer)
 Notes:
 - Keeping both `domain_lca` and `inner_lca` as named variables avoids dangling references during lazy traversal.
 - The sign is `-direction` when translating the domain to create the inner boundary.
+
+## Don’t call `.on(level)` on LCA; materialize via `lcl_t` or wrap with `self()`
+
+- `.on(level)` exists on lazy Subset traversal wrappers, not on `LevelCellArray`.
+- If you have a Subset, materialize it to an `lcl_t` via `.on(level)(...)` then build an `lca_t`.
+- If you already have an LCA and want to traverse, wrap it with `self(lca)` and then call the iteration utility (`for_each_meshinterval`, etc.).
+
+Example materialization:
+```cpp
+using lcl_t = typename Mesh::lcl_type; using lca_t = typename Mesh::lca_type;
+lcl_t out(level, mesh.origin_point(), mesh.scaling_factor());
+subset.on(level)([&](const auto& i, const auto& idx){ out[idx].add_interval(i); });
+lca_t out_lca(out);
+```
+
+## Handling both Subset and LCA inputs (type-guard)
+
+- When an API can accept either a Subset or an LCA, use a small type guard to build a traversal view:
+```cpp
+auto view = [&]() {
+  if constexpr (samurai::IsLCA<std::decay_t<T>>)
+    return self(lca_input);
+  else
+    return subset_input;
+}();
+view.on(level)(...);
+```
+
+## Interface/boundary iterations after helper changes
+
+- If a helper now returns an LCA (by design, to extend lifetime), capture it locally and wrap with `self(...)` at the call site before passing to iteration utilities. This applies to `for_each_boundary_interface__direction` and similar loops.
+
+## Generic iteration over LCA: avoid `Self` constraints
+
+- Provide a generic `for_each_cell(mesh, lca, f)` that does not depend on `Self` or `IsLCA` constraints by iterating intervals directly:
+```cpp
+template <class Mesh, std::size_t dim, class TInterval, class Func>
+inline void for_each_cell(const Mesh& mesh, const LevelCellArray<dim, TInterval>& set, Func&& f) {
+  for_each_interval(set, [&](std::size_t /*lvl*/, const auto& i, const auto& index) {
+    for_each_cell(mesh, set.level(), i, index, std::forward<Func>(f));
+  });
+}
+```
+
+This avoids needing `samurai::self(set)` inside the algorithm layer and prevents template constraint failures on some compilers.
 
 ## Interface traversal: keep explicit level scoping
 

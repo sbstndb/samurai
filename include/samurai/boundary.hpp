@@ -21,7 +21,7 @@ namespace samurai
         auto cells_csir= csir::to_csir_level(cells);
         auto result_csir = csir::difference(cells_csir, trans);
         auto result_lca = csir::from_csir_level(result_csir, mesh.origin_point(), mesh.scaling_factor());
-        return self(result_lca);
+        return result_lca;
     }
 
     template <class Mesh, class Vector>
@@ -63,7 +63,7 @@ namespace samurai
         auto cells_csir= csir::to_csir_level(cells);
         auto result_csir = csir::difference(cells_csir, contr);
         auto result_lca = csir::from_csir_level(result_csir, mesh.origin_point(), mesh.scaling_factor());
-        return self(result_lca);
+        return result_lca;
     }
 
     template <class Mesh>

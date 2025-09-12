@@ -100,14 +100,9 @@ namespace csir
         // Pre-allocate conservatively to reduce reallocations
         result.y_coords.reserve(a.y_coords.size() + b.y_coords.size());
         result.intervals.reserve(a.intervals.size() + b.intervals.size());
-        result.intervals_ptr.reserve(a.y_coords.size() + b.y_coords.size() + 1);
-        // Pre-allocate conservatively for result containers
-        result.y_coords.reserve(a.y_coords.size());
-        result.intervals.reserve(a.intervals.size());
-        result.intervals_ptr.reserve(a.y_coords.size() + 1);
         result.intervals_ptr.push_back(0);
-        auto it_a = 0;
-        auto it_b = 0;
+        std::size_t it_a = 0;
+        std::size_t it_b = 0;
 
         while(it_a < a.y_coords.size() || it_b < b.y_coords.size())
         {
@@ -116,16 +111,24 @@ namespace csir
 
             if (it_a < a.y_coords.size() && (it_b >= b.y_coords.size() || a.y_coords[it_a] < b.y_coords[it_b])) {
                 y = a.y_coords[it_a];
-                result.intervals.insert(result.intervals.end(), a.intervals.begin() + a.intervals_ptr[it_a], a.intervals.begin() + a.intervals_ptr[it_a+1]);
+                auto first = a.intervals.begin() + static_cast<std::ptrdiff_t>(a.intervals_ptr[it_a]);
+                auto last  = a.intervals.begin() + static_cast<std::ptrdiff_t>(a.intervals_ptr[it_a + 1]);
+                result.intervals.insert(result.intervals.end(), first, last);
                 it_a++;
             } else if (it_b < b.y_coords.size() && (it_a >= a.y_coords.size() || b.y_coords[it_b] < a.y_coords[it_a])) {
                 y = b.y_coords[it_b];
-                result.intervals.insert(result.intervals.end(), b.intervals.begin() + b.intervals_ptr[it_b], b.intervals.begin() + b.intervals_ptr[it_b+1]);
+                auto first = b.intervals.begin() + static_cast<std::ptrdiff_t>(b.intervals_ptr[it_b]);
+                auto last  = b.intervals.begin() + static_cast<std::ptrdiff_t>(b.intervals_ptr[it_b + 1]);
+                result.intervals.insert(result.intervals.end(), first, last);
                 it_b++;
             } else { 
                 y = a.y_coords[it_a];
-                union_1d(a.intervals.begin() + a.intervals_ptr[it_a], a.intervals.begin() + a.intervals_ptr[it_a+1],
-                         b.intervals.begin() + b.intervals_ptr[it_b], b.intervals.begin() + b.intervals_ptr[it_b+1],
+                auto a_first = a.intervals.begin() + static_cast<std::ptrdiff_t>(a.intervals_ptr[it_a]);
+                auto a_last  = a.intervals.begin() + static_cast<std::ptrdiff_t>(a.intervals_ptr[it_a + 1]);
+                auto b_first = b.intervals.begin() + static_cast<std::ptrdiff_t>(b.intervals_ptr[it_b]);
+                auto b_last  = b.intervals.begin() + static_cast<std::ptrdiff_t>(b.intervals_ptr[it_b + 1]);
+                union_1d(a_first, a_last,
+                         b_first, b_last,
                          result.intervals);
                 it_a++;
                 it_b++;
@@ -192,8 +195,8 @@ namespace csir
         if (b.empty()) return a;
 
         result.intervals_ptr.push_back(0);
-        auto it_a = 0;
-        auto it_b = 0;
+        std::size_t it_a = 0;
+        std::size_t it_b = 0;
 
         while(it_a < a.y_coords.size())
         {
@@ -205,11 +208,17 @@ namespace csir
             }
 
             if (it_b < b.y_coords.size() && b.y_coords[it_b] == y) {
-                difference_1d(a.intervals.begin() + a.intervals_ptr[it_a], a.intervals.begin() + a.intervals_ptr[it_a+1],
-                              b.intervals.begin() + b.intervals_ptr[it_b], b.intervals.begin() + b.intervals_ptr[it_b+1],
+                auto a_first = a.intervals.begin() + static_cast<std::ptrdiff_t>(a.intervals_ptr[it_a]);
+                auto a_last  = a.intervals.begin() + static_cast<std::ptrdiff_t>(a.intervals_ptr[it_a + 1]);
+                auto b_first = b.intervals.begin() + static_cast<std::ptrdiff_t>(b.intervals_ptr[it_b]);
+                auto b_last  = b.intervals.begin() + static_cast<std::ptrdiff_t>(b.intervals_ptr[it_b + 1]);
+                difference_1d(a_first, a_last,
+                              b_first, b_last,
                               result.intervals);
             } else {
-                result.intervals.insert(result.intervals.end(), a.intervals.begin() + a.intervals_ptr[it_a], a.intervals.begin() + a.intervals_ptr[it_a+1]);
+                auto first = a.intervals.begin() + static_cast<std::ptrdiff_t>(a.intervals_ptr[it_a]);
+                auto last  = a.intervals.begin() + static_cast<std::ptrdiff_t>(a.intervals_ptr[it_a + 1]);
+                result.intervals.insert(result.intervals.end(), first, last);
             }
 
             if (result.intervals.size() > current_interval_count) {
@@ -657,8 +666,8 @@ namespace csir
         result.intervals.reserve(std::min(a.intervals.size(), b.intervals.size()));
         result.intervals_ptr.reserve(std::min(a.y_coords.size(), b.y_coords.size()) + 1);
         result.intervals_ptr.push_back(0);
-        auto it_a = 0; 
-        auto it_b = 0;
+        std::size_t it_a = 0; 
+        std::size_t it_b = 0;
 
         while(it_a < a.y_coords.size() && it_b < b.y_coords.size())
         {
@@ -669,8 +678,12 @@ namespace csir
             } else { 
                 auto y = a.y_coords[it_a];
                 
-                intersection_1d(a.intervals.begin() + a.intervals_ptr[it_a], a.intervals.begin() + a.intervals_ptr[it_a+1],
-                              b.intervals.begin() + b.intervals_ptr[it_b], b.intervals.begin() + b.intervals_ptr[it_b+1],
+                auto a_first = a.intervals.begin() + static_cast<std::ptrdiff_t>(a.intervals_ptr[it_a]);
+                auto a_last  = a.intervals.begin() + static_cast<std::ptrdiff_t>(a.intervals_ptr[it_a + 1]);
+                auto b_first = b.intervals.begin() + static_cast<std::ptrdiff_t>(b.intervals_ptr[it_b]);
+                auto b_last  = b.intervals.begin() + static_cast<std::ptrdiff_t>(b.intervals_ptr[it_b + 1]);
+                intersection_1d(a_first, a_last,
+                              b_first, b_last,
                               result.intervals);
 
                 if (result.intervals.size() > result.intervals_ptr.back())

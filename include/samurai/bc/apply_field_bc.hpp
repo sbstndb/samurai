@@ -148,7 +148,17 @@ namespace samurai
             using lca_t = typename Field::mesh_t::lca_type;
             using lcl_t = typename Field::mesh_t::lcl_type;
             lcl_t lcl(level, mesh.origin_point(), mesh.scaling_factor());
-            bdry_cells(
+            auto bdry_subset = [&]() {
+                if constexpr (samurai::IsLCA<std::decay_t<Subset>>)
+                {
+                    return self(bdry_cells);
+                }
+                else
+                {
+                    return bdry_cells;
+                }
+            }();
+            bdry_subset.on(level)(
                 [&](const auto& interval, const auto& index)
                 {
                     lcl[index].add_interval(interval);
@@ -169,7 +179,17 @@ namespace samurai
             using lcl_t = typename Field::mesh_t::lcl_type;
             lca_t trans_lca(translated_outer_nghbr.on(level));
             lcl_t lcl2(level, mesh.origin_point(), mesh.scaling_factor());
-            bdry_cells(
+            auto bdry_subset2 = [&]() {
+                if constexpr (samurai::IsLCA<std::decay_t<Subset>>)
+                {
+                    return self(bdry_cells);
+                }
+                else
+                {
+                    return bdry_cells;
+                }
+            }();
+            bdry_subset2.on(level)(
                 [&](const auto& interval, const auto& index)
                 {
                     lcl2[index].add_interval(interval);

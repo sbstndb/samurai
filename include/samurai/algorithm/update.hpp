@@ -616,11 +616,31 @@ namespace samurai
 
         for (std::size_t level = min_level + 1; level <= max_level; ++level)
         {
-            auto pred_ghosts = difference(mesh[mesh_id_t::all_cells][level],
-                                          union_(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::proj_cells][level]));
-            auto expr        = intersection(pred_ghosts, mesh.subdomain(), mesh[mesh_id_t::all_cells][level - 1]).on(level);
+            // CSIR: pred_ghosts = all_cells[level] \ (cells[level] ∪ proj_cells[level]) and keep only parents present at level-1
+            auto all_lca   = mesh[mesh_id_t::all_cells][level];
+            auto cells_lca = mesh[mesh_id_t::cells][level];
+            auto prj_lca   = mesh[mesh_id_t::proj_cells][level];
+            if (!all_lca.empty())
+            {
+                auto all_csir   = csir::to_csir_level(all_lca);
+                auto cells_csir = csir::to_csir_level(cells_lca);
+                auto prj_csir   = csir::to_csir_level(prj_lca);
+                auto uni_csir   = csir::union_(cells_csir, prj_csir);
+                auto pred_csir  = csir::difference(all_csir, uni_csir);
+                auto parents_lca = mesh[mesh_id_t::all_cells][level - 1];
+                if (!parents_lca.empty())
+                {
+                    auto parents_csir = csir::to_csir_level(parents_lca);
+                    auto parents_up   = csir::project_to_level(parents_csir, level);
+                    pred_csir         = csir::intersection(pred_csir, parents_up);
+                }
+                auto pred_lca   = csir::from_csir_level(pred_csir, mesh.origin_point(), mesh.scaling_factor());
+                auto pred_ghosts = self(pred_lca);
 
-            expr.apply_op(variadic_prediction<pred_order, false>(field, other_fields...));
+                auto expr        = intersection(pred_ghosts, mesh.subdomain()).on(level);
+                expr.apply_op(variadic_prediction<pred_order, false>(field, other_fields...));
+            }
+
             update_ghost_periodic(level, field, other_fields...);
             update_ghost_subdomains(level, field, other_fields...);
         }
@@ -1390,13 +1410,21 @@ namespace samurai
         update_outer_ghosts(field);
         for (std::size_t level = min_level + 1; level <= max_level; ++level)
         {
-            // These are the overleaves which are nothing else
-            // because when this procedure is called all the rest
-            // should be already with the right value.
-            auto overleaves_to_predict = difference(difference(mesh[mesh_id_t::overleaves][level], mesh[mesh_id_t::cells_and_ghosts][level]),
-                                                    mesh[mesh_id_t::proj_cells][level]);
-
-            overleaves_to_predict.apply_op(prediction<1, false>(field));
+            // CSIR: (overleaves[level] \ cells_and_ghosts[level]) \ proj_cells[level]
+            auto over_lca = mesh[mesh_id_t::overleaves][level];
+            if (!over_lca.empty())
+            {
+                auto cag_lca = mesh[mesh_id_t::cells_and_ghosts][level];
+                auto prj_lca = mesh[mesh_id_t::proj_cells][level];
+                auto over_csir = csir::to_csir_level(over_lca);
+                auto cag_csir  = csir::to_csir_level(cag_lca);
+                auto prj_csir  = csir::to_csir_level(prj_lca);
+                auto tmp_csir  = csir::difference(over_csir, cag_csir);
+                auto res_csir  = csir::difference(tmp_csir, prj_csir);
+                auto res_lca   = csir::from_csir_level(res_csir, mesh.origin_point(), mesh.scaling_factor());
+                auto subset    = self(res_lca);
+                subset.apply_op(prediction<1, false>(field));
+            }
         }
     }
 

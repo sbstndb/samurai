@@ -126,18 +126,17 @@ namespace samurai
             //                                          mesh[mesh_id_t::cells_and_ghosts][level])))
             //             .on(level);
 
-        auto ghost_cells_to_remove = samurai::union_(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::proj_cells][level]);
-
-        // CSIR PROTOTYPE for difference(all_cells, union_(...))
-        using lca_t = typename decltype(mesh[mesh_id_t::all_cells][level])::self_type;
+        // Full CSIR: difference(all_cells, union_(cells, proj_cells))
         auto all_cells_lca = mesh[mesh_id_t::all_cells][level];
-        auto to_remove_lca = lca_t(ghost_cells_to_remove);
-
-        auto lhs_csir = csir::to_csir_level(all_cells_lca);
-        auto rhs_csir = csir::to_csir_level(to_remove_lca);
-        auto result_csir = csir::difference(lhs_csir, rhs_csir);
-        auto result_lca = csir::from_csir_level(result_csir, mesh.origin_point(), mesh.scaling_factor());
-        auto expr = self(result_lca);
+        auto cells_lca     = mesh[mesh_id_t::cells][level];
+        auto proj_lca      = mesh[mesh_id_t::proj_cells][level];
+        auto all_csir      = csir::to_csir_level(all_cells_lca);
+        auto cells_csir    = csir::to_csir_level(cells_lca);
+        auto proj_csir     = csir::to_csir_level(proj_lca);
+        auto uni_csir      = csir::union_(cells_csir, proj_csir);
+        auto result_csir   = csir::difference(all_csir, uni_csir);
+        auto result_lca    = csir::from_csir_level(result_csir, mesh.origin_point(), mesh.scaling_factor());
+        auto expr          = self(result_lca);
 
             expr.apply_op(prediction<pred_order, false>(field));
         }
@@ -185,7 +184,11 @@ namespace samurai
                 }
 
                 auto bc_ghosts_in_other_directions  = domain_boundary_outer_layer(mesh, proj_level, n_bc_ghosts);
-                auto projection_ghosts_no_bc_ghosts = difference(projection_ghosts, bc_ghosts_in_other_directions);
+                auto pg_csir   = csir::to_csir_level(ghosts_lca);
+                auto bc_csir   = csir::to_csir_level(bc_ghosts_in_other_directions);
+                auto diff_csir = csir::difference(pg_csir, bc_csir);
+                auto diff_lca  = csir::from_csir_level(diff_csir, mesh.origin_point(), mesh.scaling_factor());
+                auto projection_ghosts_no_bc_ghosts = self(diff_lca);
 
                 project_bc(projection_ghosts_no_bc_ghosts, proj_level, direction, layer, field);
             }
@@ -365,7 +368,11 @@ namespace samurai
             // This can happen when there is a hole in the domain.
 
             auto bc_ghosts_in_other_directions  = domain_boundary_outer_layer(mesh, pred_level, n_bc_ghosts);
-            auto prediction_ghosts_no_bc_ghosts = difference(outside_prediction_ghosts, bc_ghosts_in_other_directions);
+            auto op_csir  = csir::to_csir_level(inter_lca);
+            auto bc_csir  = csir::to_csir_level(bc_ghosts_in_other_directions);
+            auto diff_cs  = csir::difference(op_csir, bc_csir);
+            auto diff_lca = csir::from_csir_level(diff_cs, mesh.origin_point(), mesh.scaling_factor());
+            auto prediction_ghosts_no_bc_ghosts = self(diff_lca);
 
             predict_bc(prediction_ghosts_no_bc_ghosts, pred_level, direction, field);
         }
@@ -899,15 +906,21 @@ namespace samurai
         {
             if (!mesh[mesh_id_t::reference][level].empty() && !neighbour.mesh[mesh_id_t::reference][level].empty())
             {
-                auto out_interface = intersection(mesh[mesh_id_t::reference][level],
-                                                  neighbour.mesh[mesh_id_t::reference][level],
-                                                  mesh.subdomain())
-                                         .on(level);
-                out_interface(
+                // CSIR: (ref[level] ∩ neigh.ref[level]) ∩ subdomain[level]
+                {
+                    auto ref1   = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
+                    auto ref2   = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
+                    auto inter  = csir::intersection(ref1, ref2);
+                    auto sub    = csir::project_to_level(csir::to_csir_level(mesh.subdomain()), level);
+                    auto inter2 = csir::intersection(inter, sub);
+                    auto out_lc = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
+                    auto out_interface = self(out_lc);
+                    out_interface(
                     [&](const auto& i, const auto& index)
                     {
                         std::copy(tag(level, i, index).begin(), tag(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
                     });
+                }
 
                 req.push_back(world.isend(neighbour.rank, neighbour.rank, to_send[i_neigh++]));
             }
@@ -922,11 +935,16 @@ namespace samurai
 
                 world.recv(neighbour.rank, world.rank(), to_recv);
 
-                auto in_interface = intersection(mesh[mesh_id_t::reference][level],
-                                                 neighbour.mesh[mesh_id_t::reference][level],
-                                                 neighbour.mesh.subdomain())
-                                        .on(level);
-                in_interface(
+                // CSIR: (ref[level] ∩ neigh.ref[level]) ∩ neigh.subdomain[level]
+                {
+                    auto ref1   = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
+                    auto ref2   = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
+                    auto inter  = csir::intersection(ref1, ref2);
+                    auto sub    = csir::project_to_level(csir::to_csir_level(neighbour.mesh.subdomain()), level);
+                    auto inter2 = csir::intersection(inter, sub);
+                    auto in_lc  = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
+                    auto in_interface = self(in_lc);
+                    in_interface(
                     [&](const auto& i, const auto& index)
                     {
                         xt::xtensor<value_t, 1> neigh_tag = xt::empty_like(tag(level, i, index));
@@ -941,6 +959,7 @@ namespace samurai
                         }
                         count += static_cast<std::ptrdiff_t>(i.size());
                     });
+                }
             }
         }
         mpi::wait_all(req.begin(), req.end());

@@ -69,7 +69,21 @@ namespace samurai
         template <std::size_t... Is>
         auto build_union(const auto& fine_lca, const auto& directions, std::index_sequence<Is...>)
         {
-            return union_(fine_lca, translate(fine_lca, directions[Is])...);
+            using lca_t = std::decay_t<decltype(fine_lca)>;
+            // Build union via CSIR to avoid lazy subset algebra
+            auto base_csir = csir::to_csir_level(fine_lca);
+            auto acc       = base_csir;
+            // Helper lambda to add a single shift
+            auto add_shift = [&](const auto& dir)
+            {
+                std::array<int, lca_t::dim> sh{};
+                for (std::size_t k = 0; k < lca_t::dim; ++k) sh[k] = dir[k];
+                auto t = csir::translate(base_csir, sh);
+                acc     = csir::union_(acc, t);
+            };
+            // Unpack compile-time indices
+            (add_shift(directions[Is]), ...);
+            return csir::from_csir_level(acc, fine_lca.origin_point(), fine_lca.scaling_factor());
         }
     }
 
@@ -701,12 +715,17 @@ namespace samurai
             new_ca.clear();
             for (std::size_t level = min_level; level != max_level + 1; ++level)
             {
-                auto set = difference(union_(ca[level], ca_add_p[level]), ca_remove_p[level]);
-                set(
-                    [&](const auto& x_interval, const auto& yz)
-                    {
-                        new_ca[level].add_interval_back(x_interval, yz);
-                    });
+                auto a = csir::to_csir_level(ca[level]);
+                auto b = csir::to_csir_level(ca_add_p[level]);
+                auto c = csir::to_csir_level(ca_remove_p[level]);
+                auto u = csir::union_(a, b);
+                auto d = csir::difference(u, c);
+                auto l = csir::from_csir_level(d, domain.origin_point(), domain.scaling_factor());
+                for_each_interval(l,
+                                  [&](std::size_t /*lvl*/, const auto& x_interval, const auto& yz)
+                                  {
+                                      new_ca[level].add_interval_back(x_interval, yz);
+                                  });
             }
             //
             std::swap(new_ca, ca);
@@ -814,12 +833,21 @@ namespace samurai
         CellArray<dim, TInterval, max_size> new_ca;
         for (std::size_t level = mesh.min_level(); level <= mesh.max_level(); ++level)
         {
-            auto set = difference(union_(old_ca[level], ca_add_m[level], ca_add_p[level]), union_(ca_remove_m[level], ca_remove_p[level]));
-            set(
-                [&](const auto& x_interval, const auto& yz)
-                {
-                    new_ca[level].add_interval_back(x_interval, yz);
-                });
+            auto a = csir::to_csir_level(old_ca[level]);
+            auto b = csir::to_csir_level(ca_add_m[level]);
+            auto c = csir::to_csir_level(ca_add_p[level]);
+            auto u1 = csir::union_(a, b);
+            auto u2 = csir::union_(u1, c);
+            auto r1 = csir::to_csir_level(ca_remove_m[level]);
+            auto r2 = csir::to_csir_level(ca_remove_p[level]);
+            auto ur = csir::union_(r1, r2);
+            auto d  = csir::difference(u2, ur);
+            auto l  = csir::from_csir_level(d, mesh.origin_point(), mesh.scaling_factor());
+            for_each_interval(l,
+                              [&](std::size_t /*lvl*/, const auto& x_interval, const auto& yz)
+                              {
+                                  new_ca[level].add_interval_back(x_interval, yz);
+                              });
         }
         return new_ca;
     }

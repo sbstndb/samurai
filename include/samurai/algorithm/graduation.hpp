@@ -356,13 +356,20 @@ namespace samurai
             {
                 for (int width = 1; isIntersectionEmpty and width != max_width; ++width)
                 {
-                    auto refine_subset = intersection(nestedExpand(union_func, 2 * width), rhs_ca[coarse_level]).on(coarse_level);
-                    refine_subset(
-                        [&](const auto& x_interval, const auto& yz)
-                        {
-                            out[coarse_level].push_back(x_interval, yz);
-                            isIntersectionEmpty = false;
-                        });
+                    // CSIR: intersection(nested_expand(union_func, 2*width), rhs_ca[coarse_level]) at coarse_level
+                    using lca_t = LevelCellArray<dim, TInterval>;
+                    lca_t union_lca(union_func);
+                    auto uni_csir   = csir::to_csir_level(union_lca);
+                    auto nexp_csir  = csir::nested_expand(uni_csir, static_cast<std::size_t>(2 * width));
+                    auto rhs_csir   = csir::to_csir_level(rhs_ca[coarse_level]);
+                    auto inter_csir = csir::intersection(csir::project_to_level(nexp_csir, coarse_level), rhs_csir);
+                    auto inter_lca  = csir::from_csir_level(inter_csir, domain.origin_point(), domain.scaling_factor());
+                    for_each_interval(inter_lca,
+                                      [&](std::size_t /*lvl*/, const auto& x_interval, const auto& yz)
+                                      {
+                                          out[coarse_level].push_back(x_interval, yz);
+                                          isIntersectionEmpty = false;
+                                      });
                 }
             };
 

@@ -502,8 +502,13 @@ namespace samurai
             {
                 for (std::size_t level = 0; level <= this->max_level(); ++level)
                 {
-                    auto expr = intersection(nestedExpand(self(this->subdomain()).on(level), config::ghost_width),
-                                             neighbour.mesh[mesh_id_t::reference][level]);
+                    // CSIR: intersection(nested_expand(subdomain[level], gw), neighbour.ref[level])
+                    auto sub_csir = csir::to_csir_level(this->subdomain());
+                    auto sub_exp  = csir::nested_expand(sub_csir, static_cast<std::size_t>(config::ghost_width));
+                    auto nref     = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
+                    auto inter    = csir::intersection(csir::project_to_level(sub_exp, level), nref);
+                    auto expr_lca = csir::from_csir_level(inter, this->origin_point(), this->scaling_factor());
+                    auto expr = self(expr_lca);
                     expr(
                         [&](const auto& interval, const auto& index_yz)
                         {
@@ -515,8 +520,29 @@ namespace samurai
                         if (this->is_periodic(d))
                         {
                             auto domain_shift = get_periodic_shift(this->domain(), level, d);
-                            auto expr_left    = intersection(nestedExpand(self(this->subdomain()).on(level), config::ghost_width),
-                                                          translate(neighbour.mesh[mesh_id_t::reference][level], -domain_shift));
+                            auto expr_left    = [&]() {
+                                if constexpr (dim == 1) {
+                                    int s = static_cast<int>(domain_shift[0]);
+                                    auto nref_s = csir::translate(nref, -s);
+                                    auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
+                                    return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
+                                } else if constexpr (dim == 2) {
+                                    int sx = static_cast<int>(domain_shift[0]);
+                                    int sy = static_cast<int>(domain_shift[1]);
+                                    std::array<int,2> dxy{-sx, -sy};
+                                    auto nref_s = csir::translate(nref, dxy);
+                                    auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
+                                    return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
+                                } else {
+                                    int sx = static_cast<int>(domain_shift[0]);
+                                    int sy = static_cast<int>(domain_shift[1]);
+                                    int sz = static_cast<int>(domain_shift[2]);
+                                    std::array<int,3> dxyz{-sx, -sy, -sz};
+                                    auto nref_s = csir::translate(nref, dxyz);
+                                    auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
+                                    return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
+                                }
+                            }();
                             expr_left(
                                 [&](const auto& interval, const auto& index_yz)
                                 {
@@ -524,8 +550,29 @@ namespace samurai
                                     lcl[index_yz].add_interval(interval);
                                 });
 
-                            auto expr_right = intersection(nestedExpand(self(this->subdomain()).on(level), config::ghost_width),
-                                                           translate(neighbour.mesh[mesh_id_t::reference][level], domain_shift));
+                            auto expr_right = [&]() {
+                                if constexpr (dim == 1) {
+                                    int s = static_cast<int>(domain_shift[0]);
+                                    auto nref_s = csir::translate(nref, s);
+                                    auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
+                                    return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
+                                } else if constexpr (dim == 2) {
+                                    int sx = static_cast<int>(domain_shift[0]);
+                                    int sy = static_cast<int>(domain_shift[1]);
+                                    std::array<int,2> dxy{sx, sy};
+                                    auto nref_s = csir::translate(nref, dxy);
+                                    auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
+                                    return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
+                                } else {
+                                    int sx = static_cast<int>(domain_shift[0]);
+                                    int sy = static_cast<int>(domain_shift[1]);
+                                    int sz = static_cast<int>(domain_shift[2]);
+                                    std::array<int,3> dxyz{sx, sy, sz};
+                                    auto nref_s = csir::translate(nref, dxyz);
+                                    auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
+                                    return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
+                                }
+                            }();
                             expr_right(
                                 [&](const auto& interval, const auto& index_yz)
                                 {

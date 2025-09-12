@@ -343,22 +343,33 @@ namespace samurai
 
                 if (number_of_one == 1)
                 {
-                    lca.emplace_back(difference(domain, translate(domain, -stencil)));
+                    // CSIR equivalent of difference(domain, translate(domain, -stencil))
+                    auto dom_csir = csir::to_csir_level(domain);
+                    auto trans    = csir::translate(dom_csir, -stencil);
+                    auto diff     = csir::difference(dom_csir, trans);
+                    lca.emplace_back(csir::from_csir_level(diff, domain.origin_point(), domain.scaling_factor()));
                 }
                 else if (number_of_one > 1)
                 {
                     if constexpr (dim == 2)
                     {
-                        lca.emplace_back(difference(
-                            domain,
-                            union_(translate(domain, direction_t{-stencil[0], 0}), translate(domain, direction_t{0, -stencil[1]}))));
+                        auto dom_csir = csir::to_csir_level(domain);
+                        auto t1       = csir::translate(dom_csir, direction_t{-stencil[0], 0});
+                        auto t2       = csir::translate(dom_csir, direction_t{0, -stencil[1]});
+                        auto uni      = csir::union_(t1, t2);
+                        auto diff     = csir::difference(dom_csir, uni);
+                        lca.emplace_back(csir::from_csir_level(diff, domain.origin_point(), domain.scaling_factor()));
                     }
                     else if constexpr (dim == 3)
                     {
-                        lca.emplace_back(difference(domain,
-                                                    union_(translate(domain, direction_t{-stencil[0], 0, 0}),
-                                                           translate(domain, direction_t{0, -stencil[1], 0}),
-                                                           translate(domain, direction_t{0, 0, -stencil[2]}))));
+                        auto dom_csir = csir::to_csir_level(domain);
+                        auto t1       = csir::translate(dom_csir, direction_t{-stencil[0], 0, 0});
+                        auto t2       = csir::translate(dom_csir, direction_t{0, -stencil[1], 0});
+                        auto t3       = csir::translate(dom_csir, direction_t{0, 0, -stencil[2]});
+                        auto uni12    = csir::union_(t1, t2);
+                        auto uni123   = csir::union_(uni12, t3);
+                        auto diff     = csir::difference(dom_csir, uni123);
+                        lca.emplace_back(csir::from_csir_level(diff, domain.origin_point(), domain.scaling_factor()));
                     }
                 }
             });
@@ -396,22 +407,32 @@ namespace samurai
 
             if (number_of_one == 1)
             {
-                lca.emplace_back(difference(domain, translate(domain, -stencil)));
+                auto dom_csir = csir::to_csir_level(domain);
+                auto trans    = csir::translate(dom_csir, -stencil);
+                auto diff     = csir::difference(dom_csir, trans);
+                lca.emplace_back(csir::from_csir_level(diff, domain.origin_point(), domain.scaling_factor()));
             }
             else if (number_of_one > 1)
             {
                 if constexpr (dim == 2)
                 {
-                    lca.emplace_back(
-                        difference(domain,
-                                   union_(translate(domain, direction_t{-stencil[0], 0}), translate(domain, direction_t{0, -stencil[1]}))));
+                    auto dom_csir = csir::to_csir_level(domain);
+                    auto t1       = csir::translate(dom_csir, direction_t{-stencil[0], 0});
+                    auto t2       = csir::translate(dom_csir, direction_t{0, -stencil[1]});
+                    auto uni      = csir::union_(t1, t2);
+                    auto diff     = csir::difference(dom_csir, uni);
+                    lca.emplace_back(csir::from_csir_level(diff, domain.origin_point(), domain.scaling_factor()));
                 }
                 else if constexpr (dim == 3)
                 {
-                    lca.emplace_back(difference(domain,
-                                                union_(translate(domain, direction_t{-stencil[0], 0, 0}),
-                                                       translate(domain, direction_t{0, -stencil[1], 0}),
-                                                       translate(domain, direction_t{0, 0, -stencil[2]}))));
+                    auto dom_csir = csir::to_csir_level(domain);
+                    auto t1       = csir::translate(dom_csir, direction_t{-stencil[0], 0, 0});
+                    auto t2       = csir::translate(dom_csir, direction_t{0, -stencil[1], 0});
+                    auto t3       = csir::translate(dom_csir, direction_t{0, 0, -stencil[2]});
+                    auto uni12    = csir::union_(t1, t2);
+                    auto uni123   = csir::union_(uni12, t3);
+                    auto diff     = csir::difference(dom_csir, uni123);
+                    lca.emplace_back(csir::from_csir_level(diff, domain.origin_point(), domain.scaling_factor()));
                 }
             }
         }
@@ -498,7 +519,12 @@ namespace samurai
         for (std::size_t d = 0; d < 2 * dim; ++d)
         {
             DirectionVector<dim> stencil = xt::view(cartesian_directions<dim>(), d);
-            lca_t lca_temp               = intersection(m_set, difference(translate(domain, d), domain));
+            auto dom_csir = csir::to_csir_level(domain);
+            auto trans    = csir::translate(dom_csir, d);
+            auto diff     = csir::difference(trans, dom_csir);
+            auto set_csir = csir::to_csir_level(m_set);
+            auto inter    = csir::intersection(set_csir, diff);
+            lca_t lca_temp(csir::from_csir_level(inter, domain.origin_point(), domain.scaling_factor()));
             if (!lca_temp.empty())
             {
                 dir.emplace_back(-d);

@@ -533,9 +533,9 @@ namespace samurai
     template <std::size_t Dim, class TInterval>
     inline auto LevelCellArray<Dim, TInterval>::cbegin() const -> const_iterator
     {
-        typename const_iterator::offset_type_iterator offset_index;
-        typename const_iterator::iterator_container current_index;
-        typename const_iterator::coord_type index;
+        typename const_iterator::offset_type_iterator offset_index{};
+        typename const_iterator::iterator_container current_index{};
+        typename const_iterator::coord_type index{};
 
         for (std::size_t d = 0; d < dim; ++d)
         {
@@ -555,9 +555,9 @@ namespace samurai
     template <std::size_t Dim, class TInterval>
     inline auto LevelCellArray<Dim, TInterval>::cend() const -> const_iterator
     {
-        typename const_iterator::offset_type_iterator offset_index;
-        typename const_iterator::iterator_container current_index;
-        typename const_iterator::coord_type index;
+        typename const_iterator::offset_type_iterator offset_index{};
+        typename const_iterator::iterator_container current_index{};
+        typename const_iterator::coord_type index{};
 
         for (std::size_t d = 0; d < dim; ++d)
         {

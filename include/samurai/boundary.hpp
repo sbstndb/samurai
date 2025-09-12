@@ -9,7 +9,6 @@ namespace samurai
     boundary_layer(const Mesh& mesh, const typename Mesh::lca_type& domain, std::size_t level, const Vector& direction, std::size_t layer_width)
     {
         using mesh_id_t = typename Mesh::mesh_id_t;
-        using lca_t = typename Mesh::lca_type;
 
         auto& cells = mesh[mesh_id_t::cells][level];
         // CSIR: cells[level] \ translate(domain[level], layer_width * direction)
@@ -52,7 +51,6 @@ namespace samurai
     inline auto domain_boundary(const Mesh& mesh, std::size_t level)
     {
         using mesh_id_t = typename Mesh::mesh_id_t;
-        using lca_t = typename Mesh::lca_type;
 
         auto& cells = mesh[mesh_id_t::cells][level];
         // CSIR: cells[level] \ contract(domain[level], 1)

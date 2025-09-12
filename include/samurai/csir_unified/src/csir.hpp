@@ -275,8 +275,16 @@ namespace csir
 
     inline CSIR_Level_1D difference(const CSIR_Level_1D& a, const CSIR_Level_1D& b)
     {
-        CSIR_Level_1D out; if (a.level != b.level) return out; out.level = a.level;
-        if (a.empty()) return out; if (b.empty()) { out = a; return out; }
+        CSIR_Level_1D out;
+        if (a.level != b.level) return out;
+        out.level = a.level;
+        if (a.empty()) {
+            return out;
+        }
+        if (b.empty()) {
+            out = a;
+            return out;
+        }
         out.intervals.reserve(a.intervals.size() + b.intervals.size());
         difference_1d(a.intervals.begin(), a.intervals.end(), b.intervals.begin(), b.intervals.end(), out.intervals);
         return out;

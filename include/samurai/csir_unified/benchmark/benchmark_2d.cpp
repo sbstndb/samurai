@@ -112,3 +112,30 @@ static void BM_CSIR2D_ProjectDown(benchmark::State& state) {
     }
 }
 BENCHMARK(BM_CSIR2D_ProjectDown)->RangeMultiplier(2)->Range(64, 512);
+
+// Turbo combo: combine 4 sets with projection/difference/union/intersection
+static void BM_CSIR2D_TurboCombo(benchmark::State& state) {
+    int size = state.range(0);
+    // Build 4 base sets at the same starting level
+    auto A = create_fragmented_mesh(size, 0.15f, 5, 111);
+    auto B = create_checkerboard_mesh(size, 5);
+    auto C = create_square_mesh(size, 5);
+    auto D = create_fragmented_mesh(size, 0.25f, 5, 222);
+
+    // Fixed translation
+    const int tx = 3, ty = -2;
+
+    for (auto _ : state) {
+        // Project to a common level to ensure operations are well-defined
+        auto A_proj = csir::project_to_level(A, 5);
+        auto D_proj = csir::project_to_level(D, 5);
+
+        // Mixed ops chain: I = (A_proj ∩ (B \ (C translated))) ∪ D_proj
+        auto C_t = csir::translate(C, tx, ty);
+        auto B_minus_Ct = csir::difference(B, C_t);
+        auto inter = csir::intersection(A_proj, B_minus_Ct);
+        auto res = csir::union_(inter, D_proj);
+        benchmark::DoNotOptimize(res);
+    }
+}
+BENCHMARK(BM_CSIR2D_TurboCombo)->RangeMultiplier(2)->Range(64, 512);

@@ -888,6 +888,20 @@ namespace csir
         return out;
     }
 
+    // Geometry-aware overloads: preserve origin/scaling of the mesh
+    template <class Origin, class Scale>
+    inline samurai::LevelCellArray<1> from_csir_level(const CSIR_Level_1D& level_1d, const Origin& origin, const Scale& scaling)
+    {
+        samurai::LevelCellArray<1> out(level_1d.level, origin, scaling);
+        using value_t = typename samurai::LevelCellArray<1>::value_t;
+        xt::xtensor_fixed<value_t, xt::xshape<0>> yz;
+        for (const auto& itv : level_1d.intervals)
+        {
+            out.add_interval_back({itv.start, itv.end}, yz);
+        }
+        return out;
+    }
+
     // 2D
     template <class TInterval>
     inline CSIR_Level to_csir_level(const samurai::LevelCellArray<2, TInterval>& lca)
@@ -938,6 +952,26 @@ namespace csir
     inline samurai::LevelCellArray<2> from_csir_level(const CSIR_Level& level_2d)
     {
         samurai::LevelCellArray<2> out(level_2d.level);
+        using value_t = typename samurai::LevelCellArray<2>::value_t;
+        xt::xtensor_fixed<value_t, xt::xshape<1>> yz;
+        for (std::size_t ri = 0; ri < level_2d.y_coords.size(); ++ri)
+        {
+            yz[0] = level_2d.y_coords[ri];
+            auto s = level_2d.intervals_ptr[ri];
+            auto e = level_2d.intervals_ptr[ri + 1];
+            for (std::size_t k = s; k < e; ++k)
+            {
+                const auto& itv = level_2d.intervals[k];
+                out.add_interval_back({itv.start, itv.end}, yz);
+            }
+        }
+        return out;
+    }
+
+    template <class Origin, class Scale>
+    inline samurai::LevelCellArray<2> from_csir_level(const CSIR_Level& level_2d, const Origin& origin, const Scale& scaling)
+    {
+        samurai::LevelCellArray<2> out(level_2d.level, origin, scaling);
         using value_t = typename samurai::LevelCellArray<2>::value_t;
         xt::xtensor_fixed<value_t, xt::xshape<1>> yz;
         for (std::size_t ri = 0; ri < level_2d.y_coords.size(); ++ri)
@@ -1031,6 +1065,30 @@ namespace csir
     inline samurai::LevelCellArray<3> from_csir_level(const CSIR_Level_3D& level_3d)
     {
         samurai::LevelCellArray<3> out(level_3d.level);
+        using value_t = typename samurai::LevelCellArray<3>::value_t;
+        xt::xtensor_fixed<value_t, xt::xshape<2>> yz;
+        for (const auto& [z, slice] : level_3d.slices)
+        {
+            yz[1] = z;
+            for (std::size_t ri = 0; ri < slice.y_coords.size(); ++ri)
+            {
+                yz[0] = slice.y_coords[ri];
+                auto s = slice.intervals_ptr[ri];
+                auto e = slice.intervals_ptr[ri + 1];
+                for (std::size_t k = s; k < e; ++k)
+                {
+                    const auto& itv = slice.intervals[k];
+                    out.add_interval_back({itv.start, itv.end}, yz);
+                }
+            }
+        }
+        return out;
+    }
+
+    template <class Origin, class Scale>
+    inline samurai::LevelCellArray<3> from_csir_level(const CSIR_Level_3D& level_3d, const Origin& origin, const Scale& scaling)
+    {
+        samurai::LevelCellArray<3> out(level_3d.level, origin, scaling);
         using value_t = typename samurai::LevelCellArray<3>::value_t;
         xt::xtensor_fixed<value_t, xt::xshape<2>> yz;
         for (const auto& [z, slice] : level_3d.slices)

@@ -93,8 +93,21 @@ namespace samurai
         update_outer_ghosts(max_level, field);
         for (std::size_t level = max_level; level >= 1; --level)
         {
-            auto set_at_levelm1 = intersection(mesh[mesh_id_t::reference][level], mesh[mesh_id_t::proj_cells][level - 1]).on(level - 1);
-            set_at_levelm1.apply_op(projection(field));
+            // CSIR: (reference[level] -> level-1) ∩ proj_cells[level-1]
+            {
+                auto ref_lvl_lca = mesh[mesh_id_t::reference][level];
+                auto prj_m1_lca  = mesh[mesh_id_t::proj_cells][level - 1];
+                if (!ref_lvl_lca.empty() && !prj_m1_lca.empty())
+                {
+                    auto ref_lvl_csir = csir::to_csir_level(ref_lvl_lca);
+                    auto prj_m1_csir  = csir::to_csir_level(prj_m1_lca);
+                    auto ref_on_m1    = csir::project_to_level(ref_lvl_csir, level - 1);
+                    auto inter_csir   = csir::intersection(ref_on_m1, prj_m1_csir);
+                    auto subset_lca   = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+                    auto subset       = self(subset_lca);
+                    subset.apply_op(projection(field));
+                }
+            }
             update_outer_ghosts(level - 1, field);
         }
 

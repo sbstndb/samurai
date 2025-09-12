@@ -26,4 +26,3 @@ cmake --build build -j
 - Tests:
   - `./build/tests_2d`
   - `./build/tests_3d`
-

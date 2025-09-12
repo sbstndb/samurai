@@ -35,4 +35,3 @@ if(CSIR_CUDA_BUILD_BENCHMARKS)
     add_executable(benchmark_2d_cuda benchmark/benchmark_2d.cu)
     target_link_libraries(benchmark_2d_cuda PRIVATE csir_cuda_lib)
 endif()
-

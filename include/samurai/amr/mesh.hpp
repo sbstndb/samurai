@@ -158,13 +158,13 @@ namespace samurai::amr
         for (std::size_t level = min_level + 1; level <= max_level; ++level)
         {
             // CSIR: (cells_and_ghosts[level] \ (union[level] ∪ cells[level])) ∩ domain[level]
-            auto cag    = csir::to_csir_level(this->cells()[mesh_id_t::cells_and_ghosts][level]);
-            auto uni    = csir::to_csir_level(this->get_union()[level]);
-            auto cells  = csir::to_csir_level(this->cells()[mesh_id_t::cells][level]);
-            auto dom    = csir::project_to_level(csir::to_csir_level(this->domain()), level);
-            auto uni2   = csir::union_(uni, cells);
-            auto diff   = csir::difference(cag, uni2);
-            auto inter  = csir::intersection(diff, dom);
+            auto cag       = csir::to_csir_level(this->cells()[mesh_id_t::cells_and_ghosts][level]);
+            auto uni       = csir::to_csir_level(this->get_union()[level]);
+            auto cells     = csir::to_csir_level(this->cells()[mesh_id_t::cells][level]);
+            auto dom       = csir::project_to_level(csir::to_csir_level(this->domain()), level);
+            auto uni2      = csir::union_(uni, cells);
+            auto diff      = csir::difference(cag, uni2);
+            auto inter     = csir::intersection(diff, dom);
             auto inter_lca = csir::from_csir_level(inter, this->origin_point(), this->scaling_factor());
 
             lcl_type lcl{level};
@@ -179,21 +179,22 @@ namespace samurai::amr
         for (std::size_t level = min_level; level <= max_level; ++level)
         {
             // CSIR: project_to_level(pred_cells[level], level-1) (self-intersection is identity)
-            auto pred      = csir::to_csir_level(this->cells()[mesh_id_t::pred_cells][level]);
-            auto pred_m1   = csir::project_to_level(pred, level - 1);
-            auto pred_lca  = csir::from_csir_level(pred_m1, this->origin_point(), this->scaling_factor());
+            auto pred     = csir::to_csir_level(this->cells()[mesh_id_t::pred_cells][level]);
+            auto pred_m1  = csir::project_to_level(pred, level - 1);
+            auto pred_lca = csir::from_csir_level(pred_m1, this->origin_point(), this->scaling_factor());
 
             lcl_type& lcl = cl[level - 1];
-            for_each_interval(pred_lca,
-                              [&](std::size_t /*lvl*/, const auto& interval, const auto& index_yz)
-                              {
-                                  static_nested_loop<dim - 1, -config::prediction_order, config::prediction_order + 1>(
-                                      [&](auto stencil)
-                                      {
-                                          auto index = xt::eval(index_yz + stencil);
-                                          lcl[index].add_interval({interval.start - config::prediction_order, interval.end + config::prediction_order});
-                                      });
-                              });
+            for_each_interval(
+                pred_lca,
+                [&](std::size_t /*lvl*/, const auto& interval, const auto& index_yz)
+                {
+                    static_nested_loop<dim - 1, -config::prediction_order, config::prediction_order + 1>(
+                        [&](auto stencil)
+                        {
+                            auto index = xt::eval(index_yz + stencil);
+                            lcl[index].add_interval({interval.start - config::prediction_order, interval.end + config::prediction_order});
+                        });
+                });
         }
         this->cells()[mesh_id_t::cells_and_ghosts] = {cl, false};
 

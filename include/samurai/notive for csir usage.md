@@ -338,4 +338,3 @@ rg "translate\\("                 # check shift types
 - Full-dimension mask overloads for `contract/expand` in 2D/3D if not already present.
 - Higher-level helpers for periodic boundary handling over boxes/domains.
 - Unit tests around conversion geometry to prevent regressions.
-

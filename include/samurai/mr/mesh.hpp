@@ -9,12 +9,12 @@
 #include <xtensor/xview.hpp>
 
 #include "../box.hpp"
+#include "../csir_unified/src/csir.hpp"
 #include "../mesh.hpp"
 #include "../samurai_config.hpp"
 #include "../stencil.hpp"
 #include "../subset/apply.hpp"
 #include "../subset/node.hpp"
-#include "../csir_unified/src/csir.hpp"
 
 using namespace xt::placeholders;
 
@@ -220,19 +220,19 @@ namespace samurai
                     auto diff_lca    = csir::from_csir_level(diff_csir, this->origin_point(), this->scaling_factor());
                     auto expr        = self(diff_lca);
 
-                expr(
-                    [&](const auto& interval, const auto& index_yz)
-                    {
-                        lcl_type& lcl = cell_list[level - 1];
+                    expr(
+                        [&](const auto& interval, const auto& index_yz)
+                        {
+                            lcl_type& lcl = cell_list[level - 1];
 
-                        static_nested_loop<dim - 1, -config::prediction_order, config::prediction_order + 1>(
-                            [&](auto stencil)
-                            {
-                                auto new_interval = interval >> 1;
-                                lcl[(index_yz >> 1) + stencil].add_interval(
-                                    {new_interval.start - config::prediction_order, new_interval.end + config::prediction_order});
-                            });
-                    });
+                            static_nested_loop<dim - 1, -config::prediction_order, config::prediction_order + 1>(
+                                [&](auto stencil)
+                                {
+                                    auto new_interval = interval >> 1;
+                                    lcl[(index_yz >> 1) + stencil].add_interval(
+                                        {new_interval.start - config::prediction_order, new_interval.end + config::prediction_order});
+                                });
+                        });
                 }
 
                 // CSIR migration: trivial self-intersection becomes direct self on the LCA
@@ -274,25 +274,25 @@ namespace samurai
                         auto inter    = csir::intersection(sub_on_l, ref_csir);
                         auto inter_l  = csir::from_csir_level(inter, this->origin_point(), this->scaling_factor());
                         auto expr     = self(inter_l);
-                    expr(
-                        [&](const auto& interval, const auto& index_yz)
-                        {
-                            lcl_type& lcl = cell_list[level];
-                            lcl[index_yz].add_interval(interval);
-
-                            if (level > neighbour.mesh[mesh_id_t::reference].min_level())
+                        expr(
+                            [&](const auto& interval, const auto& index_yz)
                             {
-                                lcl_type& lclm1 = cell_list[level - 1];
+                                lcl_type& lcl = cell_list[level];
+                                lcl[index_yz].add_interval(interval);
 
-                                static_nested_loop<dim - 1, -config::prediction_order, config::prediction_order + 1>(
-                                    [&](auto stencil)
-                                    {
-                                        auto new_interval = interval >> 1;
-                                        lclm1[(index_yz >> 1) + stencil].add_interval(
-                                            {new_interval.start - config::prediction_order, new_interval.end + config::prediction_order});
-                                    });
-                            }
-                        });
+                                if (level > neighbour.mesh[mesh_id_t::reference].min_level())
+                                {
+                                    lcl_type& lclm1 = cell_list[level - 1];
+
+                                    static_nested_loop<dim - 1, -config::prediction_order, config::prediction_order + 1>(
+                                        [&](auto stencil)
+                                        {
+                                            auto new_interval = interval >> 1;
+                                            lclm1[(index_yz >> 1) + stencil].add_interval({new_interval.start - config::prediction_order,
+                                                                                           new_interval.end + config::prediction_order});
+                                        });
+                                }
+                            });
                     }
                 }
             }
@@ -378,8 +378,14 @@ namespace samurai
                             int dx = static_cast<int>(shift[0]);
                             int dy = 0;
                             int dz = 0;
-                            if constexpr (dim > 1) { dy = static_cast<int>(shift[1]); }
-                            if constexpr (dim > 2) { dz = static_cast<int>(shift[2]); }
+                            if constexpr (dim > 1)
+                            {
+                                dy = static_cast<int>(shift[1]);
+                            }
+                            if constexpr (dim > 2)
+                            {
+                                dz = static_cast<int>(shift[2]);
+                            }
 
                             auto ref_csir = csir::to_csir_level(mesh_ref[level]);
                             auto min_csir = csir::to_csir_level(lca_min);
@@ -388,14 +394,23 @@ namespace samurai
 
                             auto inter_ref_min = csir::intersection(ref_csir, min_csir);
                             decltype(inter_ref_min) inter_ref_min_shifted;
-                            if constexpr (dim == 1) inter_ref_min_shifted = csir::translate(inter_ref_min, dx);
-                            if constexpr (dim == 2) inter_ref_min_shifted = csir::translate(inter_ref_min, dx, dy);
-                            if constexpr (dim == 3) inter_ref_min_shifted = csir::translate(inter_ref_min, dx, dy, dz);
+                            if constexpr (dim == 1)
+                            {
+                                inter_ref_min_shifted = csir::translate(inter_ref_min, dx);
+                            }
+                            if constexpr (dim == 2)
+                            {
+                                inter_ref_min_shifted = csir::translate(inter_ref_min, dx, dy);
+                            }
+                            if constexpr (dim == 3)
+                            {
+                                inter_ref_min_shifted = csir::translate(inter_ref_min, dx, dy, dz);
+                            }
 
                             auto inter_ext_max = csir::intersection(ext_csir, max_csir);
-                            auto set1_csir      = csir::intersection(inter_ref_min_shifted, inter_ext_max);
-                            auto set1_lca       = csir::from_csir_level(set1_csir, this->origin_point(), this->scaling_factor());
-                            auto set1           = self(set1_lca);
+                            auto set1_csir     = csir::intersection(inter_ref_min_shifted, inter_ext_max);
+                            auto set1_lca      = csir::from_csir_level(set1_csir, this->origin_point(), this->scaling_factor());
+                            auto set1          = self(set1_lca);
                             set1(
                                 [&](const auto& i, const auto& index_yz)
                                 {
@@ -404,14 +419,23 @@ namespace samurai
 
                             auto inter_ref_max = csir::intersection(ref_csir, max_csir);
                             decltype(inter_ref_max) inter_ref_max_shifted;
-                            if constexpr (dim == 1) inter_ref_max_shifted = csir::translate(inter_ref_max, -dx);
-                            if constexpr (dim == 2) inter_ref_max_shifted = csir::translate(inter_ref_max, -dx, -dy);
-                            if constexpr (dim == 3) inter_ref_max_shifted = csir::translate(inter_ref_max, -dx, -dy, -dz);
+                            if constexpr (dim == 1)
+                            {
+                                inter_ref_max_shifted = csir::translate(inter_ref_max, -dx);
+                            }
+                            if constexpr (dim == 2)
+                            {
+                                inter_ref_max_shifted = csir::translate(inter_ref_max, -dx, -dy);
+                            }
+                            if constexpr (dim == 3)
+                            {
+                                inter_ref_max_shifted = csir::translate(inter_ref_max, -dx, -dy, -dz);
+                            }
 
                             auto inter_ext_min = csir::intersection(ext_csir, min_csir);
-                            auto set2_csir      = csir::intersection(inter_ref_max_shifted, inter_ext_min);
-                            auto set2_lca       = csir::from_csir_level(set2_csir, this->origin_point(), this->scaling_factor());
-                            auto set2           = self(set2_lca);
+                            auto set2_csir     = csir::intersection(inter_ref_max_shifted, inter_ext_min);
+                            auto set2_lca      = csir::from_csir_level(set2_csir, this->origin_point(), this->scaling_factor());
+                            auto set2          = self(set2_lca);
                             set2(
                                 [&](const auto& i, const auto& index_yz)
                                 {
@@ -430,9 +454,18 @@ namespace samurai
                                 auto nref_csir = csir::to_csir_level(neighbor_mesh_ref[level]);
                                 auto ref_min   = csir::intersection(nref_csir, min_csir);
                                 decltype(ref_min) ref_min_shifted;
-                                if constexpr (dim == 1) ref_min_shifted = csir::translate(ref_min, dx);
-                                if constexpr (dim == 2) ref_min_shifted = csir::translate(ref_min, dx, dy);
-                                if constexpr (dim == 3) ref_min_shifted = csir::translate(ref_min, dx, dy, dz);
+                                if constexpr (dim == 1)
+                                {
+                                    ref_min_shifted = csir::translate(ref_min, dx);
+                                }
+                                if constexpr (dim == 2)
+                                {
+                                    ref_min_shifted = csir::translate(ref_min, dx, dy);
+                                }
+                                if constexpr (dim == 3)
+                                {
+                                    ref_min_shifted = csir::translate(ref_min, dx, dy, dz);
+                                }
                                 auto set1_mpi_csir = csir::intersection(ref_min_shifted, inter_ext_max);
                                 auto set1_mpi_lca  = csir::from_csir_level(set1_mpi_csir, this->origin_point(), this->scaling_factor());
                                 auto set1_mpi      = self(set1_mpi_lca);
@@ -442,11 +475,20 @@ namespace samurai
                                         lcl[index_yz].add_interval(i);
                                     });
 
-                                auto ref_max   = csir::intersection(nref_csir, max_csir);
+                                auto ref_max = csir::intersection(nref_csir, max_csir);
                                 decltype(ref_max) ref_max_shifted;
-                                if constexpr (dim == 1) ref_max_shifted = csir::translate(ref_max, -dx);
-                                if constexpr (dim == 2) ref_max_shifted = csir::translate(ref_max, -dx, -dy);
-                                if constexpr (dim == 3) ref_max_shifted = csir::translate(ref_max, -dx, -dy, -dz);
+                                if constexpr (dim == 1)
+                                {
+                                    ref_max_shifted = csir::translate(ref_max, -dx);
+                                }
+                                if constexpr (dim == 2)
+                                {
+                                    ref_max_shifted = csir::translate(ref_max, -dx, -dy);
+                                }
+                                if constexpr (dim == 3)
+                                {
+                                    ref_max_shifted = csir::translate(ref_max, -dx, -dy, -dz);
+                                }
                                 auto set2_mpi_csir = csir::intersection(ref_max_shifted, inter_ext_min);
                                 auto set2_mpi_lca  = csir::from_csir_level(set2_mpi_csir, this->origin_point(), this->scaling_factor());
                                 auto set2_mpi      = self(set2_mpi_lca);
@@ -482,15 +524,15 @@ namespace samurai
                     auto expr      = self(inter_lca);
 
                     expr(
-                    [&](const auto& interval, const auto& index_yz)
-                    {
-                        static_nested_loop<dim - 1, 0, 2>(
-                            [&](auto s)
-                            {
-                                lcl[(index_yz << 1) + s].add_interval(interval << 1);
-                            });
-                        lcl_proj[index_yz].add_interval(interval);
-                    });
+                        [&](const auto& interval, const auto& index_yz)
+                        {
+                            static_nested_loop<dim - 1, 0, 2>(
+                                [&](auto s)
+                                {
+                                    lcl[(index_yz << 1) + s].add_interval(interval << 1);
+                                });
+                            lcl_proj[index_yz].add_interval(interval);
+                        });
                 }
                 this->cells()[mesh_id_t::all_cells][level + 1] = lcl;
                 this->cells()[mesh_id_t::proj_cells][level]    = lcl_proj;
@@ -508,7 +550,7 @@ namespace samurai
                     auto nref     = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
                     auto inter    = csir::intersection(csir::project_to_level(sub_exp, level), nref);
                     auto expr_lca = csir::from_csir_level(inter, this->origin_point(), this->scaling_factor());
-                    auto expr = self(expr_lca);
+                    auto expr     = self(expr_lca);
                     expr(
                         [&](const auto& interval, const auto& index_yz)
                         {
@@ -520,24 +562,30 @@ namespace samurai
                         if (this->is_periodic(d))
                         {
                             auto domain_shift = get_periodic_shift(this->domain(), level, d);
-                            auto expr_left    = [&]() {
-                                if constexpr (dim == 1) {
-                                    int s = static_cast<int>(domain_shift[0]);
+                            auto expr_left    = [&]()
+                            {
+                                if constexpr (dim == 1)
+                                {
+                                    int s       = static_cast<int>(domain_shift[0]);
                                     auto nref_s = csir::translate(nref, -s);
                                     auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
                                     return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
-                                } else if constexpr (dim == 2) {
+                                }
+                                else if constexpr (dim == 2)
+                                {
                                     int sx = static_cast<int>(domain_shift[0]);
                                     int sy = static_cast<int>(domain_shift[1]);
-                                    std::array<int,2> dxy{-sx, -sy};
+                                    std::array<int, 2> dxy{-sx, -sy};
                                     auto nref_s = csir::translate(nref, dxy);
                                     auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
                                     return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
-                                } else {
+                                }
+                                else
+                                {
                                     int sx = static_cast<int>(domain_shift[0]);
                                     int sy = static_cast<int>(domain_shift[1]);
                                     int sz = static_cast<int>(domain_shift[2]);
-                                    std::array<int,3> dxyz{-sx, -sy, -sz};
+                                    std::array<int, 3> dxyz{-sx, -sy, -sz};
                                     auto nref_s = csir::translate(nref, dxyz);
                                     auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
                                     return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
@@ -550,24 +598,30 @@ namespace samurai
                                     lcl[index_yz].add_interval(interval);
                                 });
 
-                            auto expr_right = [&]() {
-                                if constexpr (dim == 1) {
-                                    int s = static_cast<int>(domain_shift[0]);
+                            auto expr_right = [&]()
+                            {
+                                if constexpr (dim == 1)
+                                {
+                                    int s       = static_cast<int>(domain_shift[0]);
                                     auto nref_s = csir::translate(nref, s);
                                     auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
                                     return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
-                                } else if constexpr (dim == 2) {
+                                }
+                                else if constexpr (dim == 2)
+                                {
                                     int sx = static_cast<int>(domain_shift[0]);
                                     int sy = static_cast<int>(domain_shift[1]);
-                                    std::array<int,2> dxy{sx, sy};
+                                    std::array<int, 2> dxy{sx, sy};
                                     auto nref_s = csir::translate(nref, dxy);
                                     auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
                                     return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));
-                                } else {
+                                }
+                                else
+                                {
                                     int sx = static_cast<int>(domain_shift[0]);
                                     int sy = static_cast<int>(domain_shift[1]);
                                     int sz = static_cast<int>(domain_shift[2]);
-                                    std::array<int,3> dxyz{sx, sy, sz};
+                                    std::array<int, 3> dxyz{sx, sy, sz};
                                     auto nref_s = csir::translate(nref, dxyz);
                                     auto interl = csir::intersection(csir::project_to_level(sub_exp, level), nref_s);
                                     return self(csir::from_csir_level(interl, this->origin_point(), this->scaling_factor()));

@@ -61,10 +61,8 @@ namespace samurai
         auto comput_stencil_it = make_stencil_iterator(mesh, comput_stencil);
 #endif
 
-        auto apply_on_interface = [&](const auto& lhs_cells,
-                                     const auto& rhs_cells,
-                                     const std::array<int, dim>& lhs_shift,
-                                     const std::array<int, dim>& rhs_shift)
+        auto apply_on_interface =
+            [&](const auto& lhs_cells, const auto& rhs_cells, const std::array<int, dim>& lhs_shift, const std::array<int, dim>& rhs_shift)
         {
             using lca_t = typename Mesh::lca_type;
             lca_t lhs_lca(lhs_cells);
@@ -76,11 +74,21 @@ namespace samurai
             auto rhs_t = rhs_csir;
             // Detect non-zero shifts
             bool lhs_nonzero = false, rhs_nonzero = false;
-            for (std::size_t i = 0; i < dim; ++i) { lhs_nonzero = lhs_nonzero || (lhs_shift[i] != 0); rhs_nonzero = rhs_nonzero || (rhs_shift[i] != 0); }
-            if (lhs_nonzero) lhs_t = csir::translate(lhs_csir, lhs_shift);
-            if (rhs_nonzero) rhs_t = csir::translate(rhs_csir, rhs_shift);
-            auto inter    = csir::intersection(lhs_t, rhs_t);
-            auto inter_l  = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+            for (std::size_t i = 0; i < dim; ++i)
+            {
+                lhs_nonzero = lhs_nonzero || (lhs_shift[i] != 0);
+                rhs_nonzero = rhs_nonzero || (rhs_shift[i] != 0);
+            }
+            if (lhs_nonzero)
+            {
+                lhs_t = csir::translate(lhs_csir, lhs_shift);
+            }
+            if (rhs_nonzero)
+            {
+                rhs_t = csir::translate(rhs_csir, rhs_shift);
+            }
+            auto inter     = csir::intersection(lhs_t, rhs_t);
+            auto inter_l   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
             auto intersect = self(inter_l).on(level);
 
             for_each_meshinterval<mesh_interval_t, run_type>(
@@ -97,8 +105,13 @@ namespace samurai
         };
 
         // Base case: intersect cells with cells shifted by -direction
-        std::array<int, dim> zero{}; zero.fill(0);
-        std::array<int, dim> neg_dir{}; for (std::size_t k = 0; k < dim; ++k) neg_dir[k] = -direction[k];
+        std::array<int, dim> zero{};
+        zero.fill(0);
+        std::array<int, dim> neg_dir{};
+        for (std::size_t k = 0; k < dim; ++k)
+        {
+            neg_dir[k] = -direction[k];
+        }
         apply_on_interface(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level], zero, neg_dir);
 
         auto d = find_direction_index(direction);
@@ -107,12 +120,22 @@ namespace samurai
             if (mesh.periodicity()[d])
             {
                 auto shift = get_periodic_shift(mesh.domain(), level, d);
-                std::array<int, dim> sh{}; sh.fill(0); sh[d] = static_cast<int>(shift[d]);
+                std::array<int, dim> sh{};
+                sh.fill(0);
+                sh[d] = static_cast<int>(shift[d]);
                 // RHS shift = shift then -direction (combined)
-                std::array<int, dim> rhs_shift = sh; for (std::size_t k = 0; k < dim; ++k) rhs_shift[k] -= direction[k];
+                std::array<int, dim> rhs_shift = sh;
+                for (std::size_t k = 0; k < dim; ++k)
+                {
+                    rhs_shift[k] -= direction[k];
+                }
                 apply_on_interface(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level], zero, rhs_shift);
                 // LHS shift = -shift; RHS shift = -direction
-                std::array<int, dim> lhs_shift = sh; for (auto& v : lhs_shift) v = -v;
+                std::array<int, dim> lhs_shift = sh;
+                for (auto& v : lhs_shift)
+                {
+                    v = -v;
+                }
                 apply_on_interface(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level], lhs_shift, neg_dir);
             }
         }
@@ -126,10 +149,20 @@ namespace samurai
                 if (mesh.periodicity()[d])
                 {
                     auto shift = get_periodic_shift(mesh.domain(), level, d);
-                    std::array<int, dim> sh{}; sh.fill(0); sh[d] = static_cast<int>(shift[d]);
-                    std::array<int, dim> rhs_shift = sh; for (std::size_t k = 0; k < dim; ++k) rhs_shift[k] -= direction[k];
+                    std::array<int, dim> sh{};
+                    sh.fill(0);
+                    sh[d]                          = static_cast<int>(shift[d]);
+                    std::array<int, dim> rhs_shift = sh;
+                    for (std::size_t k = 0; k < dim; ++k)
+                    {
+                        rhs_shift[k] -= direction[k];
+                    }
                     apply_on_interface(mesh[mesh_id_t::cells][level], neigh.mesh[mesh_id_t::cells][level], zero, rhs_shift);
-                    std::array<int, dim> lhs_shift_n = sh; for (auto& v : lhs_shift_n) v = -v;
+                    std::array<int, dim> lhs_shift_n = sh;
+                    for (auto& v : lhs_shift_n)
+                    {
+                        v = -v;
+                    }
                     apply_on_interface(neigh.mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level], lhs_shift_n, neg_dir);
                 }
             }
@@ -158,8 +191,8 @@ namespace samurai
                                                            Func&& f)
     {
         static constexpr std::size_t dim = Mesh::dim;
-        using mesh_id_t       = typename Mesh::mesh_id_t;
-        using mesh_interval_t = typename Mesh::mesh_interval_t;
+        using mesh_id_t                  = typename Mesh::mesh_id_t;
+        using mesh_interval_t            = typename Mesh::mesh_interval_t;
 
         if (level >= mesh.max_level())
         {
@@ -185,25 +218,43 @@ namespace samurai
 #endif
 
         auto apply_on_interface = [&](const auto& coarse_cells,
-                                     const auto& fine_cells,
-                                     const std::array<int, dim>& coarse_shift,
-                                     const std::array<int, dim>& fine_preshift)
+                                      const auto& fine_cells,
+                                      const std::array<int, dim>& coarse_shift,
+                                      const std::array<int, dim>& fine_preshift)
         {
             using lca_t = typename Mesh::lca_type;
             lca_t coarse_lca(coarse_cells);
             lca_t fine_lca(fine_cells);
             auto coarse_csir = csir::to_csir_level(coarse_lca);
             // optional shift on coarse (before projecting up)
-            bool c_nonzero = false; for (std::size_t k = 0; k < dim; ++k) c_nonzero = c_nonzero || (coarse_shift[k] != 0);
-            if (c_nonzero) { coarse_csir = csir::translate(coarse_csir, coarse_shift); }
+            bool c_nonzero = false;
+            for (std::size_t k = 0; k < dim; ++k)
+            {
+                c_nonzero = c_nonzero || (coarse_shift[k] != 0);
+            }
+            if (c_nonzero)
+            {
+                coarse_csir = csir::translate(coarse_csir, coarse_shift);
+            }
             auto coarse_on_fine = csir::project_to_level(coarse_csir, level + 1);
-            auto fine_csir   = csir::to_csir_level(fine_lca);
+            auto fine_csir      = csir::to_csir_level(fine_lca);
             // combine preshift with -direction
-            std::array<int, dim> rhs_shift = fine_preshift; for (std::size_t k = 0; k < dim; ++k) rhs_shift[k] -= direction[k];
-            bool f_nonzero = false; for (std::size_t k = 0; k < dim; ++k) f_nonzero = f_nonzero || (rhs_shift[k] != 0);
-            if (f_nonzero) { fine_csir = csir::translate(fine_csir, rhs_shift); }
-            auto inter_csir  = csir::intersection(coarse_on_fine, fine_csir);
-            auto inter_lca   = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+            std::array<int, dim> rhs_shift = fine_preshift;
+            for (std::size_t k = 0; k < dim; ++k)
+            {
+                rhs_shift[k] -= direction[k];
+            }
+            bool f_nonzero = false;
+            for (std::size_t k = 0; k < dim; ++k)
+            {
+                f_nonzero = f_nonzero || (rhs_shift[k] != 0);
+            }
+            if (f_nonzero)
+            {
+                fine_csir = csir::translate(fine_csir, rhs_shift);
+            }
+            auto inter_csir     = csir::intersection(coarse_on_fine, fine_csir);
+            auto inter_lca      = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
             auto fine_intersect = self(inter_lca).on(level + 1);
 
             for_each_meshinterval<mesh_interval_t, run_type>(
@@ -219,7 +270,8 @@ namespace samurai
                 });
         };
 
-        std::array<int, dim> zeros{}; zeros.fill(0);
+        std::array<int, dim> zeros{};
+        zeros.fill(0);
         apply_on_interface(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level + 1], zeros, zeros);
 
         auto d = find_direction_index(direction);
@@ -228,10 +280,14 @@ namespace samurai
             if (mesh.periodicity()[d])
             {
                 auto shift = get_periodic_shift(mesh.domain(), level + 1, d);
-                std::array<int, dim> sh1{}; sh1.fill(0); sh1[d] = static_cast<int>(shift[d]);
+                std::array<int, dim> sh1{};
+                sh1.fill(0);
+                sh1[d] = static_cast<int>(shift[d]);
                 apply_on_interface(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level + 1], zeros, sh1);
                 shift = get_periodic_shift(mesh.domain(), level, d);
-                std::array<int, dim> sh2{}; sh2.fill(0); sh2[d] = -static_cast<int>(shift[d]);
+                std::array<int, dim> sh2{};
+                sh2.fill(0);
+                sh2[d] = -static_cast<int>(shift[d]);
                 apply_on_interface(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level + 1], sh2, zeros);
             }
         }
@@ -245,10 +301,14 @@ namespace samurai
                 if (mesh.periodicity()[d])
                 {
                     auto shift = get_periodic_shift(mesh.domain(), level + 1, d);
-                    std::array<int, dim> sh1{}; sh1.fill(0); sh1[d] = static_cast<int>(shift[d]);
+                    std::array<int, dim> sh1{};
+                    sh1.fill(0);
+                    sh1[d] = static_cast<int>(shift[d]);
                     apply_on_interface(mesh[mesh_id_t::cells][level], neigh.mesh[mesh_id_t::cells][level + 1], zeros, sh1);
                     shift = get_periodic_shift(mesh.domain(), level, d);
-                    std::array<int, dim> sh2{}; sh2.fill(0); sh2[d] = -static_cast<int>(shift[d]);
+                    std::array<int, dim> sh2{};
+                    sh2.fill(0);
+                    sh2[d] = -static_cast<int>(shift[d]);
                     apply_on_interface(neigh.mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level + 1], sh2, zeros);
                 }
             }
@@ -308,24 +368,42 @@ namespace samurai
 #endif
 
         auto apply_on_interface = [&](const auto& coarse_cells,
-                                     const auto& fine_cells,
-                                     const std::array<int, dim>& coarse_shift,
-                                     const std::array<int, dim>& fine_preshift)
+                                      const auto& fine_cells,
+                                      const std::array<int, dim>& coarse_shift,
+                                      const std::array<int, dim>& fine_preshift)
         {
             using lca_t = typename Mesh::lca_type;
             lca_t coarse_lca(coarse_cells);
             lca_t fine_lca(fine_cells);
             auto coarse_csir = csir::to_csir_level(coarse_lca);
-            bool c_nonzero = false; for (std::size_t k = 0; k < dim; ++k) c_nonzero = c_nonzero || (coarse_shift[k] != 0);
-            if (c_nonzero) coarse_csir = csir::translate(coarse_csir, coarse_shift);
+            bool c_nonzero   = false;
+            for (std::size_t k = 0; k < dim; ++k)
+            {
+                c_nonzero = c_nonzero || (coarse_shift[k] != 0);
+            }
+            if (c_nonzero)
+            {
+                coarse_csir = csir::translate(coarse_csir, coarse_shift);
+            }
             auto coarse_on_fine = csir::project_to_level(coarse_csir, level + 1);
-            auto fine_csir   = csir::to_csir_level(fine_lca);
+            auto fine_csir      = csir::to_csir_level(fine_lca);
             // combine preshift with +direction (opposite variant)
-            std::array<int, dim> rhs_shift = fine_preshift; for (std::size_t k = 0; k < dim; ++k) rhs_shift[k] += direction[k];
-            bool f_nonzero = false; for (std::size_t k = 0; k < dim; ++k) f_nonzero = f_nonzero || (rhs_shift[k] != 0);
-            if (f_nonzero) fine_csir = csir::translate(fine_csir, rhs_shift);
-            auto inter_csir  = csir::intersection(coarse_on_fine, fine_csir);
-            auto inter_lca   = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+            std::array<int, dim> rhs_shift = fine_preshift;
+            for (std::size_t k = 0; k < dim; ++k)
+            {
+                rhs_shift[k] += direction[k];
+            }
+            bool f_nonzero = false;
+            for (std::size_t k = 0; k < dim; ++k)
+            {
+                f_nonzero = f_nonzero || (rhs_shift[k] != 0);
+            }
+            if (f_nonzero)
+            {
+                fine_csir = csir::translate(fine_csir, rhs_shift);
+            }
+            auto inter_csir     = csir::intersection(coarse_on_fine, fine_csir);
+            auto inter_lca      = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
             auto fine_intersect = self(inter_lca).on(level + 1);
 
             for_each_meshinterval<mesh_interval_t, run_type>(
@@ -341,7 +419,8 @@ namespace samurai
                 });
         };
 
-        std::array<int, dim> zeros_op{}; zeros_op.fill(0);
+        std::array<int, dim> zeros_op{};
+        zeros_op.fill(0);
         apply_on_interface(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level + 1], zeros_op, zeros_op);
 
         auto d = find_direction_index(direction);
@@ -350,10 +429,14 @@ namespace samurai
             if (mesh.periodicity()[d])
             {
                 auto shift = get_periodic_shift(mesh.domain(), level + 1, d);
-                std::array<int, dim> sh1{}; sh1.fill(0); sh1[d] = -static_cast<int>(shift[d]);
+                std::array<int, dim> sh1{};
+                sh1.fill(0);
+                sh1[d] = -static_cast<int>(shift[d]);
                 apply_on_interface(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level + 1], zeros_op, sh1);
                 shift = get_periodic_shift(mesh.domain(), level, d);
-                std::array<int, dim> sh2{}; sh2.fill(0); sh2[d] = static_cast<int>(shift[d]);
+                std::array<int, dim> sh2{};
+                sh2.fill(0);
+                sh2[d] = static_cast<int>(shift[d]);
                 apply_on_interface(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level + 1], sh2, zeros_op);
             }
         }
@@ -367,10 +450,14 @@ namespace samurai
                 if (mesh.periodicity()[d])
                 {
                     auto shift = get_periodic_shift(mesh.domain(), level + 1, d);
-                    std::array<int, dim> sh1{}; sh1.fill(0); sh1[d] = -static_cast<int>(shift[d]);
+                    std::array<int, dim> sh1{};
+                    sh1.fill(0);
+                    sh1[d] = -static_cast<int>(shift[d]);
                     apply_on_interface(mesh[mesh_id_t::cells][level], neigh.mesh[mesh_id_t::cells][level + 1], zeros_op, sh1);
                     shift = get_periodic_shift(mesh.domain(), level, d);
-                    std::array<int, dim> sh2{}; sh2.fill(0); sh2[d] = static_cast<int>(shift[d]);
+                    std::array<int, dim> sh2{};
+                    sh2.fill(0);
+                    sh2[d] = static_cast<int>(shift[d]);
                     apply_on_interface(neigh.mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level + 1], sh2, zeros_op);
                 }
             }
@@ -537,7 +624,7 @@ namespace samurai
 #endif
 
         auto bdry_lca = domain_boundary(mesh, level, direction);
-        auto bdry = self(bdry_lca);
+        auto bdry     = self(bdry_lca);
         for_each_meshinterval<mesh_interval_t, run_type>(bdry,
                                                          [&](auto mesh_interval)
                                                          {

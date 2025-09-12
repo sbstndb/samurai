@@ -31,7 +31,7 @@ namespace csir
         CSIR_Level_Device CSIR_Level_Host::to_device() const {
             CSIR_Level_Device dev_level = {};
             dev_level.level = level;
-            
+
             if (!y_coords.empty()) {
                 dev_level.y_coords_count = y_coords.size();
                 CUDA_CHECK(cudaMalloc(&dev_level.y_coords, y_coords.size() * sizeof(int)));
@@ -229,7 +229,7 @@ namespace csir
             {
                 auto max_start = max(a_it->start, b_it->start);
                 auto min_end = min(a_it->end, b_it->end);
-                if (max_start < min_end) { 
+                if (max_start < min_end) {
                     if (compute) result[result_count] = {max_start, min_end};
                     result_count++;
                 }
@@ -241,7 +241,7 @@ namespace csir
         __global__ void set_op_2d_kernel(
             CSIR_Level_Device a, CSIR_Level_Device b,
             const int* unified_y, int unified_y_count,
-            CSIR_Level_Device result, 
+            CSIR_Level_Device result,
             const std::size_t* row_output_offsets,
             std::size_t* row_output_counts,
             bool compute,
@@ -251,19 +251,19 @@ namespace csir
             if (idx >= unified_y_count) return;
 
             int y = unified_y[idx];
-            
+
             int a_row_idx = a.y_coords ? find_row_index(a.y_coords, a.y_coords_count, y) : -1;
             int b_row_idx = b.y_coords ? find_row_index(b.y_coords, b.y_coords_count, y) : -1;
 
             const Interval* a_begin = (a_row_idx != -1) ? &a.intervals[a.intervals_ptr[a_row_idx]] : nullptr;
             const Interval* a_end = (a_row_idx != -1) ? &a.intervals[a.intervals_ptr[a_row_idx+1]] : a_begin;
-            
+
             const Interval* b_begin = (b_row_idx != -1) ? &b.intervals[b.intervals_ptr[b_row_idx]] : nullptr;
             const Interval* b_end = (b_row_idx != -1) ? &b.intervals[b.intervals_ptr[b_row_idx+1]] : b_begin;
 
             std::size_t count = 0;
             Interval* result_ptr = compute ? &result.intervals[row_output_offsets[idx]] : nullptr;
-            
+
             if (op_type == 0) { // Union
                 union_1d_device(a_begin, a_end, b_begin, b_end, result_ptr, count, compute);
             } else if (op_type == 1) { // Intersection
@@ -271,7 +271,7 @@ namespace csir
             } else if (op_type == 2) { // Difference
                 difference_1d_device(a_begin, a_end, b_begin, b_end, result_ptr, count, compute);
             }
-            
+
             if (!compute) {
                 row_output_counts[idx] = count;
             }
@@ -319,7 +319,7 @@ namespace csir
             // 3. Sizing phase
             std::size_t* d_row_output_counts;
             CUDA_CHECK(cudaMalloc(&d_row_output_counts, processed_y_coords.size() * sizeof(std::size_t)));
-            
+
             int threads_per_block = 256;
             int blocks = (processed_y_coords.size() + threads_per_block - 1) / threads_per_block;
             set_op_2d_kernel<<<blocks, threads_per_block>>>(d_a, d_b, d_processed_y_coords, processed_y_coords.size(), {}, nullptr, d_row_output_counts, false, op_type);
@@ -345,7 +345,7 @@ namespace csir
                     result_host.intervals_ptr.push_back(total_intervals);
                 }
             }
-            
+
             if (total_intervals == 0) { // Handle case where result is empty
                 d_a.free(); d_b.free(); CUDA_CHECK(cudaFree(d_processed_y_coords)); CUDA_CHECK(cudaFree(d_row_output_counts));
                 return result_host;
@@ -361,7 +361,7 @@ namespace csir
             CUDA_CHECK(cudaMalloc(&d_result.y_coords, d_result.y_coords_count * sizeof(int)));
             CUDA_CHECK(cudaMalloc(&d_result.intervals_ptr, d_result.intervals_ptr_count * sizeof(std::size_t)));
             CUDA_CHECK(cudaMalloc(&d_result.intervals, d_result.intervals_count * sizeof(Interval)));
-            
+
             CUDA_CHECK(cudaMemcpy(d_result.y_coords, result_host.y_coords.data(), d_result.y_coords_count * sizeof(int), cudaMemcpyHostToDevice));
             CUDA_CHECK(cudaMemcpy(d_result.intervals_ptr, result_host.intervals_ptr.data(), d_result.intervals_ptr_count * sizeof(std::size_t), cudaMemcpyHostToDevice));
 
@@ -487,7 +487,7 @@ namespace csir
             if (source.level < target_level) {
                 // Upscaling
                 int scale = 1 << (target_level - source.level);
-                
+
                 // Sizing kernel for upscaling
                 std::size_t* d_row_output_counts;
                 CUDA_CHECK(cudaMalloc(&d_row_output_counts, source.y_coords.size() * sizeof(std::size_t)));
@@ -527,7 +527,7 @@ namespace csir
                 CUDA_CHECK(cudaMalloc(&d_result.y_coords, d_result.y_coords_count * sizeof(int)));
                 CUDA_CHECK(cudaMalloc(&d_result.intervals_ptr, d_result.intervals_ptr_count * sizeof(std::size_t)));
                 CUDA_CHECK(cudaMalloc(&d_result.intervals, d_result.intervals_count * sizeof(Interval)));
-                
+
                 CUDA_CHECK(cudaMemcpy(d_result.y_coords, result_host.y_coords.data(), d_result.y_coords_count * sizeof(int), cudaMemcpyHostToDevice));
                 CUDA_CHECK(cudaMemcpy(d_result.intervals_ptr, result_host.intervals_ptr.data(), d_result.intervals_ptr_count * sizeof(std::size_t), cudaMemcpyHostToDevice));
 
@@ -599,7 +599,7 @@ namespace csir
                 CUDA_CHECK(cudaMalloc(&d_result.y_coords, d_result.y_coords_count * sizeof(int)));
                 CUDA_CHECK(cudaMalloc(&d_result.intervals_ptr, d_result.intervals_ptr_count * sizeof(std::size_t)));
                 CUDA_CHECK(cudaMalloc(&d_result.intervals, d_result.intervals_count * sizeof(Interval)));
-                
+
                 CUDA_CHECK(cudaMemcpy(d_result.y_coords, coarse_y_coords.data(), d_result.y_coords_count * sizeof(int), cudaMemcpyHostToDevice));
                 CUDA_CHECK(cudaMemcpy(d_result.intervals_ptr, coarse_row_start_indices.data(), d_result.intervals_ptr_count * sizeof(std::size_t), cudaMemcpyHostToDevice));
 
@@ -622,7 +622,7 @@ namespace csir
         }
 
         __global__ void project_to_level_sizing_kernel(
-            CSIR_Level_Device source, 
+            CSIR_Level_Device source,
             std::size_t* row_output_counts,
             int scale,
             bool is_upscaling) // true for upscaling, false for downscaling
@@ -660,7 +660,7 @@ namespace csir
         }
 
         __global__ void project_to_level_compute_kernel(
-            CSIR_Level_Device source, 
+            CSIR_Level_Device source,
             CSIR_Level_Device result,
             const std::size_t* row_output_offsets,
             int scale,
@@ -766,7 +766,7 @@ namespace csir
             return expand(set, width, (const bool[2]){true, true});
         }
 
-        
+
 
         // --- 1D Operations ---
         // Generic 1D Kernel for set operations
@@ -818,7 +818,7 @@ namespace csir
             // Sizing phase
             std::size_t* d_result_count_ptr;
             CUDA_CHECK(cudaMalloc(&d_result_count_ptr, sizeof(std::size_t)));
-            
+
             set_op_1d_kernel<<<1, 1>>>(d_a, d_b, {}, d_result_count_ptr, false, op_type);
             CUDA_CHECK(cudaGetLastError());
 
@@ -904,7 +904,7 @@ namespace csir
         {
             if (set.empty()) return CSIR_Level_1D_Host();
             if (width == 0) return set;
-            
+
             // This will involve multiple GPU calls, similar to 2D contract/expand
             // For now, a direct port of the CPU logic using CUDA 1D ops
             CSIR_Level_1D_Host res = set;
@@ -947,7 +947,7 @@ namespace csir
                 int e = source.intervals[idx].end;
                 int cs = floor_div(s);
                 int ce = ceil_div(e);
-                
+
                 // This is a simplified copy. A full 1D projection would involve merging
                 // intervals that become contiguous after scaling.
                 if (cs < ce) {

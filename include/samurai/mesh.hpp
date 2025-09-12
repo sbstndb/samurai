@@ -10,11 +10,11 @@
 
 #include "cell_array.hpp"
 #include "cell_list.hpp"
+#include "csir_unified/src/csir.hpp"
 #include "domain_builder.hpp"
 #include "static_algorithm.hpp"
 #include "stencil.hpp"
 #include "subset/node.hpp"
-#include "csir_unified/src/csir.hpp"
 
 #ifdef SAMURAI_WITH_MPI
 #include <boost/serialization/vector.hpp>
@@ -510,10 +510,10 @@ namespace samurai
             lca_type box_lca(start_level, box, origin_point_, approx_box_tol, scaling_factor);
             lca_type current_domain_lca(domain_cl[start_level]);
             // CSIR PROTOTYPE
-        auto lhs_csir = csir::to_csir_level(current_domain_lca);
-        auto rhs_csir = csir::to_csir_level(box_lca);
-        auto result_csir = csir::union_(lhs_csir, rhs_csir);
-        auto new_domain_set = csir::from_csir_level(result_csir, origin_point_, scaling_factor);
+            auto lhs_csir       = csir::to_csir_level(current_domain_lca);
+            auto rhs_csir       = csir::to_csir_level(box_lca);
+            auto result_csir    = csir::union_(lhs_csir, rhs_csir);
+            auto new_domain_set = csir::from_csir_level(result_csir, origin_point_, scaling_factor);
             domain_cl           = cl_type(origin_point_, scaling_factor);
             new_domain_set(
                 [&](const auto& i, const auto& index)
@@ -526,10 +526,10 @@ namespace samurai
             lca_type hole_lca(start_level, box, origin_point_, approx_box_tol, scaling_factor);
             lca_type current_domain_lca(domain_cl[start_level]);
             // CSIR PROTOTYPE
-        auto lhs_csir = csir::to_csir_level(current_domain_lca);
-        auto rhs_csir = csir::to_csir_level(hole_lca);
-        auto result_csir = csir::difference(lhs_csir, rhs_csir);
-        auto new_domain_set = csir::from_csir_level(result_csir, origin_point_, scaling_factor);
+            auto lhs_csir       = csir::to_csir_level(current_domain_lca);
+            auto rhs_csir       = csir::to_csir_level(hole_lca);
+            auto result_csir    = csir::difference(lhs_csir, rhs_csir);
+            auto new_domain_set = csir::from_csir_level(result_csir, origin_point_, scaling_factor);
             domain_cl           = cl_type(origin_point_, scaling_factor);
             new_domain_set(
                 [&](const auto& i, const auto& index)
@@ -824,18 +824,16 @@ namespace samurai
             {
                 if constexpr (dim == 2)
                 {
-                    m_corners.push_back(
-                        difference(m_domain,
-                                   union_(translate(m_domain, direction_t{-direction[0], 0}),
-                                          translate(m_domain, direction_t{0, -direction[1]}))));
+                    m_corners.push_back(difference(
+                        m_domain,
+                        union_(translate(m_domain, direction_t{-direction[0], 0}), translate(m_domain, direction_t{0, -direction[1]}))));
                 }
                 else if constexpr (dim == 3)
                 {
-                    m_corners.push_back(
-                        difference(m_domain,
-                                   union_(translate(m_domain, direction_t{-direction[0], 0, 0}),
-                                          translate(m_domain, direction_t{0, -direction[1], 0}),
-                                          translate(m_domain, direction_t{0, 0, -direction[2]}))));
+                    m_corners.push_back(difference(m_domain,
+                                                   union_(translate(m_domain, direction_t{-direction[0], 0, 0}),
+                                                          translate(m_domain, direction_t{0, -direction[1], 0}),
+                                                          translate(m_domain, direction_t{0, 0, -direction[2]}))));
                 }
             });
     }
@@ -1070,20 +1068,22 @@ namespace samurai
                 {
                     if (m_periodic[d])
                     {
-                        auto shift             = get_periodic_shift(m_domain, m_subdomain.level(), d);
+                        auto shift = get_periodic_shift(m_domain, m_subdomain.level(), d);
                         // CSIR periodic left: intersection(nested_expand(subdomain,1), translate(neighbours[i], -shift))
-                        auto shift_vec = xt::xtensor_fixed<int, xt::xshape<dim>>{}; shift_vec.fill(0); shift_vec[d] = -shift;
-                        auto nei_left  = csir::translate(nei_csir, shift_vec);
-                        auto inter_l   = csir::intersection(sub_exp, nei_left);
+                        auto shift_vec = xt::xtensor_fixed<int, xt::xshape<dim>>{};
+                        shift_vec.fill(0);
+                        shift_vec[d]           = -shift;
+                        auto nei_left          = csir::translate(nei_csir, shift_vec);
+                        auto inter_l           = csir::intersection(sub_exp, nei_left);
                         auto periodic_set_left = csir::from_csir_level(inter_l, m_subdomain.origin_point(), m_subdomain.scaling_factor());
                         if (!periodic_set_left.empty())
                         {
                             set_neighbours.insert(static_cast<int>(i));
                         }
                         // CSIR periodic right: intersection(nested_expand(subdomain,1), translate(neighbours[i], +shift))
-                        shift_vec[d] = shift;
-                        auto nei_right  = csir::translate(nei_csir, shift_vec);
-                        auto inter_r    = csir::intersection(sub_exp, nei_right);
+                        shift_vec[d]            = shift;
+                        auto nei_right          = csir::translate(nei_csir, shift_vec);
+                        auto inter_r            = csir::intersection(sub_exp, nei_right);
                         auto periodic_set_right = csir::from_csir_level(inter_r, m_subdomain.origin_point(), m_subdomain.scaling_factor());
                         if (!periodic_set_right.empty())
                         {

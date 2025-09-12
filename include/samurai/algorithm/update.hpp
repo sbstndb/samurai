@@ -48,8 +48,8 @@ namespace samurai
         {
             // CSIR: (proj_cells[level] -> level-1) ∩ reference[level-1]
             {
-                auto proj_lvl_lca  = mesh[mesh_id_t::proj_cells][level];
-                auto ref_m1_lca    = mesh[mesh_id_t::reference][level - 1];
+                auto proj_lvl_lca = mesh[mesh_id_t::proj_cells][level];
+                auto ref_m1_lca   = mesh[mesh_id_t::reference][level - 1];
                 if (!proj_lvl_lca.empty() && !ref_m1_lca.empty())
                 {
                     auto proj_lvl_csir = csir::to_csir_level(proj_lvl_lca);
@@ -126,17 +126,17 @@ namespace samurai
             //                                          mesh[mesh_id_t::cells_and_ghosts][level])))
             //             .on(level);
 
-        // Full CSIR: difference(all_cells, union_(cells, proj_cells))
-        auto all_cells_lca = mesh[mesh_id_t::all_cells][level];
-        auto cells_lca     = mesh[mesh_id_t::cells][level];
-        auto proj_lca      = mesh[mesh_id_t::proj_cells][level];
-        auto all_csir      = csir::to_csir_level(all_cells_lca);
-        auto cells_csir    = csir::to_csir_level(cells_lca);
-        auto proj_csir     = csir::to_csir_level(proj_lca);
-        auto uni_csir      = csir::union_(cells_csir, proj_csir);
-        auto result_csir   = csir::difference(all_csir, uni_csir);
-        auto result_lca    = csir::from_csir_level(result_csir, mesh.origin_point(), mesh.scaling_factor());
-        auto expr          = self(result_lca);
+            // Full CSIR: difference(all_cells, union_(cells, proj_cells))
+            auto all_cells_lca = mesh[mesh_id_t::all_cells][level];
+            auto cells_lca     = mesh[mesh_id_t::cells][level];
+            auto proj_lca      = mesh[mesh_id_t::proj_cells][level];
+            auto all_csir      = csir::to_csir_level(all_cells_lca);
+            auto cells_csir    = csir::to_csir_level(cells_lca);
+            auto proj_csir     = csir::to_csir_level(proj_lca);
+            auto uni_csir      = csir::union_(cells_csir, proj_csir);
+            auto result_csir   = csir::difference(all_csir, uni_csir);
+            auto result_lca    = csir::from_csir_level(result_csir, mesh.origin_point(), mesh.scaling_factor());
+            auto expr          = self(result_lca);
 
             expr.apply_op(prediction<pred_order, false>(field));
         }
@@ -154,18 +154,26 @@ namespace samurai
         // CSIR: outside_layer = translate(union_cells[level], +layer*dir) \ translate(domain[level], +(layer-1)*dir)
         //        projection_ghosts = outside_layer ∩ reference[level]
         {
-            auto inner_lca    = mesh.get_union()[proj_level];
-            auto inner_csir   = csir::to_csir_level(inner_lca);
-            auto dom_csir0    = csir::to_csir_level(mesh.domain());
-            auto dom_on       = csir::project_to_level(dom_csir0, proj_level);
-            std::array<int, Field::dim> sh1{}; for (std::size_t k=0;k<Field::dim;++k) sh1[k] = direction[k] * static_cast<int>(layer);
-            std::array<int, Field::dim> sh0{}; for (std::size_t k=0;k<Field::dim;++k) sh0[k] = direction[k] * static_cast<int>(layer - 1);
-            auto t_inner      = csir::translate(inner_csir, sh1);
-            auto t_domain     = csir::translate(dom_on,     sh0);
-            auto outside_csir = csir::difference(t_inner, t_domain);
-            auto ref_csir     = csir::to_csir_level(mesh[mesh_id_t::reference][proj_level]);
-            auto ghosts_csir  = csir::intersection(outside_csir, ref_csir);
-            auto ghosts_lca   = csir::from_csir_level(ghosts_csir, mesh.origin_point(), mesh.scaling_factor());
+            auto inner_lca  = mesh.get_union()[proj_level];
+            auto inner_csir = csir::to_csir_level(inner_lca);
+            auto dom_csir0  = csir::to_csir_level(mesh.domain());
+            auto dom_on     = csir::project_to_level(dom_csir0, proj_level);
+            std::array<int, Field::dim> sh1{};
+            for (std::size_t k = 0; k < Field::dim; ++k)
+            {
+                sh1[k] = direction[k] * static_cast<int>(layer);
+            }
+            std::array<int, Field::dim> sh0{};
+            for (std::size_t k = 0; k < Field::dim; ++k)
+            {
+                sh0[k] = direction[k] * static_cast<int>(layer - 1);
+            }
+            auto t_inner           = csir::translate(inner_csir, sh1);
+            auto t_domain          = csir::translate(dom_on, sh0);
+            auto outside_csir      = csir::difference(t_inner, t_domain);
+            auto ref_csir          = csir::to_csir_level(mesh[mesh_id_t::reference][proj_level]);
+            auto ghosts_csir       = csir::intersection(outside_csir, ref_csir);
+            auto ghosts_lca        = csir::from_csir_level(ghosts_csir, mesh.origin_point(), mesh.scaling_factor());
             auto projection_ghosts = self(ghosts_lca);
 
             if (mesh.domain().is_box())
@@ -184,10 +192,10 @@ namespace samurai
                 }
 
                 auto bc_ghosts_in_other_directions  = domain_boundary_outer_layer(mesh, proj_level, n_bc_ghosts);
-                auto pg_csir   = csir::to_csir_level(ghosts_lca);
-                auto bc_csir   = csir::to_csir_level(bc_ghosts_in_other_directions);
-                auto diff_csir = csir::difference(pg_csir, bc_csir);
-                auto diff_lca  = csir::from_csir_level(diff_csir, mesh.origin_point(), mesh.scaling_factor());
+                auto pg_csir                        = csir::to_csir_level(ghosts_lca);
+                auto bc_csir                        = csir::to_csir_level(bc_ghosts_in_other_directions);
+                auto diff_csir                      = csir::difference(pg_csir, bc_csir);
+                auto diff_lca                       = csir::from_csir_level(diff_csir, mesh.origin_point(), mesh.scaling_factor());
                 auto projection_ghosts_no_bc_ghosts = self(diff_lca);
 
                 project_bc(projection_ghosts_no_bc_ghosts, proj_level, direction, layer, field);
@@ -352,10 +360,10 @@ namespace samurai
         auto bc_ghosts = domain_boundary_outer_layer(mesh, pred_level - 1, direction, n_bc_ghosts);
 
         // CSIR: outside_prediction_ghosts = bc_ghosts ∩ reference[pred_level]
-        auto bc_csir     = csir::to_csir_level(bc_ghosts);
-        auto ref_csir    = csir::to_csir_level(mesh[mesh_id_t::reference][pred_level]);
-        auto inter_csir  = csir::intersection(bc_csir, ref_csir);
-        auto inter_lca   = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+        auto bc_csir                   = csir::to_csir_level(bc_ghosts);
+        auto ref_csir                  = csir::to_csir_level(mesh[mesh_id_t::reference][pred_level]);
+        auto inter_csir                = csir::intersection(bc_csir, ref_csir);
+        auto inter_lca                 = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
         auto outside_prediction_ghosts = self(inter_lca);
 
         if (mesh.domain().is_box())
@@ -368,10 +376,10 @@ namespace samurai
             // This can happen when there is a hole in the domain.
 
             auto bc_ghosts_in_other_directions  = domain_boundary_outer_layer(mesh, pred_level, n_bc_ghosts);
-            auto op_csir  = csir::to_csir_level(inter_lca);
-            auto bc_csir  = csir::to_csir_level(bc_ghosts_in_other_directions);
-            auto diff_cs  = csir::difference(op_csir, bc_csir);
-            auto diff_lca = csir::from_csir_level(diff_cs, mesh.origin_point(), mesh.scaling_factor());
+            auto op_csir                        = csir::to_csir_level(inter_lca);
+            auto bc_csir                        = csir::to_csir_level(bc_ghosts_in_other_directions);
+            auto diff_cs                        = csir::difference(op_csir, bc_csir);
+            auto diff_lca                       = csir::from_csir_level(diff_cs, mesh.origin_point(), mesh.scaling_factor());
             auto prediction_ghosts_no_bc_ghosts = self(diff_lca);
 
             predict_bc(prediction_ghosts_no_bc_ghosts, pred_level, direction, field);
@@ -434,29 +442,49 @@ namespace samurai
             auto proj_level = level - delta_l;
 
             // CSIR corner(level, direction) computed at domain level then projected
-            auto dom_csir   = csir::to_csir_level(mesh.domain());
-            bool first = true; auto uni = dom_csir; // placeholder init
+            auto dom_csir = csir::to_csir_level(mesh.domain());
+            bool first    = true;
+            auto uni      = dom_csir; // placeholder init
             for (std::size_t ax = 0; ax < Field::dim; ++ax)
             {
-                if (direction[ax] == 0) continue;
-                std::array<int, Field::dim> s{}; s.fill(0); s[ax] = -direction[ax];
+                if (direction[ax] == 0)
+                {
+                    continue;
+                }
+                std::array<int, Field::dim> s{};
+                s.fill(0);
+                s[ax]  = -direction[ax];
                 auto t = csir::translate(dom_csir, s);
-                if (first) { uni = t; first = false; }
-                else { uni = csir::union_(uni, t); }
+                if (first)
+                {
+                    uni   = t;
+                    first = false;
+                }
+                else
+                {
+                    uni = csir::union_(uni, t);
+                }
             }
-            if (first) { continue; }
-            auto inner_dom  = csir::difference(dom_csir, uni);
-            auto inner_cs   = csir::project_to_level(inner_dom, level);
+            if (first)
+            {
+                continue;
+            }
+            auto inner_dom = csir::difference(dom_csir, uni);
+            auto inner_cs  = csir::project_to_level(inner_dom, level);
             // Fine outer corner: translate by +direction and intersect with reference[level]
-            std::array<int, Field::dim> d{}; for (std::size_t k = 0; k < Field::dim; ++k) d[k] = direction[k];
+            std::array<int, Field::dim> d{};
+            for (std::size_t k = 0; k < Field::dim; ++k)
+            {
+                d[k] = direction[k];
+            }
             auto outer_cs   = csir::translate(inner_cs, d);
             auto ref_csir   = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
             auto fine_outer = csir::intersection(outer_cs, ref_csir);
             // Project outer corner to proj_level and intersect with reference[proj_level]
-            auto fine_outer_on = csir::project_to_level(fine_outer, proj_level);
-            auto ref_m1_csir   = csir::to_csir_level(mesh[mesh_id_t::reference][proj_level]);
-            auto projection_cs = csir::intersection(fine_outer_on, ref_m1_csir);
-            auto projection_lc = csir::from_csir_level(projection_cs, mesh.origin_point(), mesh.scaling_factor());
+            auto fine_outer_on    = csir::project_to_level(fine_outer, proj_level);
+            auto ref_m1_csir      = csir::to_csir_level(mesh[mesh_id_t::reference][proj_level]);
+            auto projection_cs    = csir::intersection(fine_outer_on, ref_m1_csir);
+            auto projection_lc    = csir::from_csir_level(projection_cs, mesh.origin_point(), mesh.scaling_factor());
             auto projection_ghost = self(projection_lc);
 
             projection_ghost(
@@ -669,11 +697,11 @@ namespace samurai
             auto prj_lca   = mesh[mesh_id_t::proj_cells][level];
             if (!all_lca.empty())
             {
-                auto all_csir   = csir::to_csir_level(all_lca);
-                auto cells_csir = csir::to_csir_level(cells_lca);
-                auto prj_csir   = csir::to_csir_level(prj_lca);
-                auto uni_csir   = csir::union_(cells_csir, prj_csir);
-                auto pred_csir  = csir::difference(all_csir, uni_csir);
+                auto all_csir    = csir::to_csir_level(all_lca);
+                auto cells_csir  = csir::to_csir_level(cells_lca);
+                auto prj_csir    = csir::to_csir_level(prj_lca);
+                auto uni_csir    = csir::union_(cells_csir, prj_csir);
+                auto pred_csir   = csir::difference(all_csir, uni_csir);
                 auto parents_lca = mesh[mesh_id_t::all_cells][level - 1];
                 if (!parents_lca.empty())
                 {
@@ -685,11 +713,11 @@ namespace samurai
                 auto pred_ghosts = self(pred_lca);
 
                 // Keep only ghosts in our subdomain (CSIR)
-                auto pred_cs     = csir::to_csir_level(pred_lca);
-                auto sub_cs      = csir::project_to_level(csir::to_csir_level(mesh.subdomain()), level);
-                auto inter_cs    = csir::intersection(pred_cs, sub_cs);
-                auto inter_lca   = csir::from_csir_level(inter_cs, mesh.origin_point(), mesh.scaling_factor());
-                auto expr        = self(inter_lca);
+                auto pred_cs   = csir::to_csir_level(pred_lca);
+                auto sub_cs    = csir::project_to_level(csir::to_csir_level(mesh.subdomain()), level);
+                auto inter_cs  = csir::intersection(pred_cs, sub_cs);
+                auto inter_lca = csir::from_csir_level(inter_cs, mesh.origin_point(), mesh.scaling_factor());
+                auto expr      = self(inter_lca);
                 expr.apply_op(variadic_prediction<pred_order, false>(field, other_fields...));
             }
 
@@ -747,10 +775,14 @@ namespace samurai
                     auto& mesh2 = to_send ? neighbour.mesh : mesh;
 
                     // CSIR translation of domain to current level
-                    auto dom_lvl  = csir::project_to_level(csir::to_csir_level(mesh.domain()), level);
+                    auto dom_lvl = csir::project_to_level(csir::to_csir_level(mesh.domain()), level);
                     // Build: (mesh1.reference[level] ∩ translate(dom_lvl, gw*dir) ∩ translate(mesh1.subdomain[level], gw*dir)) \ dom_lvl
-                    auto ref1     = csir::to_csir_level(mesh1[mesh_id_t::reference][level]);
-                    std::array<int, Field::dim> sh{}; for (std::size_t k=0;k<Field::dim;++k) sh[k] = bdry_direction[k] * static_cast<int>(ghost_width);
+                    auto ref1 = csir::to_csir_level(mesh1[mesh_id_t::reference][level]);
+                    std::array<int, Field::dim> sh{};
+                    for (std::size_t k = 0; k < Field::dim; ++k)
+                    {
+                        sh[k] = bdry_direction[k] * static_cast<int>(ghost_width);
+                    }
                     auto t_dom    = csir::translate(dom_lvl, sh);
                     auto sub1_lvl = csir::project_to_level(csir::to_csir_level(mesh1.subdomain()), level);
                     auto t_sub1   = csir::translate(sub1_lvl, sh);
@@ -801,18 +833,18 @@ namespace samurai
             {
                 // CSIR: (ref[level] ∩ neigh.ref[level]) ∩ subdomain[level]
                 {
-                    auto ref1   = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
-                    auto ref2   = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
-                    auto inter  = csir::intersection(ref1, ref2);
-                    auto sub    = csir::project_to_level(csir::to_csir_level(mesh.subdomain()), level);
-                    auto inter2 = csir::intersection(inter, sub);
-                    auto out_lc = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
+                    auto ref1          = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
+                    auto ref2          = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
+                    auto inter         = csir::intersection(ref1, ref2);
+                    auto sub           = csir::project_to_level(csir::to_csir_level(mesh.subdomain()), level);
+                    auto inter2        = csir::intersection(inter, sub);
+                    auto out_lc        = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
                     auto out_interface = self(out_lc);
                     out_interface(
-                    [&](const auto& i, const auto& index)
-                    {
-                        std::copy(field(level, i, index).begin(), field(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
-                    });
+                        [&](const auto& i, const auto& index)
+                        {
+                            std::copy(field(level, i, index).begin(), field(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
+                        });
                 }
                 auto subdomain_corners = outer_subdomain_corner<true>(level, field, neighbour);
                 for_each_interval(
@@ -836,21 +868,21 @@ namespace samurai
                 world.recv(neighbour.rank, world.rank(), to_recv);
                 // CSIR: (neigh.ref[level] ∩ ref[level]) ∩ neigh.subdomain[level]
                 {
-                    auto ref1   = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
-                    auto ref2   = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
-                    auto inter  = csir::intersection(ref1, ref2);
-                    auto sub    = csir::project_to_level(csir::to_csir_level(neighbour.mesh.subdomain()), level);
-                    auto inter2 = csir::intersection(inter, sub);
-                    auto in_lc  = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
+                    auto ref1         = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
+                    auto ref2         = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
+                    auto inter        = csir::intersection(ref1, ref2);
+                    auto sub          = csir::project_to_level(csir::to_csir_level(neighbour.mesh.subdomain()), level);
+                    auto inter2       = csir::intersection(inter, sub);
+                    auto in_lc        = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
                     auto in_interface = self(in_lc);
                     in_interface(
-                    [&](const auto& i, const auto& index)
-                    {
-                        std::copy(to_recv.begin() + count,
-                                  to_recv.begin() + count + static_cast<ptrdiff_t>(i.size() * Field::n_comp),
-                                  field(level, i, index).begin());
-                        count += static_cast<ptrdiff_t>(i.size() * Field::n_comp);
-                    });
+                        [&](const auto& i, const auto& index)
+                        {
+                            std::copy(to_recv.begin() + count,
+                                      to_recv.begin() + count + static_cast<ptrdiff_t>(i.size() * Field::n_comp),
+                                      field(level, i, index).begin());
+                            count += static_cast<ptrdiff_t>(i.size() * Field::n_comp);
+                        });
                 }
                 auto subdomain_corners = outer_subdomain_corner<false>(level, field, neighbour);
                 for_each_interval(subdomain_corners,
@@ -908,18 +940,18 @@ namespace samurai
             {
                 // CSIR: (ref[level] ∩ neigh.ref[level]) ∩ subdomain[level]
                 {
-                    auto ref1   = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
-                    auto ref2   = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
-                    auto inter  = csir::intersection(ref1, ref2);
-                    auto sub    = csir::project_to_level(csir::to_csir_level(mesh.subdomain()), level);
-                    auto inter2 = csir::intersection(inter, sub);
-                    auto out_lc = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
+                    auto ref1          = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
+                    auto ref2          = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
+                    auto inter         = csir::intersection(ref1, ref2);
+                    auto sub           = csir::project_to_level(csir::to_csir_level(mesh.subdomain()), level);
+                    auto inter2        = csir::intersection(inter, sub);
+                    auto out_lc        = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
                     auto out_interface = self(out_lc);
                     out_interface(
-                    [&](const auto& i, const auto& index)
-                    {
-                        std::copy(tag(level, i, index).begin(), tag(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
-                    });
+                        [&](const auto& i, const auto& index)
+                        {
+                            std::copy(tag(level, i, index).begin(), tag(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
+                        });
                 }
 
                 req.push_back(world.isend(neighbour.rank, neighbour.rank, to_send[i_neigh++]));
@@ -937,28 +969,30 @@ namespace samurai
 
                 // CSIR: (ref[level] ∩ neigh.ref[level]) ∩ neigh.subdomain[level]
                 {
-                    auto ref1   = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
-                    auto ref2   = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
-                    auto inter  = csir::intersection(ref1, ref2);
-                    auto sub    = csir::project_to_level(csir::to_csir_level(neighbour.mesh.subdomain()), level);
-                    auto inter2 = csir::intersection(inter, sub);
-                    auto in_lc  = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
+                    auto ref1         = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
+                    auto ref2         = csir::to_csir_level(neighbour.mesh[mesh_id_t::reference][level]);
+                    auto inter        = csir::intersection(ref1, ref2);
+                    auto sub          = csir::project_to_level(csir::to_csir_level(neighbour.mesh.subdomain()), level);
+                    auto inter2       = csir::intersection(inter, sub);
+                    auto in_lc        = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
                     auto in_interface = self(in_lc);
                     in_interface(
-                    [&](const auto& i, const auto& index)
-                    {
-                        xt::xtensor<value_t, 1> neigh_tag = xt::empty_like(tag(level, i, index));
-                        std::copy(to_recv.begin() + count, to_recv.begin() + count + static_cast<std::ptrdiff_t>(i.size()), neigh_tag.begin());
-                        if (erase)
+                        [&](const auto& i, const auto& index)
                         {
-                            tag(level, i, index) = neigh_tag;
-                        }
-                        else
-                        {
-                            tag(level, i, index) |= neigh_tag;
-                        }
-                        count += static_cast<std::ptrdiff_t>(i.size());
-                    });
+                            xt::xtensor<value_t, 1> neigh_tag = xt::empty_like(tag(level, i, index));
+                            std::copy(to_recv.begin() + count,
+                                      to_recv.begin() + count + static_cast<std::ptrdiff_t>(i.size()),
+                                      neigh_tag.begin());
+                            if (erase)
+                            {
+                                tag(level, i, index) = neigh_tag;
+                            }
+                            else
+                            {
+                                tag(level, i, index) |= neigh_tag;
+                            }
+                            count += static_cast<std::ptrdiff_t>(i.size());
+                        });
                 }
             }
         }
@@ -988,10 +1022,10 @@ namespace samurai
                 for (std::size_t level = min_level; level <= max_level; ++level)
                 {
                     // CSIR: intersection(cells[level], neighbour.cells[level])
-                    auto c1      = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
-                    auto c2      = csir::to_csir_level(neighbour.mesh[mesh_id_t::cells][level]);
-                    auto inter   = csir::intersection(c1, c2);
-                    auto inter_l = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                    auto c1            = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
+                    auto c2            = csir::to_csir_level(neighbour.mesh[mesh_id_t::cells][level]);
+                    auto inter         = csir::intersection(c1, c2);
+                    auto inter_l       = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                     auto out_interface = self(inter_l);
                     out_interface(
                         [&](const auto& i, const auto& index)
@@ -1034,76 +1068,76 @@ namespace samurai
                 {
                     // CSIR: (cells[level] -> level-1) ∩ neigh.subdomain[level-1]
                     {
-                        auto cells_lvl = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
-                        auto cells_on  = csir::project_to_level(cells_lvl, level - 1);
-                        auto sub_on    = csir::project_to_level(csir::to_csir_level(neighbour.mesh.subdomain()), level - 1);
-                        auto inter     = csir::intersection(cells_on, sub_on);
-                        auto inter_lc  = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        auto cells_lvl     = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
+                        auto cells_on      = csir::project_to_level(cells_lvl, level - 1);
+                        auto sub_on        = csir::project_to_level(csir::to_csir_level(neighbour.mesh.subdomain()), level - 1);
+                        auto inter         = csir::intersection(cells_on, sub_on);
+                        auto inter_lc      = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         auto out_interface = self(inter_lc);
                         out_interface(
-                        [&](const auto& i, const auto& index)
-                        {
-                            if constexpr (dim == 1)
+                            [&](const auto& i, const auto& index)
                             {
-                                auto mask1 = (tag(level, 2 * i) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i + 1) & static_cast<int>(CellFlag::coarsen));
-                                auto mask2 = (tag(level, 2 * i) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i + 1) & static_cast<int>(CellFlag::keep));
-                                auto mask = xt::eval(mask1 && !mask2);
+                                if constexpr (dim == 1)
+                                {
+                                    auto mask1 = (tag(level, 2 * i) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i + 1) & static_cast<int>(CellFlag::coarsen));
+                                    auto mask2 = (tag(level, 2 * i) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i + 1) & static_cast<int>(CellFlag::keep));
+                                    auto mask = xt::eval(mask1 && !mask2);
 
-                                xt::masked_view(tag(level, 2 * i), mask)     = 0;
-                                xt::masked_view(tag(level, 2 * i + 1), mask) = 0;
-                            }
-                            if constexpr (dim == 2)
-                            {
-                                auto j     = index[0];
-                                auto mask1 = (tag(level, 2 * i, 2 * j) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i + 1, 2 * j) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i, 2 * j + 1) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i + 1, 2 * j + 1) & static_cast<int>(CellFlag::coarsen));
-                                auto mask2 = (tag(level, 2 * i, 2 * j) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i + 1, 2 * j) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i, 2 * j + 1) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i + 1, 2 * j + 1) & static_cast<int>(CellFlag::keep));
-                                auto mask = xt::eval(mask1 && !mask2);
+                                    xt::masked_view(tag(level, 2 * i), mask)     = 0;
+                                    xt::masked_view(tag(level, 2 * i + 1), mask) = 0;
+                                }
+                                if constexpr (dim == 2)
+                                {
+                                    auto j     = index[0];
+                                    auto mask1 = (tag(level, 2 * i, 2 * j) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i + 1, 2 * j) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i, 2 * j + 1) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i + 1, 2 * j + 1) & static_cast<int>(CellFlag::coarsen));
+                                    auto mask2 = (tag(level, 2 * i, 2 * j) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i + 1, 2 * j) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i, 2 * j + 1) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i + 1, 2 * j + 1) & static_cast<int>(CellFlag::keep));
+                                    auto mask = xt::eval(mask1 && !mask2);
 
-                                xt::masked_view(tag(level, 2 * i, 2 * j), mask)         = 0;
-                                xt::masked_view(tag(level, 2 * i + 1, 2 * j), mask)     = 0;
-                                xt::masked_view(tag(level, 2 * i, 2 * j + 1), mask)     = 0;
-                                xt::masked_view(tag(level, 2 * i + 1, 2 * j + 1), mask) = 0;
-                            }
-                            if constexpr (dim == 3)
-                            {
-                                auto j     = index[0];
-                                auto k     = index[1];
-                                auto mask1 = (tag(level, 2 * i, 2 * j, 2 * k) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i + 1, 2 * j, 2 * k) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i, 2 * j + 1, 2 * k) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i + 1, 2 * j + 1, 2 * k) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i, 2 * j, 2 * k + 1) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i + 1, 2 * j, 2 * k + 1) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i, 2 * j + 1, 2 * k + 1) & static_cast<int>(CellFlag::coarsen))
-                                           & (tag(level, 2 * i + 1, 2 * j + 1, 2 * k + 1) & static_cast<int>(CellFlag::coarsen));
-                                auto mask2 = (tag(level, 2 * i, 2 * j, 2 * k) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i + 1, 2 * j, 2 * k) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i, 2 * j + 1, 2 * k) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i + 1, 2 * j + 1, 2 * k) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i, 2 * j, 2 * k + 1) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i + 1, 2 * j, 2 * k + 1) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i, 2 * j + 1, 2 * k + 1) & static_cast<int>(CellFlag::keep))
-                                           | (tag(level, 2 * i + 1, 2 * j + 1, 2 * k + 1) & static_cast<int>(CellFlag::keep));
-                                auto mask = xt::eval(mask1 && !mask2);
+                                    xt::masked_view(tag(level, 2 * i, 2 * j), mask)         = 0;
+                                    xt::masked_view(tag(level, 2 * i + 1, 2 * j), mask)     = 0;
+                                    xt::masked_view(tag(level, 2 * i, 2 * j + 1), mask)     = 0;
+                                    xt::masked_view(tag(level, 2 * i + 1, 2 * j + 1), mask) = 0;
+                                }
+                                if constexpr (dim == 3)
+                                {
+                                    auto j     = index[0];
+                                    auto k     = index[1];
+                                    auto mask1 = (tag(level, 2 * i, 2 * j, 2 * k) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i + 1, 2 * j, 2 * k) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i, 2 * j + 1, 2 * k) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i + 1, 2 * j + 1, 2 * k) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i, 2 * j, 2 * k + 1) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i + 1, 2 * j, 2 * k + 1) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i, 2 * j + 1, 2 * k + 1) & static_cast<int>(CellFlag::coarsen))
+                                               & (tag(level, 2 * i + 1, 2 * j + 1, 2 * k + 1) & static_cast<int>(CellFlag::coarsen));
+                                    auto mask2 = (tag(level, 2 * i, 2 * j, 2 * k) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i + 1, 2 * j, 2 * k) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i, 2 * j + 1, 2 * k) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i + 1, 2 * j + 1, 2 * k) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i, 2 * j, 2 * k + 1) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i + 1, 2 * j, 2 * k + 1) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i, 2 * j + 1, 2 * k + 1) & static_cast<int>(CellFlag::keep))
+                                               | (tag(level, 2 * i + 1, 2 * j + 1, 2 * k + 1) & static_cast<int>(CellFlag::keep));
+                                    auto mask = xt::eval(mask1 && !mask2);
 
-                                xt::masked_view(tag(level, 2 * i, 2 * j, 2 * k), mask)             = 0;
-                                xt::masked_view(tag(level, 2 * i + 1, 2 * j, 2 * k), mask)         = 0;
-                                xt::masked_view(tag(level, 2 * i, 2 * j + 1, 2 * k), mask)         = 0;
-                                xt::masked_view(tag(level, 2 * i + 1, 2 * j + 1, 2 * k), mask)     = 0;
-                                xt::masked_view(tag(level, 2 * i, 2 * j, 2 * k + 1), mask)         = 0;
-                                xt::masked_view(tag(level, 2 * i + 1, 2 * j, 2 * k + 1), mask)     = 0;
-                                xt::masked_view(tag(level, 2 * i, 2 * j + 1, 2 * k + 1), mask)     = 0;
-                                xt::masked_view(tag(level, 2 * i + 1, 2 * j + 1, 2 * k + 1), mask) = 0;
-                            }
-                        });
+                                    xt::masked_view(tag(level, 2 * i, 2 * j, 2 * k), mask)             = 0;
+                                    xt::masked_view(tag(level, 2 * i + 1, 2 * j, 2 * k), mask)         = 0;
+                                    xt::masked_view(tag(level, 2 * i, 2 * j + 1, 2 * k), mask)         = 0;
+                                    xt::masked_view(tag(level, 2 * i + 1, 2 * j + 1, 2 * k), mask)     = 0;
+                                    xt::masked_view(tag(level, 2 * i, 2 * j, 2 * k + 1), mask)         = 0;
+                                    xt::masked_view(tag(level, 2 * i + 1, 2 * j, 2 * k + 1), mask)     = 0;
+                                    xt::masked_view(tag(level, 2 * i, 2 * j + 1, 2 * k + 1), mask)     = 0;
+                                    xt::masked_view(tag(level, 2 * i + 1, 2 * j + 1, 2 * k + 1), mask) = 0;
+                                }
+                            });
                     }
                 }
             }
@@ -1198,11 +1232,13 @@ namespace samurai
                     auto min_p_csir = csir::to_csir_level(lca_min_p);
                     auto max_p_csir = csir::to_csir_level(lca_max_p);
                     auto left       = csir::intersection(ref_csir, min_p_csir);
-                    std::array<int, dim> sh{}; sh.fill(0); sh[d] = static_cast<int>(shift[d]);
-                    auto left_t     = csir::translate(left, sh);
-                    auto right      = csir::intersection(ref_csir, max_p_csir);
-                    auto inter      = csir::intersection(left_t, right);
-                    auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                    std::array<int, dim> sh{};
+                    sh.fill(0);
+                    sh[d]         = static_cast<int>(shift[d]);
+                    auto left_t   = csir::translate(left, sh);
+                    auto right    = csir::intersection(ref_csir, max_p_csir);
+                    auto inter    = csir::intersection(left_t, right);
+                    auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                     for_each_interval(inter_lc,
                                       [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                       {
@@ -1215,11 +1251,13 @@ namespace samurai
                     auto max_m_csir = csir::to_csir_level(lca_max_m);
                     auto min_m_csir = csir::to_csir_level(lca_min_m);
                     auto left       = csir::intersection(ref_csir, max_m_csir);
-                    std::array<int, dim> sh{}; sh.fill(0); sh[d] = -static_cast<int>(shift[d]);
-                    auto left_t     = csir::translate(left, sh);
-                    auto right      = csir::intersection(ref_csir, min_m_csir);
-                    auto inter      = csir::intersection(left_t, right);
-                    auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                    std::array<int, dim> sh{};
+                    sh.fill(0);
+                    sh[d]         = -static_cast<int>(shift[d]);
+                    auto left_t   = csir::translate(left, sh);
+                    auto right    = csir::intersection(ref_csir, min_m_csir);
+                    auto inter    = csir::intersection(left_t, right);
+                    auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                     for_each_interval(inter_lc,
                                       [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                       {
@@ -1240,17 +1278,20 @@ namespace samurai
                         auto min_p_csir = csir::to_csir_level(lca_min_p);
                         auto max_p_csir = csir::to_csir_level(lca_max_p);
                         auto left       = csir::intersection(ref_csir, min_p_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(nref_csir, max_p_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
-                        for_each_interval(inter_lc,
-                                          [&](std::size_t /*lvl*/, const auto& i, const auto& index)
-                                          {
-                                              const auto& field_data = field(level, i - shift_interval, index - shift_index);
-                                              std::copy(field_data.begin(), field_data.end(), std::back_inserter(field_data_out[neighbor_id]));
-                                          });
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(nref_csir, max_p_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        for_each_interval(
+                            inter_lc,
+                            [&](std::size_t /*lvl*/, const auto& i, const auto& index)
+                            {
+                                const auto& field_data = field(level, i - shift_interval, index - shift_index);
+                                std::copy(field_data.begin(), field_data.end(), std::back_inserter(field_data_out[neighbor_id]));
+                            });
                     }
                     {
                         auto ref_csir   = csir::to_csir_level(mesh_ref[level]);
@@ -1258,17 +1299,20 @@ namespace samurai
                         auto max_m_csir = csir::to_csir_level(lca_max_m);
                         auto min_m_csir = csir::to_csir_level(lca_min_m);
                         auto left       = csir::intersection(ref_csir, max_m_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = -static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(nref_csir, min_m_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
-                        for_each_interval(inter_lc,
-                                          [&](std::size_t /*lvl*/, const auto& i, const auto& index)
-                                          {
-                                              const auto& field_data = field(level, i + shift_interval, index + shift_index);
-                                              std::copy(field_data.begin(), field_data.end(), std::back_inserter(field_data_out[neighbor_id]));
-                                          });
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = -static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(nref_csir, min_m_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        for_each_interval(
+                            inter_lc,
+                            [&](std::size_t /*lvl*/, const auto& i, const auto& index)
+                            {
+                                const auto& field_data = field(level, i + shift_interval, index + shift_index);
+                                std::copy(field_data.begin(), field_data.end(), std::back_inserter(field_data_out[neighbor_id]));
+                            });
                     }
                     req.push_back(world.isend(mpi_neighbor.rank, mpi_neighbor.rank, field_data_out[neighbor_id]));
                     ++neighbor_id;
@@ -1285,11 +1329,13 @@ namespace samurai
                         auto min_p_csir = csir::to_csir_level(lca_min_p);
                         auto max_p_csir = csir::to_csir_level(lca_max_p);
                         auto left       = csir::intersection(nref_csir, min_p_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(ref_csir, max_p_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(ref_csir, max_p_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         for_each_interval(inter_lc,
                                           [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                           {
@@ -1304,11 +1350,13 @@ namespace samurai
                         auto max_m_csir = csir::to_csir_level(lca_max_m);
                         auto min_m_csir = csir::to_csir_level(lca_min_m);
                         auto left       = csir::intersection(nref_csir, max_m_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = -static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(ref_csir, min_m_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = -static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(ref_csir, min_m_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         for_each_interval(inter_lc,
                                           [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                           {
@@ -1431,11 +1479,13 @@ namespace samurai
                     auto min_p_csir = csir::to_csir_level(lca_min_p);
                     auto max_p_csir = csir::to_csir_level(lca_max_p);
                     auto left       = csir::intersection(ref_csir, min_p_csir);
-                    std::array<int, dim> sh{}; sh.fill(0); sh[d] = static_cast<int>(shift[d]);
-                    auto left_t     = csir::translate(left, sh);
-                    auto right      = csir::intersection(ref_csir, max_p_csir);
-                    auto inter      = csir::intersection(left_t, right);
-                    auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                    std::array<int, dim> sh{};
+                    sh.fill(0);
+                    sh[d]         = static_cast<int>(shift[d]);
+                    auto left_t   = csir::translate(left, sh);
+                    auto right    = csir::intersection(ref_csir, max_p_csir);
+                    auto inter    = csir::intersection(left_t, right);
+                    auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                     for_each_interval(inter_lc,
                                       [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                       {
@@ -1448,11 +1498,13 @@ namespace samurai
                     auto max_m_csir = csir::to_csir_level(lca_max_m);
                     auto min_m_csir = csir::to_csir_level(lca_min_m);
                     auto left       = csir::intersection(ref_csir, max_m_csir);
-                    std::array<int, dim> sh{}; sh.fill(0); sh[d] = -static_cast<int>(shift[d]);
-                    auto left_t     = csir::translate(left, sh);
-                    auto right      = csir::intersection(ref_csir, min_m_csir);
-                    auto inter      = csir::intersection(left_t, right);
-                    auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                    std::array<int, dim> sh{};
+                    sh.fill(0);
+                    sh[d]         = -static_cast<int>(shift[d]);
+                    auto left_t   = csir::translate(left, sh);
+                    auto right    = csir::intersection(ref_csir, min_m_csir);
+                    auto inter    = csir::intersection(left_t, right);
+                    auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                     for_each_interval(inter_lc,
                                       [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                       {
@@ -1474,11 +1526,13 @@ namespace samurai
                         auto min_p_csir = csir::to_csir_level(lca_min_p);
                         auto max_p_csir = csir::to_csir_level(lca_max_p);
                         auto left       = csir::intersection(ref_csir, min_p_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(nref_csir, max_p_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(nref_csir, max_p_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         for_each_interval(inter_lc,
                                           [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                           {
@@ -1492,11 +1546,13 @@ namespace samurai
                         auto max_m_csir = csir::to_csir_level(lca_max_m);
                         auto min_m_csir = csir::to_csir_level(lca_min_m);
                         auto left       = csir::intersection(ref_csir, max_m_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = -static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(nref_csir, min_m_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = -static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(nref_csir, min_m_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         for_each_interval(inter_lc,
                                           [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                           {
@@ -1511,7 +1567,7 @@ namespace samurai
                 {
                     const auto& neighbor_mesh_ref = mpi_neighbor.mesh[mesh_id_t::reference];
                     world.recv(mpi_neighbor.rank, world.rank(), tag_data_in);
-                    auto it       = tag_data_in.cbegin();
+                    auto it = tag_data_in.cbegin();
                     // CSIR recv tag data
                     {
                         auto nref_csir  = csir::to_csir_level(neighbor_mesh_ref[level]);
@@ -1519,11 +1575,13 @@ namespace samurai
                         auto min_p_csir = csir::to_csir_level(lca_min_p);
                         auto max_p_csir = csir::to_csir_level(lca_max_p);
                         auto left       = csir::intersection(nref_csir, min_p_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(ref_csir, max_p_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(ref_csir, max_p_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         for_each_interval(inter_lc,
                                           [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                           {
@@ -1540,11 +1598,13 @@ namespace samurai
                         auto max_m_csir = csir::to_csir_level(lca_max_m);
                         auto min_m_csir = csir::to_csir_level(lca_min_m);
                         auto left       = csir::intersection(nref_csir, max_m_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = -static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(ref_csir, min_m_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = -static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(ref_csir, min_m_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         for_each_interval(inter_lc,
                                           [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                           {
@@ -1570,15 +1630,19 @@ namespace samurai
                         auto min_p_csir = csir::to_csir_level(lca_min_p);
                         auto max_p_csir = csir::to_csir_level(lca_max_p);
                         auto left       = csir::intersection(nref_csir, min_p_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(ref_csir, max_p_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(ref_csir, max_p_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         for_each_interval(inter_lc,
                                           [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                           {
-                                              std::copy(tag(level, i, index).begin(), tag(level, i, index).end(), std::back_inserter(tag_data_out[neighbor_id]));
+                                              std::copy(tag(level, i, index).begin(),
+                                                        tag(level, i, index).end(),
+                                                        std::back_inserter(tag_data_out[neighbor_id]));
                                           });
                     }
                     {
@@ -1587,15 +1651,19 @@ namespace samurai
                         auto max_m_csir = csir::to_csir_level(lca_max_m);
                         auto min_m_csir = csir::to_csir_level(lca_min_m);
                         auto left       = csir::intersection(nref_csir, max_m_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = -static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(ref_csir, min_m_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = -static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(ref_csir, min_m_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         for_each_interval(inter_lc,
                                           [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                           {
-                                              std::copy(tag(level, i, index).begin(), tag(level, i, index).end(), std::back_inserter(tag_data_out[neighbor_id]));
+                                              std::copy(tag(level, i, index).begin(),
+                                                        tag(level, i, index).end(),
+                                                        std::back_inserter(tag_data_out[neighbor_id]));
                                           });
                     }
                     req.push_back(world.isend(mpi_neighbor.rank, mpi_neighbor.rank, tag_data_out[neighbor_id]));
@@ -1605,7 +1673,7 @@ namespace samurai
                 {
                     const auto& neighbor_mesh_ref = mpi_neighbor.mesh[mesh_id_t::reference];
                     world.recv(mpi_neighbor.rank, world.rank(), tag_data_in);
-                    auto it       = tag_data_in.cbegin();
+                    auto it = tag_data_in.cbegin();
                     // CSIR second recv pass (apply IN data to local tags at shifted positions)
                     {
                         auto ref_csir   = csir::to_csir_level(mesh_ref[level]);
@@ -1613,11 +1681,13 @@ namespace samurai
                         auto min_p_csir = csir::to_csir_level(lca_min_p);
                         auto max_p_csir = csir::to_csir_level(lca_max_p);
                         auto left       = csir::intersection(ref_csir, min_p_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(nref_csir, max_p_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(nref_csir, max_p_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         for_each_interval(inter_lc,
                                           [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                           {
@@ -1634,11 +1704,13 @@ namespace samurai
                         auto max_m_csir = csir::to_csir_level(lca_max_m);
                         auto min_m_csir = csir::to_csir_level(lca_min_m);
                         auto left       = csir::intersection(ref_csir, max_m_csir);
-                        std::array<int, dim> sh{}; sh.fill(0); sh[d] = -static_cast<int>(shift[d]);
-                        auto left_t     = csir::translate(left, sh);
-                        auto right      = csir::intersection(nref_csir, min_m_csir);
-                        auto inter      = csir::intersection(left_t, right);
-                        auto inter_lc   = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
+                        std::array<int, dim> sh{};
+                        sh.fill(0);
+                        sh[d]         = -static_cast<int>(shift[d]);
+                        auto left_t   = csir::translate(left, sh);
+                        auto right    = csir::intersection(nref_csir, min_m_csir);
+                        auto inter    = csir::intersection(left_t, right);
+                        auto inter_lc = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
                         for_each_interval(inter_lc,
                                           [&](std::size_t /*lvl*/, const auto& i, const auto& index)
                                           {
@@ -1676,8 +1748,8 @@ namespace samurai
             auto over_lca = mesh[mesh_id_t::overleaves][level];
             if (!over_lca.empty())
             {
-                auto cag_lca = mesh[mesh_id_t::cells_and_ghosts][level];
-                auto prj_lca = mesh[mesh_id_t::proj_cells][level];
+                auto cag_lca   = mesh[mesh_id_t::cells_and_ghosts][level];
+                auto prj_lca   = mesh[mesh_id_t::proj_cells][level];
                 auto over_csir = csir::to_csir_level(over_lca);
                 auto cag_csir  = csir::to_csir_level(cag_lca);
                 auto prj_csir  = csir::to_csir_level(prj_lca);
@@ -1716,11 +1788,11 @@ namespace samurai
                 auto new_lca = new_mesh[mesh_id_t::cells][level];
                 if (!ref_lca.empty() && !new_lca.empty())
                 {
-                    auto ref_csir = csir::to_csir_level(ref_lca);
-                    auto new_csir = csir::to_csir_level(new_lca);
-                    auto inter    = csir::intersection(ref_csir, new_csir);
+                    auto ref_csir   = csir::to_csir_level(ref_lca);
+                    auto new_csir   = csir::to_csir_level(new_lca);
+                    auto inter      = csir::intersection(ref_csir, new_csir);
                     auto subset_lca = csir::from_csir_level(inter, mesh.origin_point(), mesh.scaling_factor());
-                    auto set = self(subset_lca);
+                    auto set        = self(subset_lca);
                     set.apply_op(copy(new_field, field));
                 }
             }

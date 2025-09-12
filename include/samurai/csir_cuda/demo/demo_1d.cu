@@ -51,21 +51,21 @@ int main()
 
     // Test Contract
     std::cout << "\n--- Contract Test ---" << std::endl;
-    auto set3_1d = create_1d_set(0, {{0, 20}}); 
+    auto set3_1d = create_1d_set(0, {{0, 20}});
     std::cout << "Set 3: "; print_level_1d_host(set3_1d);
     auto contract_result_1d = csir::cuda::contract_1d(set3_1d, 2);
     std::cout << "Contract Set 3 by 2: "; print_level_1d_host(contract_result_1d);
 
     // Test Expand
     std::cout << "\n--- Expand Test ---" << std::endl;
-    auto set4_1d = create_1d_set(0, {{5, 10}}); 
+    auto set4_1d = create_1d_set(0, {{5, 10}});
     std::cout << "Set 4: "; print_level_1d_host(set4_1d);
     auto expand_result_1d = csir::cuda::expand_1d(set4_1d, 2);
     std::cout << "Expand Set 4 by 2: "; print_level_1d_host(expand_result_1d);
 
     // Test Project to Level
     std::cout << "\n--- Project to Level Test ---" << std::endl;
-    auto set5_1d = create_1d_set(1, {{0, 10}, {20, 30}}); 
+    auto set5_1d = create_1d_set(1, {{0, 10}, {20, 30}});
     std::cout << "Set 5 (Level 1): "; print_level_1d_host(set5_1d);
     auto project_up_result_1d = csir::cuda::project_to_level_1d(set5_1d, 2);
     std::cout << "Project Set 5 to Level 2 (Upscale): "; print_level_1d_host(project_up_result_1d);

@@ -722,6 +722,51 @@ namespace csir
         return result;
     }
 
+    // Dimension-generic alias for 3D union
+    inline CSIR_Level_3D union_(const CSIR_Level_3D& a, const CSIR_Level_3D& b)
+    {
+        return union_3d(a, b);
+    }
+
+    // 3D difference: slice-wise difference using 2D difference
+    inline CSIR_Level_3D difference_3d(const CSIR_Level_3D& a, const CSIR_Level_3D& b)
+    {
+        CSIR_Level_3D result;
+        if (a.level != b.level) return result;
+        result.level = a.level;
+
+        auto it_a = a.slices.begin();
+        auto it_b = b.slices.begin();
+
+        while (it_a != a.slices.end())
+        {
+            while (it_b != b.slices.end() && it_b->first < it_a->first)
+            {
+                ++it_b;
+            }
+            if (it_b != b.slices.end() && it_b->first == it_a->first)
+            {
+                auto diff2d = difference(it_a->second, it_b->second);
+                if (!diff2d.empty())
+                {
+                    result.slices[it_a->first] = diff2d;
+                }
+            }
+            else
+            {
+                result.slices[it_a->first] = it_a->second;
+            }
+            ++it_a;
+        }
+        return result;
+    }
+
+    // Dimension-generic alias for 3D difference
+    inline CSIR_Level_3D difference(const CSIR_Level_3D& a, const CSIR_Level_3D& b)
+    {
+        return difference_3d(a, b);
+    }
+
     inline CSIR_Level_3D contract(const CSIR_Level_3D& set, std::size_t width, const std::array<bool, 3>& mask)
     {
         if (width == 0) return set;

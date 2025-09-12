@@ -354,13 +354,22 @@ namespace samurai
 
             double regularity_to_use = cfg.regularity() + dim;
 
-            auto subset_1 = intersection(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::all_cells][level - 1]).on(level - 1);
-
-            subset_1.apply_op(to_coarsen_mr(m_detail, m_tag, eps_l, min_level),
-                              to_refine_mr(m_detail,
-                                           m_tag,
-                                           (pow(2.0, regularity_to_use)) * eps_l,
-                                           max_level)); // Refinement according to Harten
+            // subset_1: intersection(cells[level], all_cells[level-1]).on(level-1)
+            {
+                auto cells_lvl_lca    = mesh[mesh_id_t::cells][level];
+                auto all_lvlm1_lca    = mesh[mesh_id_t::all_cells][level - 1];
+                auto cells_lvl_csir   = csir::to_csir_level(cells_lvl_lca);
+                auto all_lvlm1_csir   = csir::to_csir_level(all_lvlm1_lca);
+                auto cells_on_lvlm1   = csir::project_to_level(cells_lvl_csir, level - 1);
+                auto inter_csir       = csir::intersection(cells_on_lvlm1, all_lvlm1_csir);
+                auto inter_lca        = csir::from_csir_level(inter_csir);
+                auto subset_1         = self(inter_lca);
+                subset_1.apply_op(to_coarsen_mr(m_detail, m_tag, eps_l, min_level),
+                                  to_refine_mr(m_detail,
+                                               m_tag,
+                                               (pow(2.0, regularity_to_use)) * eps_l,
+                                               max_level));
+            }
             update_tag_subdomains(level, m_tag, true);
         }
 
@@ -371,13 +380,14 @@ namespace samurai
 
         for (std::size_t level = min_level; level <= max_level - ite; ++level)
         {
-            auto subset_2 = intersection(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level]);
+            // subset_2: cells at current level
+            auto subset_2 = self(mesh[mesh_id_t::cells][level]);
 
             subset_2.apply_op(keep_around_refine(m_tag));
 
             if constexpr (enlarge_v)
             {
-                auto subset_3 = intersection(mesh[mesh_id_t::cells_and_ghosts][level], mesh[mesh_id_t::cells_and_ghosts][level]);
+                auto subset_3 = self(mesh[mesh_id_t::cells_and_ghosts][level]);
                 subset_2.apply_op(enlarge(m_tag));
                 subset_3.apply_op(tag_to_keep<0>(m_tag, CellFlag::enlarge));
             }
@@ -388,7 +398,14 @@ namespace samurai
 
         for (std::size_t level = max_level; level > 0; --level)
         {
-            auto keep_subset = intersection(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::all_cells][level - 1]).on(level - 1);
+            auto cells_lvl_lca    = mesh[mesh_id_t::cells][level];
+            auto all_lvlm1_lca    = mesh[mesh_id_t::all_cells][level - 1];
+            auto cells_lvl_csir   = csir::to_csir_level(cells_lvl_lca);
+            auto all_lvlm1_csir   = csir::to_csir_level(all_lvlm1_lca);
+            auto cells_on_lvlm1   = csir::project_to_level(cells_lvl_csir, level - 1);
+            auto inter_csir       = csir::intersection(cells_on_lvlm1, all_lvlm1_csir);
+            auto inter_lca        = csir::from_csir_level(inter_csir);
+            auto keep_subset      = self(inter_lca);
 
             update_tag_periodic(level, m_tag);
             update_tag_subdomains(level, m_tag);

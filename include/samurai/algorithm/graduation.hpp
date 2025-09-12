@@ -12,6 +12,7 @@
 #include "../stencil.hpp"
 #include "../subset/node.hpp"
 #include "../subset/utils.hpp"
+#include "../csir_unified/src/csir.hpp"
 #include "utils.hpp"
 
 namespace samurai
@@ -147,9 +148,17 @@ namespace samurai
              *        |===========|-----------| |===========|-----------|
              */
 
-            auto ghost_subset = intersection(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::reference][level - 1]).on(level - 1);
-
-            ghost_subset.apply_op(tag_to_keep<0>(tag));
+            // ghost_subset: cells[level] projected to level-1 intersect reference[level-1]
+            {
+                auto cells_lvl_lca   = mesh[mesh_id_t::cells][level];
+                auto ref_lvlm1_lca   = mesh[mesh_id_t::reference][level - 1];
+                auto cells_lvl_csir  = csir::to_csir_level(cells_lvl_lca);
+                auto ref_lvlm1_csir  = csir::to_csir_level(ref_lvlm1_lca);
+                auto cells_on_lvlm1  = csir::project_to_level(cells_lvl_csir, level - 1);
+                auto inter_csir      = csir::intersection(cells_on_lvlm1, ref_lvlm1_csir);
+                auto ghost_subset    = self(csir::from_csir_level(inter_csir));
+                ghost_subset.apply_op(tag_to_keep<0>(tag));
+            }
 
             /**
              *                 R                                 K     R     K
@@ -157,9 +166,10 @@ namespace samurai
              *
              */
 
-            auto subset_2 = intersection(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level]);
-
-            subset_2.apply_op(tag_to_keep<ghost_width>(tag, CellFlag::refine));
+            {
+                auto subset_2 = self(mesh[mesh_id_t::cells][level]);
+                subset_2.apply_op(tag_to_keep<ghost_width>(tag, CellFlag::refine));
+            }
 
             /**
              *      K     C                          K     K
@@ -169,8 +179,16 @@ namespace samurai
              *
              */
 
-            auto keep_subset = intersection(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level]).on(level - 1);
-            keep_subset.apply_op(keep_children_together(tag));
+            {
+                auto cells_lvl_lca   = mesh[mesh_id_t::cells][level];
+                auto cells_lvlm1_lca = mesh[mesh_id_t::cells][level - 1];
+                auto cells_lvl_csir  = csir::to_csir_level(cells_lvl_lca);
+                auto cells_m1_csir   = csir::to_csir_level(cells_lvlm1_lca);
+                auto parents_csir    = csir::project_to_level(cells_lvl_csir, level - 1);
+                auto inter_csir      = csir::intersection(parents_csir, cells_m1_csir);
+                auto keep_subset     = self(csir::from_csir_level(inter_csir));
+                keep_subset.apply_op(keep_children_together(tag));
+            }
 
             /**
              * Case 1
@@ -190,9 +208,43 @@ namespace samurai
             assert(stencil.shape()[1] == Tag::dim);
             for (std::size_t i = 0; i < stencil.shape()[0]; ++i)
             {
-                auto s      = xt::view(stencil, i);
-                auto subset = intersection(translate(mesh[mesh_id_t::cells][level], s), mesh[mesh_id_t::cells][level - 1]).on(level);
-                subset.apply_op(graduate(tag, s));
+                auto s = xt::view(stencil, i);
+                auto cells_lvl_lca  = mesh[mesh_id_t::cells][level];
+                auto cells_m1_lca   = mesh[mesh_id_t::cells][level - 1];
+                auto cells_lvl_csir = csir::to_csir_level(cells_lvl_lca);
+                auto cells_m1_csir  = csir::to_csir_level(cells_m1_lca);
+
+                // Translate fine cells by stencil and intersect with coarse cells upscaled to fine level
+                if constexpr (Tag::dim == 1)
+                {
+                    int sx = static_cast<int>(s(0));
+                    auto trans_csir   = csir::translate(cells_lvl_csir, sx);
+                    auto coarse_up    = csir::project_to_level(cells_m1_csir, level);
+                    auto inter_csir   = csir::intersection(trans_csir, coarse_up);
+                    auto subset       = self(csir::from_csir_level(inter_csir));
+                    subset.apply_op(graduate(tag, s));
+                }
+                else if constexpr (Tag::dim == 2)
+                {
+                    int sx = static_cast<int>(s(0));
+                    int sy = static_cast<int>(s(1));
+                    auto trans_csir   = csir::translate(cells_lvl_csir, sx, sy);
+                    auto coarse_up    = csir::project_to_level(cells_m1_csir, level);
+                    auto inter_csir   = csir::intersection(trans_csir, coarse_up);
+                    auto subset       = self(csir::from_csir_level(inter_csir));
+                    subset.apply_op(graduate(tag, s));
+                }
+                else if constexpr (Tag::dim == 3)
+                {
+                    int sx = static_cast<int>(s(0));
+                    int sy = static_cast<int>(s(1));
+                    int sz = static_cast<int>(s(2));
+                    auto trans_csir   = csir::translate(cells_lvl_csir, sx, sy, sz);
+                    auto coarse_up    = csir::project_to_level(cells_m1_csir, level);
+                    auto inter_csir   = csir::intersection(trans_csir, coarse_up);
+                    auto subset       = self(csir::from_csir_level(inter_csir));
+                    subset.apply_op(graduate(tag, s));
+                }
             }
         }
     }

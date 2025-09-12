@@ -116,7 +116,13 @@ namespace samurai
         for (std::size_t level = max_level; level >= ((min_level == 0) ? 1 : min_level); --level)
         {
             lcl_type lcl{level - 1};
-            auto expr = union_(this->m_cells[mesh_id_t::cells][level], this->m_cells[mesh_id_t::union_cells][level]).on(level - 1);
+            // CSIR: project_to_level(union_(cells[level], union_cells[level]), level-1)
+            auto c_csir = csir::to_csir_level(this->m_cells[mesh_id_t::cells][level]);
+            auto u_csir = csir::to_csir_level(this->m_cells[mesh_id_t::union_cells][level]);
+            auto uni    = csir::union_(c_csir, u_csir);
+            auto proj   = csir::project_to_level(uni, level - 1);
+            auto expr_l = csir::from_csir_level(proj, this->origin_point(), this->scaling_factor());
+            auto expr   = self(expr_l);
 
             expr(
                 [&](const auto& interval, const auto& index_yz)
@@ -178,9 +184,15 @@ namespace samurai
         {
             if (!this->m_cells[mesh_id_t::cells][level].empty())
             {
-                auto expr = intersection(this->m_cells[mesh_id_t::union_cells][level],
-                                         difference(this->m_cells[mesh_id_t::all_cells][level], this->m_cells[mesh_id_t::cells][level]))
-                                .on(level - 1);
+                // CSIR: project_to_level( union_cells[level] ∩ (all_cells[level] \ cells[level]), level-1 )
+                auto u    = csir::to_csir_level(this->m_cells[mesh_id_t::union_cells][level]);
+                auto a    = csir::to_csir_level(this->m_cells[mesh_id_t::all_cells][level]);
+                auto c    = csir::to_csir_level(this->m_cells[mesh_id_t::cells][level]);
+                auto d    = csir::difference(a, c);
+                auto i    = csir::intersection(u, d);
+                auto p    = csir::project_to_level(i, level - 1);
+                auto el   = csir::from_csir_level(p, this->origin_point(), this->scaling_factor());
+                auto expr = self(el);
 
                 expr(
                     [&](const auto& interval, const auto& index_yz)
@@ -200,7 +212,12 @@ namespace samurai
         for (std::size_t level = max_level; level >= ((min_level == 0) ? 1 : min_level); --level)
         {
             lcl_type lcl{level - 1};
-            auto expr = intersection(this->m_cells[mesh_id_t::all_cells][level - 1], this->m_cells[mesh_id_t::union_cells][level - 1]);
+            // CSIR: intersection(all_cells[level-1], union_cells[level-1])
+            auto a    = csir::to_csir_level(this->m_cells[mesh_id_t::all_cells][level - 1]);
+            auto u    = csir::to_csir_level(this->m_cells[mesh_id_t::union_cells][level - 1]);
+            auto i    = csir::intersection(a, u);
+            auto el   = csir::from_csir_level(i, this->origin_point(), this->scaling_factor());
+            auto expr = self(el);
 
             expr(
                 [&](const auto& interval, const auto& index_yz)

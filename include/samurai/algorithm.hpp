@@ -351,14 +351,14 @@ namespace samurai
         }
     }
 
-    template <class Mesh, class SetType, class Func>
-    inline void for_each_cell(const Mesh& mesh, SetType& set, Func&& f)
+    template <class Mesh, std::size_t dim, class TInterval, class Func>
+    inline void for_each_cell(const Mesh& mesh, const LevelCellArray<dim, TInterval>& set, Func&& f)
     {
-        set(
-            [&](const auto& i, const auto& index)
-            {
-                for_each_cell(mesh, set.level(), i, index, std::forward<Func>(f));
-            });
+        for_each_interval(set,
+                          [&](std::size_t /*lvl*/, const auto& i, const auto& index)
+                          {
+                              for_each_cell(mesh, set.level(), i, index, std::forward<Func>(f));
+                          });
     }
 
     /////////////////////////

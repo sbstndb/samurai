@@ -1,4 +1,5 @@
 #pragma once
+#include "csir_unified/src/csir.hpp" // CSIR unified API
 #include "stencil.hpp"
 
 namespace samurai
@@ -10,8 +11,20 @@ namespace samurai
         using mesh_id_t = typename Mesh::mesh_id_t;
 
         auto& cells = mesh[mesh_id_t::cells][level];
-
-        return difference(cells, translate(self(domain).on(level), -layer_width * direction));
+        // CSIR: cells[level] \ translate(domain[level], layer_width * direction)
+        auto dom_lvl = csir::to_csir_level(domain);
+        auto dom_on  = csir::project_to_level(dom_lvl, level);
+        // Preserve original sign: translate by -layer_width * direction
+        std::array<int, Mesh::dim> d{};
+        for (std::size_t k = 0; k < Mesh::dim; ++k)
+        {
+            d[k] = -direction[k] * static_cast<int>(layer_width);
+        }
+        auto trans       = csir::translate(dom_on, d);
+        auto cells_csir  = csir::to_csir_level(cells);
+        auto result_csir = csir::difference(cells_csir, trans);
+        auto result_lca  = csir::from_csir_level(result_csir, mesh.origin_point(), mesh.scaling_factor());
+        return result_lca;
     }
 
     template <class Mesh, class Vector>
@@ -44,32 +57,62 @@ namespace samurai
         using mesh_id_t = typename Mesh::mesh_id_t;
 
         auto& cells = mesh[mesh_id_t::cells][level];
-
-        return difference(cells, contract(self(mesh.domain()).on(level), 1));
+        // CSIR: cells[level] \ contract(domain[level], 1)
+        auto dom_lvl = csir::to_csir_level(mesh.domain());
+        auto dom_on  = csir::project_to_level(dom_lvl, level);
+        std::array<bool, Mesh::dim> mask;
+        mask.fill(true);
+        auto contr       = csir::contract(dom_on, 1, mask);
+        auto cells_csir  = csir::to_csir_level(cells);
+        auto result_csir = csir::difference(cells_csir, contr);
+        auto result_lca  = csir::from_csir_level(result_csir, mesh.origin_point(), mesh.scaling_factor());
+        return result_lca;
     }
 
     template <class Mesh>
     auto domain_boundary_outer_layer(const Mesh& mesh, std::size_t level, std::size_t layer_width)
     {
-        using lca_t = typename Mesh::lca_type;
-        using lcl_t = typename Mesh::lcl_type;
+        using mesh_id_t = typename Mesh::mesh_id_t;
+        using lca_t     = typename Mesh::lca_type;
+        using lcl_t     = typename Mesh::lcl_type;
 
-        auto domain = self(mesh.domain()).on(level);
+        // Materialize domain[level]
+        auto dom_csir   = csir::to_csir_level(mesh.domain());
+        auto domain_on  = csir::project_to_level(dom_csir, level);
+        auto domain_lca = csir::from_csir_level(domain_on, mesh.origin_point(), mesh.scaling_factor());
+        auto domain     = self(domain_lca);
 
         lcl_t outer_boundary_lcl(level, mesh.origin_point(), mesh.scaling_factor());
 
         for_each_cartesian_direction<Mesh::dim>(
             [&](const auto& direction)
             {
-                auto inner_boundary = domain_boundary(mesh, level, direction);
+                // Inner boundary using CSIR
+                auto cells_csir = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
+                std::array<int, Mesh::dim> d_in{};
+                for (std::size_t k = 0; k < Mesh::dim; ++k)
+                {
+                    d_in[k] = -direction[k];
+                }
+                auto dom_shift  = csir::translate(domain_on, d_in);
+                auto inner_csir = csir::difference(cells_csir, dom_shift);
+
+                // Build outer layers fully in CSIR
                 for (std::size_t layer = 1; layer <= layer_width; ++layer)
                 {
-                    auto outer_layer = difference(translate(inner_boundary, layer * direction), domain);
-                    outer_layer(
-                        [&](const auto& i, const auto& index)
-                        {
-                            outer_boundary_lcl[index].add_interval({i});
-                        });
+                    std::array<int, Mesh::dim> d_out{};
+                    for (std::size_t k = 0; k < Mesh::dim; ++k)
+                    {
+                        d_out[k] = direction[k] * static_cast<int>(layer);
+                    }
+                    auto shifted    = csir::translate(inner_csir, d_out);
+                    auto outer_csir = csir::difference(shifted, domain_on);
+                    auto outer_lca  = csir::from_csir_level(outer_csir, mesh.origin_point(), mesh.scaling_factor());
+                    for_each_interval(outer_lca,
+                                      [&](std::size_t /*lvl*/, const auto& i, const auto& index)
+                                      {
+                                          outer_boundary_lcl[index].add_interval(i);
+                                      });
                 }
             });
         return lca_t(outer_boundary_lcl);
@@ -79,22 +122,43 @@ namespace samurai
     auto
     domain_boundary_outer_layer(const Mesh& mesh, std::size_t level, const DirectionVector<Mesh::dim>& direction, std::size_t layer_width)
     {
-        using lca_t = typename Mesh::lca_type;
-        using lcl_t = typename Mesh::lcl_type;
+        using mesh_id_t = typename Mesh::mesh_id_t;
+        using lca_t     = typename Mesh::lca_type;
+        using lcl_t     = typename Mesh::lcl_type;
 
-        auto domain = self(mesh.domain()).on(level);
+        auto dom_csir2   = csir::to_csir_level(mesh.domain());
+        auto domain_on2  = csir::project_to_level(dom_csir2, level);
+        auto domain_lca2 = csir::from_csir_level(domain_on2, mesh.origin_point(), mesh.scaling_factor());
+        auto domain      = self(domain_lca2);
 
         lcl_t outer_boundary_lcl(level, mesh.origin_point(), mesh.scaling_factor());
 
-        auto inner_boundary = domain_boundary(mesh, level, direction);
+        // Inner boundary using CSIR
+        auto cells_csir = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
+        std::array<int, Mesh::dim> d_in{};
+        for (std::size_t k = 0; k < Mesh::dim; ++k)
+        {
+            d_in[k] = -direction[k];
+        }
+        auto dom_shift  = csir::translate(domain_on2, d_in);
+        auto inner_csir = csir::difference(cells_csir, dom_shift);
+
+        // Build outer layers fully in CSIR
         for (std::size_t layer = 1; layer <= layer_width; ++layer)
         {
-            auto outer_layer = difference(translate(inner_boundary, layer * direction), domain);
-            outer_layer(
-                [&](const auto& i, const auto& index)
-                {
-                    outer_boundary_lcl[index].add_interval({i});
-                });
+            std::array<int, Mesh::dim> d_out{};
+            for (std::size_t k = 0; k < Mesh::dim; ++k)
+            {
+                d_out[k] = direction[k] * static_cast<int>(layer);
+            }
+            auto shifted    = csir::translate(inner_csir, d_out);
+            auto outer_csir = csir::difference(shifted, domain_on2);
+            auto outer_lca  = csir::from_csir_level(outer_csir, mesh.origin_point(), mesh.scaling_factor());
+            for_each_interval(outer_lca,
+                              [&](std::size_t /*lvl*/, const auto& i, const auto& index)
+                              {
+                                  outer_boundary_lcl[index].add_interval(i);
+                              });
         }
         return lca_t(outer_boundary_lcl);
     }
@@ -108,11 +172,32 @@ namespace samurai
     {
         using mesh_id_t         = typename Mesh::mesh_id_t;
         using equation_coeffs_t = typename Equation::equation_coeffs_t;
+        using lca_t             = typename Mesh::lca_type;
 
         for_each_level(mesh,
                        [&](std::size_t level)
                        {
-                           auto bdry = intersection(mesh[mesh_id_t::cells][level], boundary_region).on(level);
+                           // CSIR PROTOTYPE IMPLEMENTATION
+                           // 1. Convert inputs to LevelCellArray
+                           auto lhs_lca = mesh[mesh_id_t::cells][level];
+                           // Materialize boundary_region at level
+                           lca_t rhs_lca(level, mesh.origin_point(), mesh.scaling_factor());
+                           boundary_region.on(level)(
+                               [&](const auto& i, const auto& index)
+                               {
+                                   rhs_lca[index].add_interval(i);
+                               });
+
+                           // 2. Convert LevelCellArray to CSIR_Level
+                           auto lhs_csir = csir::to_csir_level(lhs_lca);
+                           auto rhs_csir = csir::to_csir_level(rhs_lca);
+
+                           // 3. Perform CSIR intersection
+                           auto result_csir = csir::intersection(lhs_csir, rhs_csir);
+
+                           // 4. Convert result back to LevelCellArray and wrap it for the rest of the code
+                           auto bdry_lca = csir::from_csir_level(result_csir, mesh.origin_point(), mesh.scaling_factor());
+                           auto bdry     = self(bdry_lca);
 
                            std::array<equation_coeffs_t, nb_equations> equations_coeffs;
                            for (std::size_t i = 0; i < nb_equations; ++i)

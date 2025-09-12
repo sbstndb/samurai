@@ -1,0 +1,6 @@
+add_executable(demo main.cpp)
+target_link_libraries(demo csir_unified_lib)
+add_executable(demo_3d main_3d.cpp)
+target_link_libraries(demo_3d csir_unified_lib)
+add_executable(demo_1d demo_1d.cpp)
+target_link_libraries(demo_1d csir_unified_lib)

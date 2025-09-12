@@ -6,6 +6,7 @@
 #include "../boundary.hpp"
 #include "../concepts.hpp"
 #include "polynomial_extrapolation.hpp"
+#include <type_traits>
 
 namespace samurai
 {
@@ -88,8 +89,13 @@ namespace samurai
                     auto stencil          = convert_for_direction(stencil_0, direction);
                     auto stencil_analyzer = make_stencil_analyzer(stencil);
 
-                    // Inner cells in the boundary region
-                    auto bdry_cells = intersection(mesh[mesh_id_t::cells][level], region_lca[d]).on(level);
+                    // Inner cells in the boundary region (CSIR)
+                    auto cells_csir  = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
+                    auto region_csir = csir::to_csir_level(region_lca[d]);
+                    auto region_on_l = csir::project_to_level(region_csir, level);
+                    auto inter_csir  = csir::intersection(cells_csir, region_on_l);
+                    auto inter_lca   = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+                    auto bdry_cells  = self(inter_lca);
                     if (level >= mesh.min_level()) // otherwise there is no cells
                     {
                         __apply_bc_on_subset(bc, field, bdry_cells, stencil_analyzer, direction);
@@ -138,14 +144,66 @@ namespace samurai
         //  We need to check that the furthest ghost exists. It's not always the case for large stencils!
         if constexpr (stencil_size == 2)
         {
-            auto cells = intersection(mesh[mesh_id_t::cells][level], bdry_cells).on(level);
+            // CSIR: intersection(cells[level], bdry_cells)
+            using lca_t = typename Field::mesh_t::lca_type;
+            using lcl_t = typename Field::mesh_t::lcl_type;
+            lcl_t lcl(level, mesh.origin_point(), mesh.scaling_factor());
+            auto bdry_subset = [&]()
+            {
+                if constexpr (samurai::IsLCA<std::decay_t<Subset>>)
+                {
+                    return self(bdry_cells);
+                }
+                else
+                {
+                    return bdry_cells;
+                }
+            }();
+            bdry_subset.on(level)(
+                [&](const auto& interval, const auto& index)
+                {
+                    lcl[index].add_interval(interval);
+                });
+            lca_t bdry_lca(lcl);
+            auto cells_csir = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
+            auto bdry_csir  = csir::to_csir_level(bdry_lca);
+            auto inter_csir = csir::intersection(cells_csir, bdry_csir);
+            auto inter_lca  = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+            auto cells      = self(inter_lca);
 
             __apply_bc_on_subset(bc, field, cells, stencil_analyzer, direction);
         }
         else
         {
-            auto translated_outer_nghbr = translate(mesh[mesh_id_t::reference][level], -(stencil_size / 2) * direction); // can be removed?
-            auto cells                  = intersection(translated_outer_nghbr, mesh[mesh_id_t::cells][level], bdry_cells).on(level);
+            using lca_t     = typename Field::mesh_t::lca_type;
+            using lcl_t     = typename Field::mesh_t::lcl_type;
+            lca_t trans_lca = translated_outer_neighbours<stencil_size / 2>(mesh, level, direction);
+            lcl_t lcl2(level, mesh.origin_point(), mesh.scaling_factor());
+            auto bdry_subset2 = [&]()
+            {
+                if constexpr (samurai::IsLCA<std::decay_t<Subset>>)
+                {
+                    return self(bdry_cells);
+                }
+                else
+                {
+                    return bdry_cells;
+                }
+            }();
+            bdry_subset2.on(level)(
+                [&](const auto& interval, const auto& index)
+                {
+                    lcl2[index].add_interval(interval);
+                });
+            lca_t bdry_lca(lcl2);
+
+            auto trans_csir = csir::to_csir_level(trans_lca);
+            auto cells_csir = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
+            auto bdry_csir  = csir::to_csir_level(bdry_lca);
+            auto inter1     = csir::intersection(trans_csir, cells_csir);
+            auto inter2     = csir::intersection(inter1, bdry_csir);
+            auto inter_lca  = csir::from_csir_level(inter2, mesh.origin_point(), mesh.scaling_factor());
+            auto cells      = self(inter_lca);
 
             __apply_bc_on_subset(bc, field, cells, stencil_analyzer, direction);
         }
@@ -155,51 +213,29 @@ namespace samurai
     auto translated_outer_neighbours(const Mesh& mesh, std::size_t level, const DirectionVector<Mesh::dim>& direction)
     {
         using mesh_id_t = typename Mesh::mesh_id_t;
+        using lca_t     = typename Mesh::lca_type;
         static_assert(layers <= 5, "not implemented for layers > 10");
 
-        // Technically, if mesh.domain().is_box(), then we can only test that the furthest layer of ghosts exists
-        // (i.e. the set return by the case stencil_size == 2 below).
-        // On the other hand, if the domain has holes, we have to check that all the intermediary ghost layers exist.
-        // Since we can't easily make the distinction in a static way, we always check that all the ghost layers exist.
+        // Build base CSIR set for the reference cells at this level
+        auto ref_csir = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
 
-        if constexpr (layers == 1)
+        auto translate_steps = [&](int steps)
         {
-            return translate(mesh[mesh_id_t::reference][level], -layers * direction);
-        }
-        else if constexpr (layers == 2)
+            std::array<int, Mesh::dim> d{};
+            for (std::size_t k = 0; k < Mesh::dim; ++k)
+            {
+                d[k] = -direction[k] * steps;
+            }
+            return csir::translate(ref_csir, d);
+        };
+
+        auto acc = translate_steps(static_cast<int>(layers));
+        for (int s = static_cast<int>(layers) - 1; s >= 1; --s)
         {
-            // clang-format off
-            return intersection(translate(mesh[mesh_id_t::reference][level], -(layers    ) * direction),
-                                translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction));
-            // clang-format on
+            acc = csir::intersection(acc, translate_steps(s));
         }
-        else if constexpr (layers == 3)
-        {
-            // clang-format off
-            return intersection(translate(mesh[mesh_id_t::reference][level], -(layers    ) * direction),
-                                translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction),
-                                translate(mesh[mesh_id_t::reference][level], -(layers - 2) * direction));
-            // clang-format on
-        }
-        else if constexpr (layers == 4)
-        {
-            // clang-format off
-            return intersection(translate(mesh[mesh_id_t::reference][level], -(layers    ) * direction),
-                                translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction),
-                                translate(mesh[mesh_id_t::reference][level], -(layers - 2) * direction),
-                                translate(mesh[mesh_id_t::reference][level], -(layers - 3) * direction));
-            // clang-format on
-        }
-        else if constexpr (layers == 5)
-        {
-            // clang-format off
-            return intersection(translate(mesh[mesh_id_t::reference][level], -(layers    ) * direction),
-                                translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction),
-                                translate(mesh[mesh_id_t::reference][level], -(layers - 2) * direction),
-                                translate(mesh[mesh_id_t::reference][level], -(layers - 3) * direction),
-                                translate(mesh[mesh_id_t::reference][level], -(layers - 4) * direction));
-            // clang-format on
-        }
+
+        return lca_t(csir::from_csir_level(acc, mesh.origin_point(), mesh.scaling_factor()));
     }
 
     /**
@@ -226,11 +262,52 @@ namespace samurai
         auto stencil          = convert_for_direction(stencil_0, direction);
         auto stencil_analyzer = make_stencil_analyzer(stencil);
 
-        auto translated_outer_nghbr           = translated_outer_neighbours<stencil_size / 2>(mesh, level, direction);
-        auto potential_inner_cells_and_ghosts = intersection(translated_outer_nghbr, inner_ghosts_location).on(level);
-        auto inner_cells_and_ghosts           = intersection(potential_inner_cells_and_ghosts, mesh.get_union()[level]).on(level);
-        // auto inner_cells_and_ghosts        = intersection(potential_inner_cells_and_ghosts, mesh[mesh_id_t::cells][level + 1]).on(level);
-        auto inner_ghosts_with_outer_nghbr = difference(inner_cells_and_ghosts, mesh[mesh_id_t::cells][level]).on(level);
+        auto translated_outer_nghbr = translated_outer_neighbours<stencil_size / 2>(mesh, level, direction);
+        using lca_t                 = typename Field::mesh_t::lca_type;
+        using lcl_t                 = typename Field::mesh_t::lcl_type;
+
+        // Unify: build lca for translated_outer_nghbr regardless of whether it is already an LCA or a Subset
+        lca_t trans_lca = [&]() -> lca_t
+        {
+            if constexpr (std::is_same_v<decltype(translated_outer_nghbr), lca_t>)
+            {
+                return translated_outer_nghbr;
+            }
+            else
+            {
+                lcl_t trans_lcl(level, mesh.origin_point(), mesh.scaling_factor());
+                translated_outer_nghbr.on(level)(
+                    [&](const auto& i, const auto& index)
+                    {
+                        trans_lcl[index].add_interval(i);
+                    });
+                return lca_t(trans_lcl);
+            }
+        }();
+
+        // Materialize inner_ghosts_location (always a Subset)
+        lca_t inner_lca = [&]() -> lca_t
+        {
+            lcl_t inner_lcl(level, mesh.origin_point(), mesh.scaling_factor());
+            inner_ghosts_location.on(level)(
+                [&](const auto& i, const auto& index)
+                {
+                    inner_lcl[index].add_interval(i);
+                });
+            return lca_t(inner_lcl);
+        }();
+
+        auto trans_csir                    = csir::to_csir_level(trans_lca);
+        auto inner_csir                    = csir::to_csir_level(inner_lca);
+        auto inter_csir                    = csir::intersection(trans_csir, inner_csir);
+        auto inter_lca                     = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+        auto union_csir                    = csir::to_csir_level(mesh.get_union()[level]);
+        auto inter2_csir                   = csir::intersection(csir::to_csir_level(inter_lca), union_csir);
+        auto icg_lca                       = csir::from_csir_level(inter2_csir, mesh.origin_point(), mesh.scaling_factor());
+        auto cells_csir                    = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
+        auto diff_csir                     = csir::difference(csir::to_csir_level(icg_lca), cells_csir);
+        auto igo_lca                       = csir::from_csir_level(diff_csir, mesh.origin_point(), mesh.scaling_factor());
+        auto inner_ghosts_with_outer_nghbr = self(igo_lca);
         __apply_bc_on_subset(bc, field, inner_ghosts_with_outer_nghbr, stencil_analyzer, direction);
     }
 
@@ -327,7 +404,39 @@ namespace samurai
         auto& domain = detail::get_mesh(field.mesh());
         PolynomialExtrapolation<Field, extrap_stencil_size> bc(domain, ConstantBc<Field>(), true);
 
-        auto corner = self(field.mesh().corner(direction)).on(level);
+        // CSIR: corner(level, direction) = project_to_level( domain \\ (⋃_k translate(domain, -e_k*dir_k)), level )
+        auto dom_csir = csir::to_csir_level(field.mesh().domain());
+        // Build per-axis shifts and union them at domain's native level
+        auto union_shifts = dom_csir;
+        bool first        = true;
+        for (std::size_t ax = 0; ax < Field::dim; ++ax)
+        {
+            if (direction[ax] == 0)
+            {
+                continue;
+            }
+            std::array<int, Field::dim> s{};
+            s.fill(0);
+            s[ax]  = -direction[ax];
+            auto t = csir::translate(dom_csir, s);
+            if (first)
+            {
+                union_shifts = t;
+                first        = false;
+            }
+            else
+            {
+                union_shifts = csir::union_(union_shifts, t);
+            }
+        }
+        if (first)
+        { // no axes set; nothing to extrapolate
+            return;
+        }
+        auto corner_dom = csir::difference(dom_csir, union_shifts);
+        auto corner_cs  = csir::project_to_level(corner_dom, level);
+        auto corner_lc  = csir::from_csir_level(corner_cs, field.mesh().origin_point(), field.mesh().scaling_factor());
+        auto corner     = self(corner_lc);
 
         __apply_extrapolation_bc__cells<extrap_stencil_size>(bc, level, field, direction, corner);
     }
@@ -341,8 +450,6 @@ namespace samurai
         {
             return; // No outer corners in 1D
         }
-
-        auto domain = self(field.mesh().domain()).on(level);
 
         for_each_diagonal_direction<dim>(
             [&](const auto& direction)
@@ -420,8 +527,18 @@ namespace samurai
                             auto& domain = detail::get_mesh(field.mesh());
                             PolynomialExtrapolation<Field, stencil_size> bc(domain, ConstantBc<Field>(), true);
 
-                            auto domain2         = self(field.mesh().domain()).on(level);
-                            auto boundary_ghosts = difference(domain2, translate(domain2, -direction));
+                            // CSIR-based boundary ghosts: domain[level] \\ translate(domain[level], -direction)
+                            auto dom_csir = csir::to_csir_level(field.mesh().domain());
+                            auto dom_on   = csir::project_to_level(dom_csir, level);
+                            std::array<int, Field::dim> d{};
+                            for (std::size_t k = 0; k < Field::dim; ++k)
+                            {
+                                d[k] = -direction[k];
+                            }
+                            auto shifted   = csir::translate(dom_on, d);
+                            auto bdry_csir = csir::difference(dom_on, shifted);
+                            auto bdry_lca  = csir::from_csir_level(bdry_csir, field.mesh().origin_point(), field.mesh().scaling_factor());
+                            auto boundary_ghosts = self(bdry_lca);
                             __apply_extrapolation_bc__ghosts<stencil_size>(bc, level, field, direction, boundary_ghosts);
                         }
                     }

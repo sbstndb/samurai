@@ -1453,8 +1453,21 @@ namespace samurai
                     }
                 }
 
-                auto set_refine = intersection(new_mesh[mesh_id_t::cells][level], mesh[mesh_id_t::cells][level - 1]).on(level - 1);
-                set_refine.apply_op(std::forward<PredictionOp>(prediction_op)(new_field, field));
+                // CSIR: (new_cells[level] -> level-1) ∩ old_cells[level-1]
+                {
+                    auto new_lvl_lca = new_mesh[mesh_id_t::cells][level];
+                    auto old_m1_lca  = mesh[mesh_id_t::cells][level - 1];
+                    if (!new_lvl_lca.empty() && !old_m1_lca.empty())
+                    {
+                        auto new_lvl_csir = csir::to_csir_level(new_lvl_lca);
+                        auto old_m1_csir  = csir::to_csir_level(old_m1_lca);
+                        auto new_on_m1    = csir::project_to_level(new_lvl_csir, level - 1);
+                        auto inter_csir   = csir::intersection(new_on_m1, old_m1_csir);
+                        auto subset_lca   = csir::from_csir_level(inter_csir, mesh.origin_point(), mesh.scaling_factor());
+                        auto set_refine   = self(subset_lca);
+                        set_refine.apply_op(std::forward<PredictionOp>(prediction_op)(new_field, field));
+                    }
+                }
             }
 
             swap(field, new_field);

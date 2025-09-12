@@ -15,6 +15,7 @@
 #include "../stencil.hpp"
 #include "../storage/containers.hpp"
 #include "../utils.hpp"
+#include "../csir_unified/src/csir.hpp"
 
 #define APPLY_AND_STENCIL_FUNCTIONS(STENCIL_SIZE)                                                                                         \
     using apply_function_##STENCIL_SIZE = std::function<void(Field&, const std::array<cell_t, STENCIL_SIZE>&, const value_t&)>;           \
@@ -474,24 +475,76 @@ namespace samurai
 
                 if (number_of_one == 1)
                 {
-                    auto bdry_dir = difference(domain, translate(domain, -dir_vector));
-
-                    lcl_t cell_list(domain.level());
-
-                    for_each_cell(domain,
-                                  bdry_dir,
-                                  [&](auto& cell)
-                                  {
-                                      if (m_func(cell.face_center(dir_vector)))
-                                      {
-                                          cell_list.add_cell(cell);
-                                      }
-                                  });
-
-                    if (!cell_list.empty())
+                    // Compute boundary in this direction using CSIR
+                    auto dom_csir = csir::to_csir_level(domain);
+                    if constexpr (dim == 1)
                     {
-                        dir.emplace_back(dir_vector);
-                        lca.emplace_back(cell_list);
+                        int shift = -dir_vector[0];
+                        auto trans = csir::translate(dom_csir, shift);
+                        auto diff  = csir::difference(dom_csir, trans);
+                        auto bdry_lca = csir::from_csir_level(diff, domain.origin_point(), domain.scaling_factor());
+
+                        lcl_t cell_list(domain.level());
+                        for_each_cell(domain,
+                                      bdry_lca,
+                                      [&](auto& cell)
+                                      {
+                                          if (m_func(cell.face_center(dir_vector)))
+                                          {
+                                              cell_list.add_cell(cell);
+                                          }
+                                      });
+                        if (!cell_list.empty())
+                        {
+                            dir.emplace_back(dir_vector);
+                            lca.emplace_back(cell_list);
+                        }
+                    }
+                    else if constexpr (dim == 2)
+                    {
+                        std::array<int, 2> d{ -dir_vector[0], -dir_vector[1] };
+                        auto trans = csir::translate(dom_csir, d);
+                        auto diff  = csir::difference(dom_csir, trans);
+                        auto bdry_lca = csir::from_csir_level(diff, domain.origin_point(), domain.scaling_factor());
+
+                        lcl_t cell_list(domain.level());
+                        for_each_cell(domain,
+                                      bdry_lca,
+                                      [&](auto& cell)
+                                      {
+                                          if (m_func(cell.face_center(dir_vector)))
+                                          {
+                                              cell_list.add_cell(cell);
+                                          }
+                                      });
+                        if (!cell_list.empty())
+                        {
+                            dir.emplace_back(dir_vector);
+                            lca.emplace_back(cell_list);
+                        }
+                    }
+                    else if constexpr (dim == 3)
+                    {
+                        std::array<int, 3> d{ -dir_vector[0], -dir_vector[1], -dir_vector[2] };
+                        auto trans = csir::translate(dom_csir, d);
+                        auto diff  = csir::difference(dom_csir, trans);
+                        auto bdry_lca = csir::from_csir_level(diff, domain.origin_point(), domain.scaling_factor());
+
+                        lcl_t cell_list(domain.level());
+                        for_each_cell(domain,
+                                      bdry_lca,
+                                      [&](auto& cell)
+                                      {
+                                          if (m_func(cell.face_center(dir_vector)))
+                                          {
+                                              cell_list.add_cell(cell);
+                                          }
+                                      });
+                        if (!cell_list.empty())
+                        {
+                            dir.emplace_back(dir_vector);
+                            lca.emplace_back(cell_list);
+                        }
                     }
                 }
             });
@@ -516,19 +569,53 @@ namespace samurai
     {
         std::vector<direction_t> dir;
         std::vector<lca_t> lca;
-        for (std::size_t d = 0; d < 2 * dim; ++d)
+        for (std::size_t idx = 0; idx < 2 * dim; ++idx)
         {
-            DirectionVector<dim> stencil = xt::view(cartesian_directions<dim>(), d);
+            DirectionVector<dim> stencil = xt::view(cartesian_directions<dim>(), idx);
             auto dom_csir = csir::to_csir_level(domain);
-            auto trans    = csir::translate(dom_csir, d);
-            auto diff     = csir::difference(trans, dom_csir);
-            auto set_csir = csir::to_csir_level(m_set);
-            auto inter    = csir::intersection(set_csir, diff);
-            lca_t lca_temp(csir::from_csir_level(inter, domain.origin_point(), domain.scaling_factor()));
-            if (!lca_temp.empty())
+            // Translate domain by +stencil and remove original domain
+            if constexpr (dim == 1)
             {
-                dir.emplace_back(-d);
-                lca.emplace_back(std::move(lca_temp));
+                auto trans   = csir::translate(dom_csir, stencil[0]);
+                auto diff    = csir::difference(trans, dom_csir);
+                // Materialize m_set to CSIR via LCA if needed
+                lca_t set_lca(m_set.on(domain.level()));
+                auto set_csir= csir::to_csir_level(set_lca);
+                auto inter   = csir::intersection(set_csir, diff);
+                lca_t lca_temp(csir::from_csir_level(inter, domain.origin_point(), domain.scaling_factor()));
+                if (!lca_temp.empty())
+                {
+                    dir.emplace_back(-stencil);
+                    lca.emplace_back(std::move(lca_temp));
+                }
+            }
+            else if constexpr (dim == 2)
+            {
+                auto trans   = csir::translate(dom_csir, stencil);
+                auto diff    = csir::difference(trans, dom_csir);
+                lca_t set_lca(m_set.on(domain.level()));
+                auto set_csir= csir::to_csir_level(set_lca);
+                auto inter   = csir::intersection(set_csir, diff);
+                lca_t lca_temp(csir::from_csir_level(inter, domain.origin_point(), domain.scaling_factor()));
+                if (!lca_temp.empty())
+                {
+                    dir.emplace_back(-stencil);
+                    lca.emplace_back(std::move(lca_temp));
+                }
+            }
+            else if constexpr (dim == 3)
+            {
+                auto trans   = csir::translate(dom_csir, stencil);
+                auto diff    = csir::difference(trans, dom_csir);
+                lca_t set_lca(m_set.on(domain.level()));
+                auto set_csir= csir::to_csir_level(set_lca);
+                auto inter   = csir::intersection(set_csir, diff);
+                lca_t lca_temp(csir::from_csir_level(inter, domain.origin_point(), domain.scaling_factor()));
+                if (!lca_temp.empty())
+                {
+                    dir.emplace_back(-stencil);
+                    lca.emplace_back(std::move(lca_temp));
+                }
             }
         }
         return std::make_pair(dir, lca);

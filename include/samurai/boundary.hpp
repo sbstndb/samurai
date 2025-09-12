@@ -82,22 +82,24 @@ namespace samurai
         for_each_cartesian_direction<Mesh::dim>(
             [&](const auto& direction)
             {
-                // Build inner boundary for this direction using CSIR and keep LCA alive
+                // Inner boundary using CSIR
                 auto cells_csir = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
                 std::array<int, Mesh::dim> d_in{}; for (std::size_t k=0;k<Mesh::dim;++k) d_in[k] = -direction[k];
                 auto dom_shift  = csir::translate(domain_on, d_in);
                 auto inner_csir = csir::difference(cells_csir, dom_shift);
-                auto inner_lca  = csir::from_csir_level(inner_csir, mesh.origin_point(), mesh.scaling_factor());
-                auto inner_boundary = self(inner_lca);
 
+                // Build outer layers fully in CSIR
                 for (std::size_t layer = 1; layer <= layer_width; ++layer)
                 {
-                    auto outer_layer = difference(translate(inner_boundary, layer * direction), domain);
-                    outer_layer(
-                        [&](const auto& i, const auto& index)
-                        {
-                            outer_boundary_lcl[index].add_interval({i});
-                        });
+                    std::array<int, Mesh::dim> d_out{}; for (std::size_t k=0;k<Mesh::dim;++k) d_out[k] = direction[k] * static_cast<int>(layer);
+                    auto shifted    = csir::translate(inner_csir, d_out);
+                    auto outer_csir = csir::difference(shifted, domain_on);
+                    auto outer_lca  = csir::from_csir_level(outer_csir, mesh.origin_point(), mesh.scaling_factor());
+                    for_each_interval(outer_lca,
+                                      [&](std::size_t /*lvl*/, const auto& i, const auto& index)
+                                      {
+                                          outer_boundary_lcl[index].add_interval(i);
+                                      });
                 }
             });
         return lca_t(outer_boundary_lcl);
@@ -118,22 +120,24 @@ namespace samurai
 
         lcl_t outer_boundary_lcl(level, mesh.origin_point(), mesh.scaling_factor());
 
-        // Build inner boundary for this direction using CSIR and keep LCA alive
+        // Inner boundary using CSIR
         auto cells_csir = csir::to_csir_level(mesh[mesh_id_t::cells][level]);
         std::array<int, Mesh::dim> d_in{}; for (std::size_t k=0;k<Mesh::dim;++k) d_in[k] = -direction[k];
         auto dom_shift  = csir::translate(domain_on2, d_in);
         auto inner_csir = csir::difference(cells_csir, dom_shift);
-        auto inner_lca  = csir::from_csir_level(inner_csir, mesh.origin_point(), mesh.scaling_factor());
-        auto inner_boundary = self(inner_lca);
 
+        // Build outer layers fully in CSIR
         for (std::size_t layer = 1; layer <= layer_width; ++layer)
         {
-            auto outer_layer = difference(translate(inner_boundary, layer * direction), domain);
-            outer_layer(
-                [&](const auto& i, const auto& index)
-                {
-                    outer_boundary_lcl[index].add_interval({i});
-                });
+            std::array<int, Mesh::dim> d_out{}; for (std::size_t k=0;k<Mesh::dim;++k) d_out[k] = direction[k] * static_cast<int>(layer);
+            auto shifted    = csir::translate(inner_csir, d_out);
+            auto outer_csir = csir::difference(shifted, domain_on2);
+            auto outer_lca  = csir::from_csir_level(outer_csir, mesh.origin_point(), mesh.scaling_factor());
+            for_each_interval(outer_lca,
+                              [&](std::size_t /*lvl*/, const auto& i, const auto& index)
+                              {
+                                  outer_boundary_lcl[index].add_interval(i);
+                              });
         }
         return lca_t(outer_boundary_lcl);
     }

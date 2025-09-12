@@ -461,22 +461,27 @@ namespace samurai
                     {
                         for (size_t level = max_level; level != min_level; --level)
                         {
-                            auto boundaryCells = difference(ca[level], translate(self(domain).on(level), -translation)).on(level);
+                            // CSIR: boundaryCells = ca[level] \\ translate(domain[level], -translation)
+                            auto dom_csir   = csir::project_to_level(csir::to_csir_level(domain), level);
+                            auto cells_csir = csir::to_csir_level(ca[level]);
+                            std::array<int, dim> d_in{}; for (std::size_t k = 0; k < dim; ++k) d_in[k] = -translation[k];
+                            auto dom_shift  = csir::translate(dom_csir, d_in);
+                            auto boundary_cs= csir::difference(cells_csir, dom_shift);
 
                             for (int i = 2; i <= n_contiguous_boundary_cells; i += 2)
                             {
-                                // Here, the set algebra doesn't work, so we put the translation in a LevelCellArray before computing
-                                // the intersection. When the problem is fixed, remove the two following lines and uncomment the line
-                                // below.
-                                LevelCellArray<dim, TInterval> translated_boundary(translate(boundaryCells, -i * translation));
-                                auto refine_subset = intersection(translated_boundary, ca[level - 1]).on(level - 1);
-                                // auto refine_subset = intersection(translate(boundaryCells, -i*translation), ca[level-1]).on(level-1);
-
-                                refine_subset(
-                                    [&](const auto& x_interval, const auto& yz)
-                                    {
-                                        out[level - 1].push_back(x_interval, yz);
-                                    });
+                                // Translate boundary by -i * translation, project to level-1, intersect with ca[level-1]
+                                std::array<int, dim> d_mid{}; for (std::size_t k = 0; k < dim; ++k) d_mid[k] = -translation[k] * i;
+                                auto mid_cs    = csir::translate(boundary_cs, d_mid);
+                                auto mid_on_lm1= csir::project_to_level(mid_cs, level - 1);
+                                auto ca_lm1_cs = csir::to_csir_level(ca[level - 1]);
+                                auto refine_cs = csir::intersection(mid_on_lm1, ca_lm1_cs);
+                                auto refine_lc = csir::from_csir_level(refine_cs, domain.origin_point(), domain.scaling_factor());
+                                for_each_interval(refine_lc,
+                                                  [&](std::size_t /*lvl*/, const auto& x_interval, const auto& yz)
+                                                  {
+                                                      out[level - 1].push_back(x_interval, yz);
+                                                  });
                             }
                         }
                     }
@@ -491,18 +496,30 @@ namespace samurai
                     {
                         for (size_t level = max_level - 1; level != min_level - 1; --level)
                         {
-                            auto boundaryCells = difference(ca[level], translate(self(domain).on(level), -translation));
+                            // CSIR: boundaryCells = ca[level] \\ translate(domain[level], -translation)
+                            auto dom_csir   = csir::project_to_level(csir::to_csir_level(domain), level);
+                            auto cells_csir = csir::to_csir_level(ca[level]);
+                            std::array<int, dim> d_in{}; for (std::size_t k = 0; k < dim; ++k) d_in[k] = -translation[k];
+                            auto dom_shift  = csir::translate(dom_csir, d_in);
+                            auto boundary_cs= csir::difference(cells_csir, dom_shift);
+
                             for (size_t i = 1; i != half_stencil_width; ++i)
                             {
-                                auto refine_subset = translate(
-                                                         intersection(translate(boundaryCells, -i * translation), ca[level + 1]).on(level),
-                                                         i * translation)
-                                                         .on(level);
-                                refine_subset(
-                                    [&](const auto& x_interval, const auto& yz)
-                                    {
-                                        out[level].push_back(x_interval, yz);
-                                    });
+                                // Translate boundary inward by -i*translation, project to level+1, intersect with ca[level+1]
+                                std::array<int, dim> d_mid{}; for (std::size_t k = 0; k < dim; ++k) d_mid[k] = -translation[k] * static_cast<int>(i);
+                                auto mid_cs     = csir::translate(boundary_cs, d_mid);
+                                auto mid_on_lp1 = csir::project_to_level(mid_cs, level + 1);
+                                auto ca_lp1_cs  = csir::to_csir_level(ca[level + 1]);
+                                auto inter_cs   = csir::intersection(mid_on_lp1, ca_lp1_cs);
+                                // Translate back by +i*translation to place result at level
+                                std::array<int, dim> d_back{}; for (std::size_t k = 0; k < dim; ++k) d_back[k] = translation[k] * static_cast<int>(i);
+                                auto inter_back  = csir::translate(inter_cs, d_back);
+                                auto inter_lc    = csir::from_csir_level(inter_back, domain.origin_point(), domain.scaling_factor());
+                                for_each_interval(inter_lc,
+                                                  [&](std::size_t /*lvl*/, const auto& x_interval, const auto& yz)
+                                                  {
+                                                      out[level].push_back(x_interval, yz);
+                                                  });
                             }
                         }
                     }

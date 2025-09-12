@@ -174,10 +174,9 @@ namespace samurai
         }
         else
         {
-            auto translated_outer_nghbr = translate(mesh[mesh_id_t::reference][level], -(stencil_size / 2) * direction); // can be removed?
             using lca_t = typename Field::mesh_t::lca_type;
             using lcl_t = typename Field::mesh_t::lcl_type;
-            lca_t trans_lca(translated_outer_nghbr.on(level));
+            lca_t trans_lca = translated_outer_neighbours<stencil_size / 2>(mesh, level, direction);
             lcl_t lcl2(level, mesh.origin_point(), mesh.scaling_factor());
             auto bdry_subset2 = [&]() {
                 if constexpr (samurai::IsLCA<std::decay_t<Subset>>)
@@ -212,95 +211,29 @@ namespace samurai
     auto translated_outer_neighbours(const Mesh& mesh, std::size_t level, const DirectionVector<Mesh::dim>& direction)
     {
         using mesh_id_t = typename Mesh::mesh_id_t;
+        using lca_t     = typename Mesh::lca_type;
         static_assert(layers <= 5, "not implemented for layers > 10");
 
-        // Technically, if mesh.domain().is_box(), then we can only test that the furthest layer of ghosts exists
-        // (i.e. the set return by the case stencil_size == 2 below).
-        // On the other hand, if the domain has holes, we have to check that all the intermediary ghost layers exist.
-        // Since we can't easily make the distinction in a static way, we always check that all the ghost layers exist.
+        // Build base CSIR set for the reference cells at this level
+        auto ref_csir = csir::to_csir_level(mesh[mesh_id_t::reference][level]);
 
-        if constexpr (layers == 1)
+        auto translate_steps = [&](int steps)
         {
-            return translate(mesh[mesh_id_t::reference][level], -layers * direction);
-        }
-        else if constexpr (layers == 2)
+            std::array<int, Mesh::dim> d{};
+            for (std::size_t k = 0; k < Mesh::dim; ++k)
+            {
+                d[k] = -direction[k] * steps;
+            }
+            return csir::translate(ref_csir, d);
+        };
+
+        auto acc = translate_steps(static_cast<int>(layers));
+        for (int s = static_cast<int>(layers) - 1; s >= 1; --s)
         {
-            auto a = translate(mesh[mesh_id_t::reference][level], -(layers    ) * direction);
-            auto b = translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction);
-            using lca_t = typename Mesh::lca_type; using lcl_t = typename Mesh::lcl_type;
-            lcl_t alcl(level, mesh.origin_point(), mesh.scaling_factor());
-            a.on(level)([&](const auto& i, const auto& idx){ alcl[idx].add_interval(i); });
-            lcl_t blcl(level, mesh.origin_point(), mesh.scaling_factor());
-            b.on(level)([&](const auto& i, const auto& idx){ blcl[idx].add_interval(i); });
-            lca_t al(alcl), bl(blcl);
-            auto ac = csir::to_csir_level(al);
-            auto bc = csir::to_csir_level(bl);
-            auto ic = csir::intersection(ac, bc);
-            return lca_t(csir::from_csir_level(ic));
+            acc = csir::intersection(acc, translate_steps(s));
         }
-        else if constexpr (layers == 3)
-        {
-            auto a = translate(mesh[mesh_id_t::reference][level], -(layers    ) * direction);
-            auto b = translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction);
-            auto c = translate(mesh[mesh_id_t::reference][level], -(layers - 2) * direction);
-            using lca_t = typename Mesh::lca_type; using lcl_t = typename Mesh::lcl_type;
-            lcl_t alcl(level, mesh.origin_point(), mesh.scaling_factor()); a.on(level)([&](const auto& i, const auto& idx){ alcl[idx].add_interval(i); });
-            lcl_t blcl(level, mesh.origin_point(), mesh.scaling_factor()); b.on(level)([&](const auto& i, const auto& idx){ blcl[idx].add_interval(i); });
-            lcl_t clcl(level, mesh.origin_point(), mesh.scaling_factor()); c.on(level)([&](const auto& i, const auto& idx){ clcl[idx].add_interval(i); });
-            lca_t al(alcl), bl(blcl), cl(clcl);
-            auto ac = csir::to_csir_level(al);
-            auto bc = csir::to_csir_level(bl);
-            auto cc = csir::to_csir_level(cl);
-            auto i1 = csir::intersection(ac, bc);
-            auto i2 = csir::intersection(i1, cc);
-            return lca_t(csir::from_csir_level(i2));
-        }
-        else if constexpr (layers == 4)
-        {
-            auto a = translate(mesh[mesh_id_t::reference][level], -(layers    ) * direction);
-            auto b = translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction);
-            auto c = translate(mesh[mesh_id_t::reference][level], -(layers - 2) * direction);
-            auto d = translate(mesh[mesh_id_t::reference][level], -(layers - 3) * direction);
-            using lca_t = typename Mesh::lca_type; using lcl_t = typename Mesh::lcl_type;
-            lcl_t alcl(level, mesh.origin_point(), mesh.scaling_factor()); a.on(level)([&](const auto& i, const auto& idx){ alcl[idx].add_interval(i); });
-            lcl_t blcl(level, mesh.origin_point(), mesh.scaling_factor()); b.on(level)([&](const auto& i, const auto& idx){ blcl[idx].add_interval(i); });
-            lcl_t clcl(level, mesh.origin_point(), mesh.scaling_factor()); c.on(level)([&](const auto& i, const auto& idx){ clcl[idx].add_interval(i); });
-            lcl_t dlcl(level, mesh.origin_point(), mesh.scaling_factor()); d.on(level)([&](const auto& i, const auto& idx){ dlcl[idx].add_interval(i); });
-            lca_t al(alcl), bl(blcl), cl(clcl), dl(dlcl);
-            auto ac = csir::to_csir_level(al);
-            auto bc = csir::to_csir_level(bl);
-            auto cc = csir::to_csir_level(cl);
-            auto dc = csir::to_csir_level(dl);
-            auto i1 = csir::intersection(ac, bc);
-            auto i2 = csir::intersection(i1, cc);
-            auto i3 = csir::intersection(i2, dc);
-            return lca_t(csir::from_csir_level(i3));
-        }
-        else if constexpr (layers == 5)
-        {
-            auto a = translate(mesh[mesh_id_t::reference][level], -(layers    ) * direction);
-            auto b = translate(mesh[mesh_id_t::reference][level], -(layers - 1) * direction);
-            auto c = translate(mesh[mesh_id_t::reference][level], -(layers - 2) * direction);
-            auto d = translate(mesh[mesh_id_t::reference][level], -(layers - 3) * direction);
-            auto e = translate(mesh[mesh_id_t::reference][level], -(layers - 4) * direction);
-            using lca_t = typename Mesh::lca_type; using lcl_t = typename Mesh::lcl_type;
-            lcl_t alcl(level, mesh.origin_point(), mesh.scaling_factor()); a.on(level)([&](const auto& i, const auto& idx){ alcl[idx].add_interval(i); });
-            lcl_t blcl(level, mesh.origin_point(), mesh.scaling_factor()); b.on(level)([&](const auto& i, const auto& idx){ blcl[idx].add_interval(i); });
-            lcl_t clcl(level, mesh.origin_point(), mesh.scaling_factor()); c.on(level)([&](const auto& i, const auto& idx){ clcl[idx].add_interval(i); });
-            lcl_t dlcl(level, mesh.origin_point(), mesh.scaling_factor()); d.on(level)([&](const auto& i, const auto& idx){ dlcl[idx].add_interval(i); });
-            lcl_t elcl(level, mesh.origin_point(), mesh.scaling_factor()); e.on(level)([&](const auto& i, const auto& idx){ elcl[idx].add_interval(i); });
-            lca_t al(alcl), bl(blcl), cl(clcl), dl(dlcl), el(elcl);
-            auto ac = csir::to_csir_level(al);
-            auto bc = csir::to_csir_level(bl);
-            auto cc = csir::to_csir_level(cl);
-            auto dc = csir::to_csir_level(dl);
-            auto ec = csir::to_csir_level(el);
-            auto i1 = csir::intersection(ac, bc);
-            auto i2 = csir::intersection(i1, cc);
-            auto i3 = csir::intersection(i2, dc);
-            auto i4 = csir::intersection(i3, ec);
-            return lca_t(csir::from_csir_level(i4));
-        }
+
+        return lca_t(csir::from_csir_level(acc, mesh.origin_point(), mesh.scaling_factor()));
     }
 
     /**
@@ -560,8 +493,14 @@ namespace samurai
                             auto& domain = detail::get_mesh(field.mesh());
                             PolynomialExtrapolation<Field, stencil_size> bc(domain, ConstantBc<Field>(), true);
 
-                            auto domain2         = self(field.mesh().domain()).on(level);
-                            auto boundary_ghosts = difference(domain2, translate(domain2, -direction));
+                            // CSIR-based boundary ghosts: domain[level] \\ translate(domain[level], -direction)
+                            auto dom_csir   = csir::to_csir_level(field.mesh().domain());
+                            auto dom_on     = csir::project_to_level(dom_csir, level);
+                            std::array<int, Field::dim> d{}; for (std::size_t k = 0; k < Field::dim; ++k) d[k] = -direction[k];
+                            auto shifted    = csir::translate(dom_on, d);
+                            auto bdry_csir  = csir::difference(dom_on, shifted);
+                            auto bdry_lca   = csir::from_csir_level(bdry_csir, field.mesh().origin_point(), field.mesh().scaling_factor());
+                            auto boundary_ghosts = self(bdry_lca);
                             __apply_extrapolation_bc__ghosts<stencil_size>(bc, level, field, direction, boundary_ghosts);
                         }
                     }

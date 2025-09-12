@@ -64,6 +64,45 @@ namespace csir
                 CUDA_CHECK(cudaMemcpy(intervals.data(), dev_level.intervals, dev_level.intervals_count * sizeof(Interval), cudaMemcpyDeviceToHost));
         }
 
+        // --- 1D Host/Device transfer utilities ---
+        CSIR_Level_1D_Device CSIR_Level_1D_Host::to_device() const {
+            CSIR_Level_1D_Device device_level = {};
+            device_level.level = level;
+            device_level.intervals_count = intervals.size();
+            if (device_level.intervals_count > 0) {
+                CUDA_CHECK(cudaMalloc(&device_level.intervals, device_level.intervals_count * sizeof(Interval)));
+                CUDA_CHECK(cudaMemcpy(
+                    device_level.intervals,
+                    intervals.data(),
+                    device_level.intervals_count * sizeof(Interval),
+                    cudaMemcpyHostToDevice));
+            } else {
+                device_level.intervals = nullptr;
+            }
+            return device_level;
+        }
+
+        void CSIR_Level_1D_Host::from_device(const CSIR_Level_1D_Device& device_level) {
+            level = device_level.level;
+            intervals.resize(device_level.intervals_count);
+            if (device_level.intervals_count > 0 && device_level.intervals != nullptr) {
+                CUDA_CHECK(cudaMemcpy(
+                    intervals.data(),
+                    device_level.intervals,
+                    device_level.intervals_count * sizeof(Interval),
+                    cudaMemcpyDeviceToHost));
+            } else {
+                intervals.clear();
+            }
+        }
+
+        void CSIR_Level_1D_Device::free() {
+            if (intervals) {
+                CUDA_CHECK(cudaFree(intervals));
+                intervals = nullptr;
+            }
+        }
+
         // --- Device-side Helpers & Kernels ---
 
         __device__ int find_row_index(const int* y_coords, int count, int y) {

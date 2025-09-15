@@ -4,7 +4,7 @@ This tool compiles selected Samurai demos and runs a matrix of configurations to
 
 Quick start
 - From repo root: `python3 long_run/run_matrix.py --help`
-- Typical: `python3 long_run/run_matrix.py --demos advection_2d,burgers --np 1,2,4 --advection-min 3,4 --advection-max 5,6 --advection-tf 0.1,0.2 --burgers-min 0,1 --burgers-max 2,3 --burgers-tf 0.2`
+- Typical: `python3 long_run/run_matrix.py --demos advection_2d,burgers --np 1,2,3,4 --advection-min 3,4,5 --advection-max 5,6,7,8 --advection-tf 0.5 --burgers-min 2,3,4 --burgers-max 5,6,7 --burgers-tf 0.5`
 
 What it does
 - Configures CMake with MPI and demos: `cmake -DWITH_MPI=ON -DBUILD_DEMOS=ON ..`

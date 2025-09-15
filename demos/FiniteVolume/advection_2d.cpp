@@ -320,25 +320,41 @@ int main(int argc, char* argv[])
 
     auto adapt_mesh = [&]()
     {
-        std::size_t adaptation_iteration = 0;
-        constexpr std::size_t max_adaptation_iterations = 200;
-        while (true)
+        const auto run_round = [&](bool allow_coarsen_pass)
         {
-            std::cout << "\tmesh adaptation: " << adaptation_iteration++ << std::endl;
-            samurai::update_ghost(u);
-            tag.resize();
-            tag.fill(static_cast<int>(samurai::CellFlag::keep));
-            AMR_criterion(u, tag, amr_refine_threshold, amr_coarsen_ratio, amr_allow_coarsen);
-            samurai::graduation(tag, stencil_grad);
-            if (samurai::update_field(tag, u))
+            std::size_t adaptation_iteration = 0;
+            constexpr std::size_t max_adaptation_iterations = 200;
+            while (true)
             {
-                break;
+                std::cout << fmt::format("\tmesh adaptation ({}): {}",
+                                         allow_coarsen_pass ? "coarsen" : "refine",
+                                         adaptation_iteration++)
+                          << std::endl;
+                samurai::update_ghost(u);
+                tag.resize();
+                tag.fill(static_cast<int>(samurai::CellFlag::keep));
+                AMR_criterion(u,
+                              tag,
+                              amr_refine_threshold,
+                              amr_coarsen_ratio,
+                              allow_coarsen_pass && amr_allow_coarsen);
+                samurai::graduation(tag, stencil_grad);
+                if (samurai::update_field(tag, u))
+                {
+                    break;
+                }
+                if (adaptation_iteration >= max_adaptation_iterations)
+                {
+                    std::cout << "\tmaximum number of AMR adaptation iterations reached" << std::endl;
+                    break;
+                }
             }
-            if (adaptation_iteration >= max_adaptation_iterations)
-            {
-                std::cout << "\tmaximum number of AMR adaptation iterations reached" << std::endl;
-                break;
-            }
+        };
+
+        run_round(false); // refine until stability
+        if (amr_allow_coarsen)
+        {
+            run_round(true); // optional coarsening pass
         }
     };
 

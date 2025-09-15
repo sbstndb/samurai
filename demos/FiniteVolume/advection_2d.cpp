@@ -49,7 +49,12 @@ void init(Field& u)
 }
 
 template <class Field, class Tag>
-void AMR_criterion(const Field& field, Tag& tag, double refine_threshold, double coarsen_ratio, bool allow_coarsen)
+void AMR_criterion(const Field& field,
+                   Tag& tag,
+                   double refine_threshold,
+                   double coarsen_ratio,
+                   bool allow_refine,
+                   bool allow_coarsen)
 {
     static_assert(Field::dim == 2, "AMR criterion implemented for 2d advection demo");
 
@@ -90,7 +95,7 @@ void AMR_criterion(const Field& field, Tag& tag, double refine_threshold, double
 
                                const double indicator = std::max({diff_x_plus, diff_x_minus, diff_y_plus, diff_y_minus});
 
-                               if (indicator >= refine_threshold && level < max_l)
+                               if (allow_refine && indicator >= refine_threshold && level < max_l)
                                {
                                    tag[cell] = static_cast<int>(samurai::CellFlag::refine);
                                }
@@ -337,6 +342,7 @@ int main(int argc, char* argv[])
                               tag,
                               amr_refine_threshold,
                               amr_coarsen_ratio,
+                              !allow_coarsen_pass,
                               allow_coarsen_pass && amr_allow_coarsen);
                 samurai::graduation(tag, stencil_grad);
                 if (samurai::update_field(tag, u))

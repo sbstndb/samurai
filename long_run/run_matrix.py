@@ -204,12 +204,15 @@ def run_one(demo_name: str,
         'log_path': str(log_path),
         'nan_in_files': False,
         'h5_files': [],
+        'h5_count': 0,
+        'fail_reasons': [],
     }
 
     # Collect H5 files and check NaNs
     mpi_suffix = f"{base_filename}_size_{np_value}" if np_value >= 2 else base_filename
     h5_files = list_h5_files(out_dir, mpi_suffix)
     status['h5_files'] = [str(p) for p in h5_files]
+    status['h5_count'] = len(h5_files)
     any_nan = False
     for f in h5_files:
         try:
@@ -221,6 +224,15 @@ def run_one(demo_name: str,
             any_nan = True
             break
     status['nan_in_files'] = any_nan
+    # Reasons
+    reasons = []
+    if code != 0:
+        reasons.append(f"rc={code}")
+    if len(h5_files) == 0:
+        reasons.append("no_h5")
+    if any_nan:
+        reasons.append("nan")
+    status['fail_reasons'] = reasons
     return status
 
 
@@ -363,7 +375,11 @@ def main():
             print(f"    np=1 {colorize('running…', _Colors.CYAN)}")
             seq_status = run_one(demo, binary, 1, mn, mx, tf, args.nfiles, args.timers, seq_dir, base_filename)
             seq_ok = (seq_status['returncode'] == 0) and (not seq_status['nan_in_files']) and (len(seq_status['h5_files']) > 0)
-            print(f"    np=1 {ok_text(seq_ok)} ({seq_status['duration_sec']:.1f}s)")
+            if seq_ok:
+                print(f"    np=1 {ok_text(seq_ok)} ({seq_status['duration_sec']:.1f}s) [h5={seq_status['h5_count']}]")
+            else:
+                reason = ','.join(seq_status.get('fail_reasons', [])) or 'unknown'
+                print(f"    np=1 {ok_text(seq_ok)} ({seq_status['duration_sec']:.1f}s) [{reason}]")
 
             # 2) MPI runs (np>=2)
             for npv in [n for n in np_list if n >= 2]:
@@ -421,7 +437,39 @@ def main():
                         cmp_msg = f"compare error: {e}"
 
                 cmp_disp = ok_text(cmp_ok)
-                print(f"    np={npv} {ok_text(mpi_ok)} ({mpi_status['duration_sec']:.1f}s); compare={cmp_disp}")
+                # detail reason for compare
+                cmp_detail = ''
+                if cmp_ok is None:
+                    if not mpi_ok:
+                        cmp_detail = ' [mpi_failed]'
+                    elif not seq_ok:
+                        cmp_detail = ' [seq_failed]'
+                    elif args.no_compare:
+                        cmp_detail = ' [disabled]'
+                elif cmp_ok is False:
+                    # try to provide a short detail
+                    short = ''
+                    if isinstance(cmp_msg, str) and cmp_msg.startswith('No common files'):
+                        short = 'no_common'
+                    else:
+                        try:
+                            details = json.loads(cmp_msg)
+                            # find first failing suffix
+                            fail = next((suf for (suf, ok) in details if not ok), None)
+                            if fail is not None:
+                                short = f"mismatch:{fail or '(root)'}"
+                        except Exception:
+                            short = ''
+                    if short:
+                        cmp_detail = f" [{short}]"
+
+                if mpi_ok:
+                    print(f"    np={npv} {ok_text(mpi_ok)} ({mpi_status['duration_sec']:.1f}s) [h5={mpi_status['h5_count']}]" \
+                          f"; compare={cmp_disp}{cmp_detail}")
+                else:
+                    reason = ','.join(mpi_status.get('fail_reasons', [])) or 'unknown'
+                    print(f"    np={npv} {ok_text(mpi_ok)} ({mpi_status['duration_sec']:.1f}s) [{reason}]" \
+                          f"; compare={cmp_disp}{cmp_detail}")
 
                 overall_results.append({
                     'demo': demo,
@@ -458,10 +506,20 @@ def main():
     cmp_total = len(cmp_checked)
     skipped = sum(1 for r in overall_results if r.get('skipped'))
 
+    # Breakdown seq vs mpi
+    seq_entries = [r for r in overall_results if r.get('np') == 1]
+    mpi_entries = [r for r in overall_results if isinstance(r.get('np'), int) and r.get('np') >= 2]
+    seq_total = len(seq_entries)
+    mpi_total = len(mpi_entries)
+    seq_ok_cnt = sum(1 for r in seq_entries if r.get('run_ok'))
+    mpi_ok_cnt = sum(1 for r in mpi_entries if r.get('run_ok'))
+
     print("\nSummary")
     runs_all_ok = (run_ok + skipped == total) and (total > 0)
     print(f"- Runs: {run_ok}/{total} " + (colorize('OK', _Colors.GREEN) if runs_all_ok else colorize('FAIL', _Colors.RED))
           + (f", Skipped: {skipped}" if skipped else ""))
+    print(f"- Sequential: {seq_ok_cnt}/{seq_total} " + (colorize('OK', _Colors.GREEN) if seq_ok_cnt==seq_total else colorize('FAIL', _Colors.RED)))
+    print(f"- MPI: {mpi_ok_cnt}/{mpi_total} " + (colorize('OK', _Colors.GREEN) if mpi_ok_cnt==mpi_total else colorize('FAIL', _Colors.RED)))
     if cmp_total:
         cmp_all_ok = (cmp_ok == cmp_total)
         print(f"- MPI vs seq: {cmp_ok}/{cmp_total} " + (colorize('OK', _Colors.GREEN) if cmp_all_ok else colorize('FAIL', _Colors.RED)))

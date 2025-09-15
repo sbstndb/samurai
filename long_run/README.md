@@ -18,12 +18,13 @@ What it does
   - Captures stdout/stderr to `run.log`
 
 Outputs
-- Per-run directories under `long_run/runs/<demo>/<tag>/np<N>/`
+- Each invocation creates a session directory with timestamp: `long_run/runs/<YYYYMMDD-HHMMSS>/`
+- Per-run directories under `long_run/runs/<session>/<demo>/<tag>/np<N>/`
 - `run.log` and all generated `.h5` files are kept per run
-- Summary table printed at the end
+- Summary table printed at the end and written to `<session>/summary.json`
 
 Notes
 - If a run crashes or returns a non-zero exit code, the script records failure and continues.
 - Use `--skip-compile` to reuse an existing `build/`.
 - Use `--nfiles` to control output files per run (default 4).
-
+- You can override the session timestamp directory with `--session <name>`.

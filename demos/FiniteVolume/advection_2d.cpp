@@ -53,6 +53,7 @@ void AMR_criterion(const Field& field,
                    Tag& tag,
                    double refine_threshold,
                    double coarsen_ratio,
+                   std::size_t diffuse_passes,
                    bool allow_refine,
                    bool allow_coarsen)
 {
@@ -64,6 +65,13 @@ void AMR_criterion(const Field& field,
     const auto min_l = mesh.min_level();
     const auto max_l = mesh.max_level();
     const double coarsen_threshold = refine_threshold * coarsen_ratio;
+
+    auto refine_mark  = samurai::make_scalar_field<int>("refine_mark", mesh);
+    auto coarsen_mark = samurai::make_scalar_field<int>("coarsen_mark", mesh);
+    refine_mark.resize();
+    coarsen_mark.resize();
+    refine_mark.fill(0);
+    coarsen_mark.fill(0);
 
     samurai::for_each_cell(mesh[mesh_id_t::cells],
                            [&](auto cell)
@@ -95,11 +103,68 @@ void AMR_criterion(const Field& field,
 
                                const double indicator = std::max({diff_x_plus, diff_x_minus, diff_y_plus, diff_y_minus});
 
-                               if (allow_refine && indicator >= refine_threshold && level < max_l)
+                               const bool base_refine        = indicator >= refine_threshold && level < max_l;
+                               const bool coarsen_candidate = allow_coarsen && indicator <= coarsen_threshold && level > min_l;
+
+                               refine_mark[cell]  = base_refine ? 1 : 0;
+                               coarsen_mark[cell] = coarsen_candidate ? 1 : 0;
+                           });
+
+    if (diffuse_passes > 0)
+    {
+        auto prev_refine = samurai::make_scalar_field<int>("refine_prev", mesh);
+        prev_refine.resize();
+
+        const std::array<std::array<int, 2>, 4> offsets{{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}};
+
+        for (std::size_t pass = 0; pass < diffuse_passes; ++pass)
+        {
+            prev_refine = refine_mark;
+
+            samurai::for_each_cell(mesh[mesh_id_t::cells],
+                                   [&](auto cell)
+                                   {
+                                       if (refine_mark[cell])
+                                        {
+                                            return;
+                                        }
+
+                                       const std::size_t level = cell.level;
+                                       const auto i            = cell.indices[0];
+                                       const auto j            = cell.indices[1];
+
+                                       for (const auto& dir : offsets)
+                                       {
+                                           const interval_value_t ii = static_cast<interval_value_t>(i + dir[0]);
+                                           const interval_value_t jj = static_cast<interval_value_t>(j + dir[1]);
+
+                                           try
+                                           {
+                                               auto neighbour = mesh.get_cell(level, ii, jj);
+                                               if (prev_refine[neighbour])
+                                               {
+                                                   refine_mark[cell] = 1;
+                                                   break;
+                                               }
+                                           }
+                                           catch (const std::exception&)
+                                           {
+                                               continue;
+                                           }
+                                       }
+                                   });
+        }
+    }
+
+    samurai::for_each_cell(mesh[mesh_id_t::cells],
+                           [&](auto cell)
+                           {
+                               const bool in_refine_zone = refine_mark[cell] != 0;
+                               if (allow_refine && in_refine_zone)
                                {
                                    tag[cell] = static_cast<int>(samurai::CellFlag::refine);
                                }
-                               else if (allow_coarsen && indicator <= coarsen_threshold && level > min_l)
+                               else if (allow_coarsen && !in_refine_zone && coarsen_mark[cell])
                                {
                                    tag[cell] = static_cast<int>(samurai::CellFlag::coarsen);
                                }
@@ -249,8 +314,9 @@ int main(int argc, char* argv[])
     std::size_t min_level            = 4;
     std::size_t max_level            = 10;
     std::size_t start_level          = max_level;
-    double amr_refine_threshold      = 0.15;
+    double amr_refine_threshold      = 1e-4;
     double amr_coarsen_ratio         = 0.5;
+    std::size_t amr_diffuse_passes   = 1;
     bool amr_allow_coarsen           = true;
     bool amr_with_correction         = true;
 
@@ -277,6 +343,11 @@ int main(int argc, char* argv[])
                    "Ratio applied to the refine threshold to trigger coarsening")
         ->capture_default_str()
         ->group("AMR");
+    app.add_option("--amr-diffuse-passes",
+                   amr_diffuse_passes,
+                   "Number of diffusion passes applied to propagate refine tags")
+        ->capture_default_str()
+        ->group("AMR");
     app.add_option("--amr-allow-coarsen", amr_allow_coarsen, "Allow coarsening during AMR adaptation")
         ->capture_default_str()
         ->group("AMR");
@@ -293,6 +364,7 @@ int main(int argc, char* argv[])
     start_level = std::clamp(start_level, min_level, max_level);
     amr_refine_threshold = std::max(amr_refine_threshold, 0.);
     amr_coarsen_ratio    = std::max(amr_coarsen_ratio, 0.);
+    amr_diffuse_passes   = std::max<std::size_t>(0, amr_diffuse_passes);
 
     const samurai::Box<double, dim> box(min_corner, max_corner);
     samurai::amr::Mesh<Config> mesh;
@@ -342,6 +414,7 @@ int main(int argc, char* argv[])
                               tag,
                               amr_refine_threshold,
                               amr_coarsen_ratio,
+                              amr_diffuse_passes,
                               !allow_coarsen_pass,
                               allow_coarsen_pass && amr_allow_coarsen);
                 samurai::graduation(tag, stencil_grad);

@@ -31,6 +31,33 @@ def ensure_dir(p: Path):
     return p
 
 
+def _supports_color() -> bool:
+    try:
+        return sys.stdout.isatty() and os.environ.get('TERM', '') not in ('', 'dumb')
+    except Exception:
+        return False
+
+
+class _Colors:
+    GREEN = '\033[32m'
+    RED = '\033[31m'
+    YELLOW = '\033[33m'
+    CYAN = '\033[36m'
+    RESET = '\033[0m'
+
+
+def colorize(text: str, color: str) -> str:
+    if _supports_color():
+        return f"{color}{text}{_Colors.RESET}"
+    return text
+
+
+def ok_text(ok: bool | None) -> str:
+    if ok is None:
+        return colorize('SKIP', _Colors.YELLOW)
+    return colorize('OK', _Colors.GREEN) if ok else colorize('FAIL', _Colors.RED)
+
+
 def run_cmd(cmd, cwd: Path = None, log_file: Path | None = None, env=None) -> tuple[int, float, str]:
     t0 = time.time()
     try:
@@ -307,11 +334,11 @@ def main():
         for (mn, mx, tf) in param_grid:
             run_idx += 1
             tag = build_run_tag(mn, mx, tf)
-            print(f"[{run_idx}/{total_runs}] {demo} {tag} — preparing…")
+            print(f"[{run_idx}/{total_runs}] {demo} {tag} — {colorize('preparing…', _Colors.CYAN)}")
 
             # Safety guard: skip invalid combos
             if mx < mn:
-                print(f"    skipping: max_level({mx}) < min_level({mn})")
+                print(f"    {colorize('skipping', _Colors.YELLOW)}: max_level({mx}) < min_level({mn})")
                 overall_results.append({
                     'demo': demo,
                     'tag': tag,
@@ -333,15 +360,15 @@ def main():
 
             # 1) Sequential run (np=1)
             seq_dir = ensure_dir(demo_root / 'np1')
-            print(f"    np=1 running…")
+            print(f"    np=1 {colorize('running…', _Colors.CYAN)}")
             seq_status = run_one(demo, binary, 1, mn, mx, tf, args.nfiles, args.timers, seq_dir, base_filename)
             seq_ok = (seq_status['returncode'] == 0) and (not seq_status['nan_in_files']) and (len(seq_status['h5_files']) > 0)
-            print(f"    np=1 {'OK' if seq_ok else 'FAIL'} ({seq_status['duration_sec']:.1f}s)")
+            print(f"    np=1 {ok_text(seq_ok)} ({seq_status['duration_sec']:.1f}s)")
 
             # 2) MPI runs (np>=2)
             for npv in [n for n in np_list if n >= 2]:
                 mpi_dir = ensure_dir(demo_root / f"np{npv}")
-                print(f"    np={npv} running…")
+                print(f"    np={npv} {colorize('running…', _Colors.CYAN)}")
                 mpi_status = run_one(demo, binary, npv, mn, mx, tf, args.nfiles, args.timers, mpi_dir, base_filename)
                 mpi_ok = (mpi_status['returncode'] == 0) and (not mpi_status['nan_in_files']) and (len(mpi_status['h5_files']) > 0)
 
@@ -393,8 +420,8 @@ def main():
                         cmp_ok = False
                         cmp_msg = f"compare error: {e}"
 
-                print(f"    np={npv} {'OK' if mpi_ok else 'FAIL'} ({mpi_status['duration_sec']:.1f}s)"
-                      + ("; compare=" + ("OK" if cmp_ok else ("FAIL" if cmp_ok is not None else "SKIP"))) )
+                cmp_disp = ok_text(cmp_ok)
+                print(f"    np={npv} {ok_text(mpi_ok)} ({mpi_status['duration_sec']:.1f}s); compare={cmp_disp}")
 
                 overall_results.append({
                     'demo': demo,
@@ -432,9 +459,12 @@ def main():
     skipped = sum(1 for r in overall_results if r.get('skipped'))
 
     print("\nSummary")
-    print(f"- Runs: {run_ok}/{total} OK" + (f", Skipped: {skipped}" if skipped else ""))
+    runs_all_ok = (run_ok + skipped == total) and (total > 0)
+    print(f"- Runs: {run_ok}/{total} " + (colorize('OK', _Colors.GREEN) if runs_all_ok else colorize('FAIL', _Colors.RED))
+          + (f", Skipped: {skipped}" if skipped else ""))
     if cmp_total:
-        print(f"- MPI vs seq: {cmp_ok}/{cmp_total} OK")
+        cmp_all_ok = (cmp_ok == cmp_total)
+        print(f"- MPI vs seq: {cmp_ok}/{cmp_total} " + (colorize('OK', _Colors.GREEN) if cmp_all_ok else colorize('FAIL', _Colors.RED)))
     else:
         print("- MPI vs seq: SKIPPED")
 

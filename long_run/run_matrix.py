@@ -209,6 +209,7 @@ def main():
     parser.add_argument('--nfiles', type=int, default=4)
     parser.add_argument('--timers', action='store_true')
     parser.add_argument('--runs-root', type=str, default='long_run/runs')
+    parser.add_argument('--session', type=str, default='', help='Optional session tag; default is timestamp')
     parser.add_argument('--no-compare', action='store_true', help='Disable MPI vs seq comparison')
 
     # Advection params
@@ -226,6 +227,10 @@ def main():
     repo_root = Path(__file__).resolve().parents[1]
     build_dir = (repo_root / args.build_dir).resolve()
     runs_root = (repo_root / args.runs_root).resolve()
+    # Build a session directory to avoid clobbering previous runs
+    session_tag = args.session.strip() or time.strftime('%Y%m%d-%H%M%S')
+    session_root = ensure_dir(runs_root / session_tag)
+    print(f"Runs session directory: {session_root}")
 
     targets = [t for t in args.targets.split(',') if t]
     demos = [d.strip() for d in args.demos.split(',') if d.strip()]
@@ -304,7 +309,26 @@ def main():
             tag = build_run_tag(mn, mx, tf)
             print(f"[{run_idx}/{total_runs}] {demo} {tag} — preparing…")
 
-            demo_root = ensure_dir(runs_root / demo / tag)
+            # Safety guard: skip invalid combos
+            if mx < mn:
+                print(f"    skipping: max_level({mx}) < min_level({mn})")
+                overall_results.append({
+                    'demo': demo,
+                    'tag': tag,
+                    'np': None,
+                    'run_ok': False,
+                    'compare_ok': None,
+                    'seq_ok': False,
+                    'seq_log': None,
+                    'mpi_log': None,
+                    'seq_cmd': None,
+                    'mpi_cmd': None,
+                    'skipped': True,
+                    'skip_reason': 'max<min',
+                })
+                continue
+
+            demo_root = ensure_dir(session_root / demo / tag)
             base_filename = f"{demo}_{tag}"
 
             # 1) Sequential run (np=1)
@@ -332,6 +356,13 @@ def main():
                         for sf in seq_files:
                             # suffix is the part after base_filename
                             suf = sf.stem[len(base_filename):]
+                            # Normalize optional _size_1 when compiled with MPI
+                            if suf.startswith("_size_"):
+                                # Strip leading _size_<int>
+                                rest = suf.split('_', 3)  # ['', 'size', '<n>', rest]
+                                if len(rest) >= 3 and rest[1] == 'size':
+                                    # reconstruct remainder starting at index 3 if exists
+                                    suf = '' if len(rest) < 4 else ('_' + rest[3])
                             seq_map[suf] = sf
 
                         mpi_files = [Path(p) for p in mpi_status['h5_files']]
@@ -374,6 +405,8 @@ def main():
                     'seq_ok': seq_ok,
                     'seq_log': seq_status['log_path'],
                     'mpi_log': mpi_status['log_path'],
+                    'seq_cmd': ' '.join(seq_status.get('cmd', [])) if isinstance(seq_status.get('cmd'), list) else str(seq_status.get('cmd')),
+                    'mpi_cmd': ' '.join(mpi_status.get('cmd', [])) if isinstance(mpi_status.get('cmd'), list) else str(mpi_status.get('cmd')),
                 })
 
             # Record seq outcome too
@@ -386,24 +419,27 @@ def main():
                 'seq_ok': seq_ok,
                 'seq_log': seq_status['log_path'],
                 'mpi_log': None,
+                'seq_cmd': ' '.join(seq_status.get('cmd', [])) if isinstance(seq_status.get('cmd'), list) else str(seq_status.get('cmd')),
+                'mpi_cmd': None,
             })
 
     # Summary
     total = len(overall_results)
-    run_ok = sum(1 for r in overall_results if r['run_ok'])
+    run_ok = sum(1 for r in overall_results if r.get('run_ok'))
     cmp_checked = [r for r in overall_results if r['compare_ok'] is not None]
     cmp_ok = sum(1 for r in cmp_checked if r['compare_ok'])
     cmp_total = len(cmp_checked)
+    skipped = sum(1 for r in overall_results if r.get('skipped'))
 
     print("\nSummary")
-    print(f"- Runs: {run_ok}/{total} OK")
+    print(f"- Runs: {run_ok}/{total} OK" + (f", Skipped: {skipped}" if skipped else ""))
     if cmp_total:
         print(f"- MPI vs seq: {cmp_ok}/{cmp_total} OK")
     else:
         print("- MPI vs seq: SKIPPED")
 
     # Save machine-readable summary
-    summary_path = ensure_dir(runs_root) / 'summary.json'
+    summary_path = ensure_dir(session_root) / 'summary.json'
     try:
         summary_path.write_text(json.dumps(overall_results, indent=2))
         print(f"- Wrote {summary_path}")
@@ -413,4 +449,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

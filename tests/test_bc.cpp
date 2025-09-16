@@ -15,8 +15,8 @@ namespace samurai
         static constexpr std::size_t dim = 1;
         using config                     = UniformConfig<dim>;
         Box<double, dim> box{{0}, {1}};
-        auto mesh                        = UniformMesh<config>(box, 4);
-        auto u                           = make_scalar_field<double>("u", mesh);
+        auto mesh = UniformMesh<config>(box, 4);
+        auto u    = make_scalar_field<double>("u", mesh);
 
         make_bc<Dirichlet<1>>(u);
         EXPECT_EQ(u.get_bc()[0]->constant_value(), 0.);
@@ -27,8 +27,8 @@ namespace samurai
         static constexpr std::size_t dim = 1;
         using config                     = UniformConfig<dim>;
         Box<double, dim> box{{0}, {1}};
-        auto mesh                        = UniformMesh<config>(box, 4);
-        auto u                           = make_vector_field<double, 4>("u", mesh);
+        auto mesh = UniformMesh<config>(box, 4);
+        auto u    = make_vector_field<double, 4>("u", mesh);
 
         make_bc<Dirichlet<1>>(u);
         EXPECT_TRUE(compare(u.get_bc()[0]->constant_value(), zeros<double>(4)));
@@ -39,8 +39,8 @@ namespace samurai
         static constexpr std::size_t dim = 1;
         using config                     = UniformConfig<dim>;
         Box<double, dim> box{{0}, {1}};
-        auto mesh                        = UniformMesh<config>(box, 4);
-        auto u                           = make_scalar_field<double>("u", mesh);
+        auto mesh = UniformMesh<config>(box, 4);
+        auto u    = make_scalar_field<double>("u", mesh);
 
         make_bc<Dirichlet<1>>(u, 2);
         EXPECT_EQ(u.get_bc()[0]->constant_value(), 2);
@@ -51,8 +51,8 @@ namespace samurai
         static constexpr std::size_t dim = 1;
         using config                     = UniformConfig<dim>;
         Box<double, dim> box{{0}, {1}};
-        auto mesh                        = UniformMesh<config>(box, 4);
-        auto u                           = make_vector_field<double, 4>("u", mesh);
+        auto mesh = UniformMesh<config>(box, 4);
+        auto u    = make_vector_field<double, 4>("u", mesh);
 
         make_bc<Dirichlet<1>>(u, 1., 2., 3., 4.);
         samurai::Array<double, 4, false> expected({1, 2, 3, 4});

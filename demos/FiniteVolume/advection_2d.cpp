@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <stdexcept>
 
 #include <xtensor/xfixed.hpp>
 
@@ -17,6 +16,7 @@
 #include <samurai/io/restart.hpp>
 #include <samurai/amr/mesh.hpp>
 #include <samurai/samurai.hpp>
+#include <samurai/schemes/fv/operators/gradient.hpp>
 #include <samurai/stencil_field.hpp>
 #include <samurai/subset/node.hpp>
 
@@ -58,66 +58,37 @@ void AMR_criterion(const Field& field,
 {
     static_assert(Field::dim == 2, "AMR criterion implemented for 2d advection demo");
 
-    auto& mesh       = field.mesh();
-    using mesh_id_t  = typename Field::mesh_t::mesh_id_t;
-    using interval_value_t = typename Field::mesh_t::interval_t::value_t;
+    auto& mesh      = field.mesh();
+    using mesh_id_t = typename Field::mesh_t::mesh_id_t;
     const auto min_l = mesh.min_level();
     const auto max_l = mesh.max_level();
     const double coarsen_threshold = refine_threshold * coarsen_ratio;
 
-    auto refine_mark  = samurai::make_scalar_field<int>("refine_mark", mesh);
-    auto coarsen_mark = samurai::make_scalar_field<int>("coarsen_mark", mesh);
-    refine_mark.resize();
-    coarsen_mark.resize();
-    refine_mark.fill(0);
-    coarsen_mark.fill(0);
+    auto gradient_op = samurai::make_gradient_order2<Field>();
+    auto& mutable_field = const_cast<Field&>(field); // gradient scheme updates ghost layers
+    auto gradient       = gradient_op(mutable_field);
 
     samurai::for_each_cell(mesh[mesh_id_t::cells],
                            [&](auto cell)
                            {
-                                const std::size_t level = cell.level;
-                               const auto i            = cell.indices[0];
-                               const auto j            = cell.indices[1];
-                               const double value      = field[cell];
+                               const std::size_t level = cell.level;
+                               const double dx         = mesh.cell_length(level);
 
-                               auto sample = [&](interval_value_t di, interval_value_t dj)
+                               const auto grad_val = gradient[cell];
+                               double max_component = 0.;
+                               for (std::size_t d = 0; d < Field::dim; ++d)
                                {
-                                   const interval_value_t ii = static_cast<interval_value_t>(i + di);
-                                   const interval_value_t jj = static_cast<interval_value_t>(j + dj);
-                                   try
-                                   {
-                                       auto neighbour = mesh.get_cell(level, ii, jj);
-                                       return static_cast<double>(field[neighbour]);
-                                   }
-                                   catch (const std::exception&)
-                                   {
-                                       return value;
-                                   }
-                               };
+                                   const double component = grad_val(static_cast<std::size_t>(d));
+                                   max_component           = std::max(max_component, std::abs(component));
+                               }
 
-                               const double diff_x_plus  = std::abs(sample(1, 0) - value);
-                               const double diff_x_minus = std::abs(value - sample(-1, 0));
-                               const double diff_y_plus  = std::abs(sample(0, 1) - value);
-                               const double diff_y_minus = std::abs(value - sample(0, -1));
+                               const double indicator = max_component * dx;
 
-                               const double indicator = std::max({diff_x_plus, diff_x_minus, diff_y_plus, diff_y_minus});
-
-                               const bool base_refine        = indicator >= refine_threshold && level < max_l;
-                               const bool coarsen_candidate = allow_coarsen && indicator <= coarsen_threshold && level > min_l;
-
-                               refine_mark[cell]  = base_refine ? 1 : 0;
-                               coarsen_mark[cell] = coarsen_candidate ? 1 : 0;
-                           });
-
-    samurai::for_each_cell(mesh[mesh_id_t::cells],
-                           [&](auto cell)
-                           {
-                               const bool in_refine_zone = refine_mark[cell] != 0;
-                               if (allow_refine && in_refine_zone)
+                               if (allow_refine && indicator >= refine_threshold && level < max_l)
                                {
                                    tag[cell] = static_cast<int>(samurai::CellFlag::refine);
                                }
-                               else if (allow_coarsen && !in_refine_zone && coarsen_mark[cell])
+                               else if (allow_coarsen && indicator <= coarsen_threshold && level > min_l)
                                {
                                    tag[cell] = static_cast<int>(samurai::CellFlag::coarsen);
                                }

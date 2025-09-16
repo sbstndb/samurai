@@ -25,14 +25,15 @@ namespace samurai
     template <std::size_t dim_, int ghost_width_ = default_config::ghost_width, class TInterval = default_config::interval_t>
     struct UniformConfig
     {
-        static constexpr std::size_t dim = dim_;
-        static constexpr int ghost_width = ghost_width_;
+        static constexpr std::size_t dim                  = dim_;
+        static constexpr int ghost_width                  = ghost_width_;
         static constexpr std::size_t max_refinement_level = default_config::max_level;
         static constexpr std::size_t max_stencil_width    = default_config::ghost_width;
         static constexpr int prediction_order             = default_config::prediction_order;
-        using interval_t                 = TInterval;
-        using mesh_id_t                  = UniformMeshId;
+        using interval_t                                  = TInterval;
+        using mesh_id_t                                   = UniformMeshId;
     };
+
     template <class Config>
     class UniformMesh : public samurai::Mesh_base<UniformMesh<Config>, Config>
     {
@@ -112,7 +113,7 @@ namespace samurai
     template <class Config>
     inline void UniformMesh<Config>::update_sub_mesh_impl()
     {
-        auto& cells_array = this->cells();
+        auto& cells_array       = this->cells();
         const std::size_t level = this->min_level();
 
         using cl_type      = typename UniformMesh<Config>::cl_type;
@@ -127,20 +128,21 @@ namespace samurai
             cl[lvl].clear();
         }
 
-        for_each_interval(cells_array[mesh_id_t::cells],
-                          [&](std::size_t lvl, const auto& interval, const auto& index_yz)
-                          {
-                              if (lvl != level)
-                              {
-                                  return;
-                              }
-                              static_nested_loop<dim - 1, -config_type::ghost_width, config_type::ghost_width + 1>(
-                                  [&](auto stencil)
-                                  {
-                                      auto index = xt::eval(index_yz + stencil);
-                                      cl[level][index].add_interval({interval.start - config_type::ghost_width, interval.end + config_type::ghost_width});
-                                  });
-                          });
+        for_each_interval(
+            cells_array[mesh_id_t::cells],
+            [&](std::size_t lvl, const auto& interval, const auto& index_yz)
+            {
+                if (lvl != level)
+                {
+                    return;
+                }
+                static_nested_loop<dim - 1, -config_type::ghost_width, config_type::ghost_width + 1>(
+                    [&](auto stencil)
+                    {
+                        auto index = xt::eval(index_yz + stencil);
+                        cl[level][index].add_interval({interval.start - config_type::ghost_width, interval.end + config_type::ghost_width});
+                    });
+            });
 
         cells_array[mesh_id_t::cells_and_ghosts] = ca_type(cl);
         this->update_meshid_neighbour(mesh_id_t::cells_and_ghosts);

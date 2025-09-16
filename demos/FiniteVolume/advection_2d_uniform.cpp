@@ -6,15 +6,14 @@
 #include <xtensor/xfixed.hpp>
 
 #include <samurai/algorithm.hpp>
+#include <samurai/algorithm/update.hpp>
 #include <samurai/bc.hpp>
 #include <samurai/field.hpp>
 #include <samurai/io/hdf5.hpp>
 #include <samurai/io/restart.hpp>
-#include <samurai/mr/adapt.hpp>
-#include <samurai/mr/mesh.hpp>
 #include <samurai/samurai.hpp>
 #include <samurai/stencil_field.hpp>
-#include <samurai/subset/node.hpp>
+#include <samurai/uniform_mesh.hpp>
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -60,10 +59,12 @@ void save(const fs::path& path, const std::string& filename, const Field& u, con
 
 int main(int argc, char* argv[])
 {
-    auto& app = samurai::initialize("Finite volume example for the advection equation in 2d using multiresolution", argc, argv);
+    auto& app = samurai::initialize("Finite volume example for the advection equation in 2d using a uniform mesh", argc, argv);
 
     constexpr std::size_t dim = 2;
-    using Config              = samurai::MRConfig<dim>;
+    using Config              = samurai::UniformConfig<dim>;
+    using Mesh                = samurai::UniformMesh<Config>;
+    using mesh_id_t           = typename Mesh::mesh_id_t;
 
     // Simulation parameters
     xt::xtensor_fixed<double, xt::xshape<dim>> min_corner = {0., 0.};
@@ -76,9 +77,8 @@ int main(int argc, char* argv[])
     double t   = 0.;
     std::string restart_file;
 
-    // Multiresolution parameters
-    std::size_t min_level = 4;
-    std::size_t max_level = 10;
+    // Mesh parameters
+    std::size_t level = 10;
 
     // Output parameters
     fs::path path        = fs::current_path();
@@ -92,8 +92,7 @@ int main(int argc, char* argv[])
     app.add_option("--Ti", t, "Initial time")->capture_default_str()->group("Simulation parameters");
     app.add_option("--Tf", Tf, "Final time")->capture_default_str()->group("Simulation parameters");
     app.add_option("--restart-file", restart_file, "Restart file")->capture_default_str()->group("Simulation parameters");
-    app.add_option("--min-level", min_level, "Minimum level of the multiresolution")->capture_default_str()->group("Multiresolution");
-    app.add_option("--max-level", max_level, "Maximum level of the multiresolution")->capture_default_str()->group("Multiresolution");
+    app.add_option("--level", level, "Refinement level of the uniform mesh")->capture_default_str()->group("Mesh");
     app.add_option("--path", path, "Output path")->capture_default_str()->group("Output");
     app.add_option("--filename", filename, "File name prefix")->capture_default_str()->group("Output");
     app.add_option("--nfiles", nfiles, "Number of output files")->capture_default_str()->group("Output");
@@ -101,28 +100,25 @@ int main(int argc, char* argv[])
     SAMURAI_PARSE(argc, argv);
 
     const samurai::Box<double, dim> box(min_corner, max_corner);
-    samurai::MRMesh<Config> mesh;
+    Mesh mesh;
     auto u = samurai::make_scalar_field<double>("u", mesh);
 
     if (restart_file.empty())
     {
-        mesh = {box, min_level, max_level};
+        mesh = Mesh{box, level};
         init(u);
     }
     else
     {
         samurai::load(restart_file, mesh, u);
+        level = mesh.min_level();
     }
     samurai::make_bc<samurai::Dirichlet<1>>(u, 0.);
 
-    double dt            = cfl * mesh.cell_length(max_level);
+    double dt            = cfl * mesh.cell_length(level);
     const double dt_save = Tf / static_cast<double>(nfiles);
 
     auto unp1 = samurai::make_scalar_field<double>("unp1", mesh);
-
-    auto MRadaptation = samurai::make_MRAdapt(u);
-    auto mra_config   = samurai::mra_config().epsilon(2e-4);
-    MRadaptation(mra_config);
     save(path, filename, u, "_init");
 
     std::size_t nsave = 1;
@@ -130,8 +126,6 @@ int main(int argc, char* argv[])
 
     while (t != Tf)
     {
-        MRadaptation(mra_config);
-
         t += dt;
         if (t > Tf)
         {
@@ -141,7 +135,7 @@ int main(int argc, char* argv[])
 
         std::cout << fmt::format("iteration {}: t = {}, dt = {}", nt++, t, dt) << std::endl;
 
-        samurai::update_ghost_mr(u);
+        samurai::update_ghost_uniform(u);
         unp1.resize();
         unp1 = u - dt * samurai::upwind(a, u);
 

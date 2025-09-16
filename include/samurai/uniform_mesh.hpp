@@ -116,10 +116,10 @@ namespace samurai
         auto& cells_array       = this->cells();
         const std::size_t level = this->min_level();
 
-        using cl_type      = typename UniformMesh<Config>::cl_type;
-        using ca_type      = typename UniformMesh<Config>::ca_type;
-        using mesh_id_t    = typename UniformMesh<Config>::mesh_id_t;
-        using config_type  = typename UniformMesh<Config>::config;
+        using cl_type     = typename UniformMesh<Config>::cl_type;
+        using ca_type     = typename UniformMesh<Config>::ca_type;
+        using mesh_id_t   = typename UniformMesh<Config>::mesh_id_t;
+        using config_type = typename UniformMesh<Config>::config;
 
         cl_type cl(this->origin_point(), this->scaling_factor());
         for (std::size_t lvl = 0; lvl <= config_type::max_refinement_level; ++lvl)

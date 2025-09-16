@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
     else
     {
         samurai::load(restart_file, mesh, u);
-        level = mesh[mesh_id_t::cells].level();
+        level = mesh.min_level();
     }
     samurai::make_bc<samurai::Dirichlet<1>>(u, 0.);
 

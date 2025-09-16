@@ -8,7 +8,9 @@
 
    tutorial <tutorial/index>
    reference <reference/index>
+   demos <demos/index>
    api <api/index>
+   philosophy
 
 The main goal of |project| is to provide a new data structure based on intervals and algebra of sets to handle efficiently adaptive mesh refinement methods based on a cartesian grid. Such an approach has to be versatile enough to handle both AMR and multi-resolution methods.
 

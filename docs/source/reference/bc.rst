@@ -21,7 +21,7 @@ We give here a first use of edge conditions in |project| where we put the same c
 
     samurai::make_bc<samurai::Dirichlet<>>(u, 0.);
 
-The number of parameters in the ``make_bc`` function depends on the size of the field. Here, the field size is $1$ so we have just one value to define.
+The number of parameters in the ``make_bc`` function depends on the size of the field. Here, the field size is $1$ so we have just one value to define. ``make_bc`` returns a smart pointer to the boundary object so you can further customise it (e.g. with ``->on(direction)``).
 
 Let's take an example where the field size is different to :math:`1`:
 
@@ -69,6 +69,8 @@ The given parameters of the lambda function are as follows:
 .. note::
     The output of the lambda function must be convertible to a xtensor container with the shape equals to the number of field components.
 
+Passing additional context to the lambda is as simple as capturing references. Operators typically update ghost cells, so call :cpp:func:`samurai::update_ghost_mr` or the appropriate helper after creating the boundary conditions.
+
 Boundary along a direction
 --------------------------
 
@@ -83,6 +85,8 @@ If we want to impose boundary conditions on a domain face, we can define a direc
 
     const xt::xtensor_fixed<int, xt::xshape<1>> right{1};
     samurai::make_bc<samurai::Dirichlet<>>(u, 1.)->on(right);
+
+The ``on`` helper accepts any Cartesian direction: in higher dimensions pass an :math:`\pm 1` vector with one non-zero component to target a specific face, or call ``->on(left).on(right)`` to reuse the same object on several sides. You can also provide a custom functor to ``on`` for more refined selections (see :cpp:func:`samurai::Bc::on`).
 
 
 Define your own boundary
@@ -134,3 +138,5 @@ The parameters of the function returned by `get_apply_function` are fixed and as
 - `f` is the field where the boundary conditions are applied (where the ghosts will be updated).
 - `cells` is of type `std::array<samurai::Cell, stencil_size>`. It is the array of cells captured by the stencil.
 - `value` is an array of the type of the components of the field and with the size of the number of components.
+
+Custom boundary objects returned by ``make_bc`` are stored inside the field (see :cpp:func:`samurai::VectorField::attach_bc`). Copying a field duplicates the boundary configuration thanks to :cpp:func:`samurai::VectorField::copy_bc_from`, so you can safely rebuild meshes or restart from files without losing the imposed conditions.

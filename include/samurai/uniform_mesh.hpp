@@ -120,7 +120,6 @@ namespace samurai
         using ca_type      = typename UniformMesh<Config>::ca_type;
         using mesh_id_t    = typename UniformMesh<Config>::mesh_id_t;
         using config_type  = typename UniformMesh<Config>::config;
-        constexpr auto dim = UniformMesh<Config>::dim;
 
         cl_type cl(this->origin_point(), this->scaling_factor());
         for (std::size_t lvl = 0; lvl <= config_type::max_refinement_level; ++lvl)
@@ -136,7 +135,7 @@ namespace samurai
                 {
                     return;
                 }
-                static_nested_loop<dim - 1, -config_type::ghost_width, config_type::ghost_width + 1>(
+                static_nested_loop<config_type::dim - 1, -config_type::ghost_width, config_type::ghost_width + 1>(
                     [&](auto stencil)
                     {
                         auto index = xt::eval(index_yz + stencil);

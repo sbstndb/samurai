@@ -60,6 +60,36 @@ In |project|, you already have an algebra of set operators implemented (`interse
 
 If the subset exists, we can then apply a numerical kernel to it. There exist different ways: `operator()`, `apply_op` where you describe an operator which can be different depending on the problem dimension. The method using `operator()` as in our example takes a lambda function with two parameters: an x-interval and an index array with the values for the other dimensions. Since our example is a 1d problem, we omit the index.
 
+Quick reference
+---------------
+
+The helper functions exposed in ``samurai/subset/node.hpp`` let you build more elaborate regions in a single line:
+
+- :cpp:func:`samurai::intersection` gathers the common part of several level sets.
+- :cpp:func:`samurai::union_` merges sets, keeping all covered intervals.
+- :cpp:func:`samurai::difference` removes the contribution of the following operand.
+- :cpp:func:`samurai::translate` shifts a set by a stencil vector (handy for building neighbours).
+- :cpp:func:`samurai::contraction` and :cpp:func:`samurai::contract` shrink a set by a number of cells.
+- :cpp:func:`samurai::self` simply wraps an existing :cpp:class:`samurai::LevelCellArray` so that it can enter an algebraic expression.
+
+Every subset can be reinterpreted on another reference level by calling :cpp:func:`samurai::Subset::on`. The largest level present in the operands is selected by default, but ``.on(target_level)`` lets you evaluate or apply kernels on any other level while keeping the original geometry intact.
+
+Running a kernel or just probing whether the set is empty is done with
+
+.. code-block:: c++
+
+   auto subset = samurai::union_(mesh[mesh_id_t::cells], ghosts).on(max_level);
+
+   samurai::apply(subset, [&](const auto& interval, const auto& lateral_index)
+   {
+       // interval.start/interval.end refer to the canonical level selected with .on()
+       // lateral_index holds the indices of the other Cartesian directions
+   });
+
+   bool is_empty = samurai::empty_check(subset);
+
+`subset(...)` is sugar for ``samurai::apply(subset, ...)`` with a lambda returning ``void``; use the free ``apply`` if you need an early exit by returning ``true``. Both helpers walk the multidimensional interval tree only once, so chaining operations does not allocate intermediate vectors unless you explicitly store them.
+
 How to find the subset ?
 ------------------------
 

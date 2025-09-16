@@ -189,109 +189,6 @@ void save(const fs::path& path, const std::string& filename, const Field& u, con
 #endif
 }
 
-template <class Field>
-void flux_correction(Field& u_np1, const Field& u_n, const std::array<double, Field::dim>& velocity, double dt)
-{
-    static_assert(Field::dim == 2, "Flux correction implemented for 2d advection demo");
-
-    using mesh_t     = typename Field::mesh_t;
-    using mesh_id_t  = typename mesh_t::mesh_id_t;
-    using interval_t = typename mesh_t::interval_t;
-
-    auto& mesh                  = u_np1.mesh();
-    const std::size_t min_level = mesh[mesh_id_t::cells].min_level();
-    const std::size_t max_level = mesh[mesh_id_t::cells].max_level();
-
-    for (std::size_t level = min_level; level < max_level; ++level)
-    {
-        const double dx = mesh.cell_length(level);
-        xt::xtensor_fixed<int, xt::xshape<2>> stencil;
-
-        stencil = {
-            {-1, 0}
-        };
-        auto subset_right = samurai::intersection(samurai::translate(mesh[mesh_id_t::cells][level + 1], stencil),
-                                                  mesh[mesh_id_t::cells][level])
-                                .on(level);
-        subset_right(
-            [&](const auto& i, const auto& index)
-            {
-                auto j = index[0];
-                u_np1(level,
-                      i,
-                      j) = u_np1(level, i, j)
-                         + dt / dx
-                               * (samurai::upwind_op<Field::dim, interval_t>(level, i, j).right_flux(velocity, u_n)
-                                  - .5 * samurai::upwind_op<Field::dim, interval_t>(level + 1, 2 * i + 1, 2 * j)
-                                            .right_flux(velocity, u_n)
-                                  - .5 * samurai::upwind_op<Field::dim, interval_t>(level + 1, 2 * i + 1, 2 * j + 1)
-                                            .right_flux(velocity, u_n));
-            });
-
-        stencil = {
-            {1, 0}
-        };
-        auto subset_left = samurai::intersection(samurai::translate(mesh[mesh_id_t::cells][level + 1], stencil),
-                                                 mesh[mesh_id_t::cells][level])
-                               .on(level);
-        subset_left(
-            [&](const auto& i, const auto& index)
-            {
-                auto j = index[0];
-                u_np1(level,
-                      i,
-                      j) = u_np1(level, i, j)
-                         - dt / dx
-                               * (samurai::upwind_op<Field::dim, interval_t>(level, i, j).left_flux(velocity, u_n)
-                                  - .5 * samurai::upwind_op<Field::dim, interval_t>(level + 1, 2 * i, 2 * j)
-                                            .left_flux(velocity, u_n)
-                                  - .5 * samurai::upwind_op<Field::dim, interval_t>(level + 1, 2 * i, 2 * j + 1)
-                                            .left_flux(velocity, u_n));
-            });
-
-        stencil = {
-            {0, -1}
-        };
-        auto subset_up = samurai::intersection(samurai::translate(mesh[mesh_id_t::cells][level + 1], stencil), mesh[mesh_id_t::cells][level])
-                             .on(level);
-        subset_up(
-            [&](const auto& i, const auto& index)
-            {
-                auto j = index[0];
-                u_np1(level,
-                      i,
-                      j) = u_np1(level, i, j)
-                         + dt / dx
-                               * (samurai::upwind_op<Field::dim, interval_t>(level, i, j).up_flux(velocity, u_n)
-                                  - .5 * samurai::upwind_op<Field::dim, interval_t>(level + 1, 2 * i, 2 * j + 1)
-                                            .up_flux(velocity, u_n)
-                                  - .5 * samurai::upwind_op<Field::dim, interval_t>(level + 1, 2 * i + 1, 2 * j + 1)
-                                            .up_flux(velocity, u_n));
-            });
-
-        stencil = {
-            {0, 1}
-        };
-        auto subset_down = samurai::intersection(samurai::translate(mesh[mesh_id_t::cells][level + 1], stencil),
-                                                 mesh[mesh_id_t::cells][level])
-                               .on(level);
-        subset_down(
-            [&](const auto& i, const auto& index)
-            {
-                auto j = index[0];
-                u_np1(level,
-                      i,
-                      j) = u_np1(level, i, j)
-                         - dt / dx
-                               * (samurai::upwind_op<Field::dim, interval_t>(level, i, j).down_flux(velocity, u_n)
-                                  - .5 * samurai::upwind_op<Field::dim, interval_t>(level + 1, 2 * i, 2 * j)
-                                            .down_flux(velocity, u_n)
-                                  - .5 * samurai::upwind_op<Field::dim, interval_t>(level + 1, 2 * i + 1, 2 * j)
-                                            .down_flux(velocity, u_n));
-            });
-    }
-}
-
 int main(int argc, char* argv[])
 {
     auto& app = samurai::initialize("Finite volume example for the advection equation in 2d using AMR", argc, argv);
@@ -318,7 +215,6 @@ int main(int argc, char* argv[])
     double amr_coarsen_ratio         = 0.5;
     std::size_t amr_diffuse_passes   = 1;
     bool amr_allow_coarsen           = true;
-    bool amr_with_correction         = true;
 
     // Output parameters
     fs::path path        = fs::current_path();
@@ -349,9 +245,6 @@ int main(int argc, char* argv[])
         ->capture_default_str()
         ->group("AMR");
     app.add_option("--amr-allow-coarsen", amr_allow_coarsen, "Allow coarsening during AMR adaptation")
-        ->capture_default_str()
-        ->group("AMR");
-    app.add_option("--amr-with-correction", amr_with_correction, "Apply flux correction across refinement interfaces")
         ->capture_default_str()
         ->group("AMR");
     app.add_option("--path", path, "Output path")->capture_default_str()->group("Output");
@@ -459,10 +352,6 @@ int main(int argc, char* argv[])
         samurai::update_ghost(u);
         unp1.resize();
         unp1 = u - dt * samurai::upwind(a, u);
-        if (amr_with_correction)
-        {
-            flux_correction(unp1, u, a, dt);
-        }
 
         std::swap(u.array(), unp1.array());
 

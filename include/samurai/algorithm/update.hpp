@@ -4,6 +4,8 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
+#include <type_traits>
 
 #include <xtensor/xfixed.hpp>
 
@@ -32,6 +34,212 @@ namespace mpi = boost::mpi;
 
 namespace samurai
 {
+    enum class UniformMeshId;
+
+    template <class Field>
+    void update_ghost_uniform(Field& field)
+    {
+        using mesh_t    = typename Field::mesh_t;
+        using mesh_id_t = typename mesh_t::mesh_id_t;
+
+        if constexpr (std::is_same_v<mesh_id_t, UniformMeshId>)
+        {
+            constexpr std::size_t dim = Field::dim;
+            using interval_t         = typename mesh_t::interval_t;
+            using value_t            = typename interval_t::value_t;
+
+            auto& mesh = field.mesh();
+            auto& bc   = field.get_bc();
+
+            if (bc.empty())
+            {
+                return;
+            }
+
+            const auto& interior    = mesh[mesh_id_t::cells];
+            const auto& with_ghosts = mesh[mesh_id_t::cells_and_ghosts];
+
+            const auto interior_minmax = interior.minmax_indices();
+            const auto ghost_minmax    = with_ghosts.minmax_indices();
+
+            std::array<value_t, dim> interior_min{};
+            std::array<value_t, dim> interior_max{};
+            std::array<value_t, dim> ghost_min{};
+            std::array<value_t, dim> ghost_max{};
+
+            for (std::size_t d = 0; d < dim; ++d)
+            {
+                interior_min[d] = interior_minmax[d].first;
+                interior_max[d] = interior_minmax[d].second;
+                ghost_min[d]    = ghost_minmax[d].first;
+                ghost_max[d]    = ghost_minmax[d].second;
+            }
+
+            auto direction_matches = [](const auto& bc_impl, const xt::xtensor_fixed<int, xt::xshape<dim>>& direction)
+            {
+                const auto& directions = bc_impl.get_region().first;
+                return std::any_of(directions.begin(),
+                                   directions.end(),
+                                   [&](const auto& candidate)
+                                   {
+                                       for (std::size_t i = 0; i < dim; ++i)
+                                       {
+                                           if (candidate[i] != direction[i])
+                                           {
+                                               return false;
+                                           }
+                                       }
+                                       return true;
+                                   });
+            };
+
+            auto boundary_value = [&](auto& bc_impl,
+                                      const xt::xtensor_fixed<int, xt::xshape<dim>>& direction,
+                                      const auto& interior_cell)
+            {
+                if (bc_impl.get_value_type() == BCVType::constant)
+                {
+                    return bc_impl.constant_value();
+                }
+                auto face_coords = interior_cell.face_center(direction);
+                return bc_impl.value(direction, interior_cell, face_coords);
+            };
+
+            auto assign_value = [&](auto& bc_impl,
+                                    const xt::xtensor_fixed<int, xt::xshape<dim>>& direction,
+                                    const std::array<value_t, dim>& idx)
+            {
+                bool is_interior = true;
+                for (std::size_t d = 0; d < dim; ++d)
+                {
+                    if (idx[d] < interior_min[d] || idx[d] >= interior_max[d])
+                    {
+                        is_interior = false;
+                        break;
+                    }
+                }
+
+                if (is_interior)
+                {
+                    return;
+                }
+
+                std::array<value_t, dim> interior_idx = idx;
+                for (std::size_t d = 0; d < dim; ++d)
+                {
+                    const auto upper_bound = (interior_max[d] > interior_min[d]) ? static_cast<value_t>(interior_max[d] - 1)
+                                                                                   : interior_min[d];
+                    interior_idx[d]       = std::clamp(idx[d], interior_min[d], upper_bound);
+                }
+
+                xt::xtensor_fixed<value_t, xt::xshape<dim>> interior_coord;
+                xt::xtensor_fixed<value_t, xt::xshape<dim>> ghost_coord;
+                for (std::size_t d = 0; d < dim; ++d)
+                {
+                    interior_coord[d] = interior_idx[d];
+                    ghost_coord[d]    = idx[d];
+                }
+
+                auto interior_cell = interior.get_cell(interior_coord);
+                auto ghost_cell    = with_ghosts.get_cell(ghost_coord);
+
+                field[ghost_cell] = boundary_value(bc_impl, direction, interior_cell);
+            };
+
+            auto for_each_index = [&](const std::array<value_t, dim>& start,
+                                      const std::array<value_t, dim>& end,
+                                      auto& bc_impl,
+                                      const xt::xtensor_fixed<int, xt::xshape<dim>>& direction)
+            {
+                std::array<value_t, dim> current{};
+                auto visit = [&](const auto& self, std::size_t d) -> void
+                {
+                    if (d == dim)
+                    {
+                        assign_value(bc_impl, direction, current);
+                        return;
+                    }
+
+                    for (current[d] = start[d]; current[d] < end[d]; ++current[d])
+                    {
+                        self(self, d + 1);
+                    }
+                };
+                visit(visit, 0);
+            };
+
+            auto apply_direction = [&](const xt::xtensor_fixed<int, xt::xshape<dim>>& direction,
+                                       const std::array<value_t, dim>& start,
+                                       const std::array<value_t, dim>& end)
+            {
+                bool empty = false;
+                for (std::size_t i = 0; i < dim; ++i)
+                {
+                    if (start[i] >= end[i])
+                    {
+                        empty = true;
+                        break;
+                    }
+                }
+
+                if (empty)
+                {
+                    return;
+                }
+
+                bool applied = false;
+                for (auto& bc_impl_ptr : bc)
+                {
+                    auto& bc_impl = *bc_impl_ptr;
+                    if (!direction_matches(bc_impl, direction))
+                    {
+                        continue;
+                    }
+
+                    applied = true;
+                    for_each_index(start, end, bc_impl, direction);
+                }
+
+                if (!applied)
+                {
+                    auto& bc_impl = *bc.front();
+                    for_each_index(start, end, bc_impl, direction);
+                }
+            };
+
+            for (std::size_t d = 0; d < dim; ++d)
+            {
+                xt::xtensor_fixed<int, xt::xshape<dim>> direction;
+                direction.fill(0);
+                direction[d] = -1;
+
+                std::array<value_t, dim> start = ghost_min;
+                std::array<value_t, dim> end   = ghost_max;
+                start[d]                       = ghost_min[d];
+                end[d]                         = interior_min[d];
+                if (start[d] < end[d])
+                {
+                    apply_direction(direction, start, end);
+                }
+
+                direction.fill(0);
+                direction[d] = 1;
+                start         = ghost_min;
+                end           = ghost_max;
+                start[d]      = interior_max[d];
+                end[d]        = ghost_max[d];
+                if (start[d] < end[d])
+                {
+                    apply_direction(direction, start, end);
+                }
+            }
+        }
+        else
+        {
+            static_assert(std::is_same_v<mesh_id_t, UniformMeshId>, "update_ghost_uniform expects a uniform mesh");
+        }
+    }
+
     template <class Field, class... Fields>
     void update_ghost(Field& field, Fields&... fields)
     {

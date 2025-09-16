@@ -1,19 +1,17 @@
 // Copyright 2018-2025 the samurai's authors
 // SPDX-License-Identifier:  BSD-3-Clause
 
-#include <algorithm>
 #include <array>
-#include <type_traits>
 
 #include <xtensor/xfixed.hpp>
 
 #include <samurai/algorithm.hpp>
+#include <samurai/algorithm/update.hpp>
 #include <samurai/bc.hpp>
 #include <samurai/field.hpp>
 #include <samurai/io/hdf5.hpp>
 #include <samurai/io/restart.hpp>
 #include <samurai/samurai.hpp>
-#include <samurai/stencil.hpp>
 #include <samurai/stencil_field.hpp>
 #include <samurai/uniform_mesh.hpp>
 
@@ -57,137 +55,6 @@ void save(const fs::path& path, const std::string& filename, const Field& u, con
     samurai::save(path, fmt::format("{}{}", filename, suffix), mesh, u);
     samurai::dump(path, fmt::format("{}_restart{}", filename, suffix), mesh, u);
 #endif
-}
-
-template <class Field>
-void update_ghost_uniform(Field& field)
-{
-    using mesh_t    = typename Field::mesh_t;
-    using mesh_id_t = typename mesh_t::mesh_id_t;
-    using value_t   = typename mesh_t::interval_t::value_t;
-
-    static_assert(std::is_same_v<mesh_id_t, samurai::UniformMeshId>, "Uniform ghost update expects a uniform mesh");
-    static_assert(Field::dim == 2, "Uniform ghost update currently implemented for 2D fields.");
-
-    auto& mesh          = field.mesh();
-    auto& bc_container  = field.get_bc();
-    if (bc_container.empty())
-    {
-        return;
-    }
-
-    const auto& cells              = mesh[mesh_id_t::cells];
-    const auto& cells_and_ghosts   = mesh[mesh_id_t::cells_and_ghosts];
-    const auto interior_minmax     = cells.minmax_indices();
-    const auto ghost_minmax        = cells_and_ghosts.minmax_indices();
-    const value_t i_min            = interior_minmax[0].first;
-    const value_t i_max            = interior_minmax[0].second;
-    const value_t j_min            = interior_minmax[1].first;
-    const value_t j_max            = interior_minmax[1].second;
-    const value_t ghost_i_min      = ghost_minmax[0].first;
-    const value_t ghost_i_max      = ghost_minmax[0].second;
-    const value_t ghost_j_min      = ghost_minmax[1].first;
-    const value_t ghost_j_max      = ghost_minmax[1].second;
-
-    auto direction_matches = [](const auto& bc, const samurai::DirectionVector<Field::dim>& direction)
-    {
-        const auto& dirs = bc.get_region().first;
-        return std::any_of(dirs.begin(), dirs.end(),
-                           [&](const auto& candidate)
-                           {
-                               for (std::size_t d = 0; d < Field::dim; ++d)
-                               {
-                                   if (candidate[d] != direction[d])
-                                   {
-                                       return false;
-                                   }
-                               }
-                               return true;
-                           });
-    };
-
-    auto boundary_value = [&](auto& bc, const samurai::DirectionVector<Field::dim>& direction, const auto& interior_cell)
-    {
-        if (bc.get_value_type() == samurai::BCVType::constant)
-        {
-            return bc.constant_value();
-        }
-        auto coords = interior_cell.face_center(direction);
-        return bc.value(direction, interior_cell, coords);
-    };
-
-    auto assign_value = [&](auto& bc, const samurai::DirectionVector<Field::dim>& direction, value_t i, value_t j)
-    {
-        const bool in_domain = (i >= i_min && i < i_max && j >= j_min && j < j_max);
-        if (in_domain)
-        {
-            return;
-        }
-
-        const value_t interior_i = std::clamp(i, i_min, static_cast<value_t>(i_max - 1));
-        const value_t interior_j = std::clamp(j, j_min, static_cast<value_t>(j_max - 1));
-        auto interior_cell       = cells.get_cell(interior_i, interior_j);
-        auto ghost_cell          = cells_and_ghosts.get_cell(i, j);
-        field[ghost_cell]        = boundary_value(bc, direction, interior_cell);
-    };
-
-    auto apply_direction = [&](const samurai::DirectionVector<Field::dim>& direction,
-                               value_t i_begin,
-                               value_t i_end,
-                               value_t j_begin,
-                               value_t j_end)
-    {
-        bool applied = false;
-        for (auto& bc_ptr : bc_container)
-        {
-            auto& bc = *bc_ptr;
-            if (!direction_matches(bc, direction))
-            {
-                continue;
-            }
-
-            applied = true;
-            for (value_t i = i_begin; i < i_end; ++i)
-            {
-                for (value_t j = j_begin; j < j_end; ++j)
-                {
-                    assign_value(bc, direction, i, j);
-                }
-            }
-        }
-
-        if (!applied)
-        {
-            auto& bc = *bc_container.front();
-            for (value_t i = i_begin; i < i_end; ++i)
-            {
-                for (value_t j = j_begin; j < j_end; ++j)
-                {
-                    assign_value(bc, direction, i, j);
-                }
-            }
-        }
-    };
-
-    samurai::DirectionVector<Field::dim> direction;
-    direction.fill(0);
-    direction[0] = -1;
-    apply_direction(direction, ghost_i_min, i_min, ghost_j_min, ghost_j_max);
-
-    direction.fill(0);
-    direction[0] = 1;
-    apply_direction(direction, i_max, ghost_i_max, ghost_j_min, ghost_j_max);
-
-    if constexpr (Field::dim >= 2)
-    {
-        direction.fill(0);
-        direction[1] = -1;
-        apply_direction(direction, ghost_i_min, ghost_i_max, ghost_j_min, j_min);
-
-        direction.fill(0);
-        direction[1] = 1;
-        apply_direction(direction, ghost_i_min, ghost_i_max, j_max, ghost_j_max);
-    }
 }
 
 int main(int argc, char* argv[])
@@ -268,7 +135,7 @@ int main(int argc, char* argv[])
 
         std::cout << fmt::format("iteration {}: t = {}, dt = {}", nt++, t, dt) << std::endl;
 
-        update_ghost_uniform(u);
+        samurai::update_ghost_uniform(u);
         unp1.resize();
         unp1 = u - dt * samurai::upwind(a, u);
 

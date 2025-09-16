@@ -1,5 +1,6 @@
 #pragma once
 #include "../flux_based/flux_based_scheme__lin_hom.hpp"
+#include "../flux_based/explicit_flux_based_scheme__lin_hom.hpp"
 
 namespace samurai
 {

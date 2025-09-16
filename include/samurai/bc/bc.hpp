@@ -741,8 +741,9 @@ namespace samurai
         template <class Config>
         decltype(auto) get_mesh(const UniformMesh<Config>& mesh)
         {
-            using mesh_id_t = typename Config::mesh_id_t;
-            return mesh[mesh_id_t::cells];
+            using mesh_id_t  = typename Config::mesh_id_t;
+            const auto level = mesh.min_level();
+            return mesh[mesh_id_t::cells][level];
         }
     }
 

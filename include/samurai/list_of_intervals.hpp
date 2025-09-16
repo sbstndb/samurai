@@ -62,6 +62,8 @@ namespace samurai
 
         void add_point(value_t point);
         void add_interval(const interval_t& interval);
+
+        void clear();
     };
 
     ////////////////////////////////////
@@ -115,6 +117,12 @@ namespace samurai
             it.second->end = std::max(it_end->end, interval.end);
             it_end         = erase_after(it.second);
         }
+    }
+
+    template <typename TValue, typename TIndex>
+    inline void ListOfIntervals<TValue, TIndex>::clear()
+    {
+        list_t::clear();
     }
 
     template <typename value_t, typename index_t>

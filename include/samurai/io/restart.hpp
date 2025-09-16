@@ -154,6 +154,16 @@ namespace samurai
         dump(file, mesh[mesh_id_t::cells]);
     }
 
+    template <class Config, class... Fields>
+    void dump(HighFive::File& file, const UniformMesh<Config>& mesh, const Fields&... fields)
+    {
+        using Mesh      = UniformMesh<Config>;
+        using mesh_id_t = typename Mesh::mesh_id_t;
+
+        dump(file, mesh[mesh_id_t::cells]);
+        dump_fields(file, mesh[mesh_id_t::cells], fields...);
+    }
+
     void dump_field(HighFive::File& file, const auto& mesh, const auto& field)
     {
         auto data = extract_data_as_vector(field, mesh);

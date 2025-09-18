@@ -78,7 +78,15 @@ Running the finite-volume benchmark
    single output file, matching the light-weight profiling use case. The
    default references are currently set to ~3.0 s (1 rank) and ~3.3 s (2 ranks)
    with generous 80% tolerances; refine them once several runs establish a
-   baseline on your machine.
+   baseline on your machine. The test exposes the variables
+   ``FiniteVolumeDemoTest.final_time`` and ``FiniteVolumeDemoTest.nfiles`` so
+   you can override the command-line arguments without editing the test::
+
+      $ ../reframe/bin/reframe ... \
+            -S FiniteVolumeDemoTest.final_time=0.5 \
+            -S FiniteVolumeDemoTest.nfiles=1
+
+   The overrides apply to every demo instance of the run.
    tolerance) can be tightened once several runs establish a baseline on your
    machine.
 

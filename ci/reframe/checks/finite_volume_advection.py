@@ -7,13 +7,15 @@ from pathlib import Path
 
 import reframe as rfm
 import reframe.utility.sanity as sn
-from reframe.core.builtins import parameter
+from reframe.core.builtins import parameter, variable
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 DEMO_CONFIGS = {
     'finite-volume-advection-2d': {
         'target': 'finite-volume-advection-2d',
-        'run_opts': ['--Tf', '0.01', '--timers', '--nfiles', '1'],
+        'default_tf': 0.01,
+        'default_nfiles': 1,
+        'extra_opts': ['--timers'],
         'sanity': r'iteration 0',
         'perf_regex': (
             r'\btotal runtime\s+(?P<min>\S+)\s+\[\s*\d+\s*]\s+'
@@ -26,7 +28,9 @@ DEMO_CONFIGS = {
     },
     'finite-volume-burgers': {
         'target': 'finite-volume-burgers',
-        'run_opts': ['--Tf', '0.05', '--nfiles', '1'],
+        'default_tf': 0.05,
+        'default_nfiles': 1,
+        'extra_opts': [],
         'sanity': r'iteration 0',
         'perf_regex': None,
         'reference': None,
@@ -40,6 +44,8 @@ class FiniteVolumeDemoTest(rfm.RegressionTest):
 
     demo = parameter(sorted(DEMO_CONFIGS.keys()), fmt=lambda x: x.replace('finite-volume-', ''))
     mpi_ranks = parameter([1, 2], fmt=lambda x: f'{x}ranks')
+    final_time = variable(float, value=-1.0)
+    nfiles = variable(int, value=-1)
 
     valid_systems = ['local:default']
     valid_prog_environs = ['builtin']
@@ -66,7 +72,20 @@ class FiniteVolumeDemoTest(rfm.RegressionTest):
 
         self.executable = os.path.join(str(build_dir), 'demos', 'FiniteVolume',
                                        cfg['target'])
-        self.executable_opts = cfg['run_opts']
+
+        tf_value = self.final_time if self.final_time >= 0.0 else cfg['default_tf']
+        nfiles_value = self.nfiles if self.nfiles >= 0 else cfg['default_nfiles']
+
+        run_opts = []
+        if tf_value is not None:
+            run_opts += ['--Tf', str(tf_value)]
+
+        if nfiles_value is not None:
+            run_opts += ['--nfiles', str(nfiles_value)]
+
+        run_opts += cfg.get('extra_opts', [])
+
+        self.executable_opts = run_opts
 
         self.num_tasks = self.mpi_ranks
         self.num_tasks_per_node = self.mpi_ranks

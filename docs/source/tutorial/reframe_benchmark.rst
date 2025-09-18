@@ -2,30 +2,39 @@ ReFrame Benchmark Campaign
 ==========================
 
 This tutorial explains how to reproduce the ``finite-volume-advection-2d``
-benchmark with `ReFrame <https://github.com/reframe-hpc/reframe>`_ on top of a
-Spack powered Samurai installation.  The workflow is entirely scripted so that
-it can be reused for performance tracking or regression testing.
+benchmark with `ReFrame <https://github.com/reframe-hpc/reframe>`_ using a
+Conda-based Samurai toolchain. The workflow stays fully scripted so that it can
+power reproducible benchmarking or regression runs.
 
 Prerequisites
 -------------
 
-* A working Spack installation that provides ``samurai@0.26.1`` and a compatible
-  ``cli11`` release (``cli11@2.3.2`` is known to work with this demo).
+* A Conda installation with the latest Samurai package available. A minimal
+  environment providing the required build dependencies can be created with::
+
+      $ conda create -n samurai-bench -c conda-forge samurai cli11 cmake ninja openmpi
+      $ conda activate samurai-bench
+
+  Adjust the package list to match your local preferences (e.g. replace
+  ``openmpi`` with another MPI implementation). The important point is that the
+  activated environment exposes Samurai headers/libraries as well as the CLI11
+  headers requested by the CMake project.
+
 * The Samurai sources (this repository) and the ReFrame project cloned side by
-  side.  A typical setup is::
+  side. A typical setup is::
 
       $ git clone https://github.com/reframe-hpc/reframe.git
       $ cd reframe
       $ ./bootstrap.sh
 
-  The ``bootstrap.sh`` step creates ``bin/reframe`` along with the Python
-  dependencies that ReFrame requires at runtime.
+  The ``bootstrap.sh`` step creates ``bin/reframe`` together with the Python
+  dependencies that ReFrame needs at runtime.
 
 Repository layout
 -----------------
 
-The Samurai tree now ships a minimal ReFrame site configuration and a first
-check under ``ci/reframe/``:
+The Samurai tree ships a minimal ReFrame site configuration and a first check
+under ``ci/reframe/``:
 
 * ``ci/reframe/config/local.py`` – single-node configuration that looks for
   ReFrame checks inside ``ci/reframe/checks`` and stores stage/output artefacts
@@ -34,21 +43,20 @@ check under ``ci/reframe/``:
   ``finite-volume-advection-2d`` demo with CMake and runs it with a short final
   time to keep executions fast while still producing timing information.
 
-Both files are regular Python modules, so they can be adapted to fit another
-system or benchmark.
+Both files are regular Python modules, so they can be adapted easily for other
+systems or demos.
 
 Running the finite-volume benchmark
 -----------------------------------
 
-1. Prepare the Spack environment that the check expects::
+1. Activate the Conda environment that carries Samurai and the build
+   dependencies::
 
-      $ . ~/spack/share/spack/setup-env.sh
-      $ export SAMURAI_CLI11_SPEC=cli11@2.3.2
-      $ export SAMURAI_SPACK_SPEC=samurai@0.26.1
+      $ conda activate samurai-bench
 
-   The ReFrame check loads these specs explicitly and also queries
-   ``spack location`` to set ``CLI11_ROOT`` during the CMake configure step.
-   Adjust the environment variables if you prefer different build variants.
+   The check assumes the compilers, CMake config files and CLI11 headers are
+   available through the active environment (``$CONDA_PREFIX`` is added to
+   ``CMAKE_PREFIX_PATH`` automatically by Conda).
 
 2. From the Samurai checkout, launch ReFrame against the local configuration::
 
@@ -59,11 +67,11 @@ Running the finite-volume benchmark
             -r --performance-report
 
    The command stages the sources under ``ci/reframe/stage``, configures CMake
-   with ``-mtune=native -march=native -O3 -g`` and builds only the
-   ``finite-volume-advection-2d`` target.  During the run the executable is
+   with ``-mtune=native -march=native -O3 -g`` and only builds the
+   ``finite-volume-advection-2d`` target. During the run the executable is
    launched with ``--Tf 0.01 --timers --nfiles 1`` so the timer table is emitted
-   to standard output.  ReFrame captures the ``total runtime`` line to populate
-   the performance report.  The default reference value (1.8 s with a 50%
+   to standard output. ReFrame captures the ``total runtime`` line to populate
+   the performance report. The default reference value (1.8 s with a 50%
    tolerance) can be tightened once several runs establish a baseline on your
    machine.
 
@@ -73,7 +81,7 @@ Running the finite-volume benchmark
    * ``ci/reframe/output/...`` stores ReFrame reports when ``--performance-report``
      is passed.
 
-   These folders are ignored by Git so they can be safely removed between runs
+   These folders are ignored by Git, therefore they can be removed between runs
    if you want a clean workspace.
 
 Extending the campaign
@@ -81,13 +89,13 @@ Extending the campaign
 
 * To benchmark another demo, copy
   ``ci/reframe/checks/finite_volume_advection.py`` and change the ``make``
-  target plus the executable invocation.  All common helper code lives in the
-  same file (e.g. the Spack bootstrap commands) so sharing a base class is
-  straightforward if the pipeline grows.
-* The check honours the environment variables ``SAMURAI_CLI11_SPEC`` and
-  ``SAMURAI_SPACK_SPEC``.  Define them once in a ReFrame mode or in your shell if
-  the canonical Spack specs evolve.
-* ReFrame’s ``--run`` flag in the example performs both build and run stages.  If
+  target plus the executable invocation. Because the check is now environment
+  agnostic, additional setup commands can be added via ReFrame hooks if a
+  future system needs custom activation steps.
+* Conda makes it easy to try different Samurai releases. Simply
+  ``conda install samurai=<version>`` in the same environment and rerun ReFrame
+  to capture the new timings.
+* ReFrame’s ``--run`` flag in the example performs both build and run stages. If
   you only need to compile (for instance to populate caches) use
   ``--build-only``; conversely, ``--skip-build`` will reuse an already compiled
   stagedir.
@@ -95,11 +103,11 @@ Extending the campaign
 Troubleshooting
 ---------------
 
-* If CMake fails with ``cli11`` conversion errors, double check that the Spack
-  module for ``cli11`` is at version 2.3.x.  Newer releases change the default
-  array serialisation and trigger compilation errors for this demo.
+* If CMake fails to locate CLI11 or Samurai, verify that the packages are
+  present in the active Conda environment (``conda list cli11``) and that
+  ``CMAKE_PREFIX_PATH`` includes ``$CONDA_PREFIX``.
 * ReFrame warns about redefining the ``builtin`` environment because the custom
-  configuration overrides the default compiler wrappers.  The warning is
+  configuration overrides the default compiler wrappers. The warning is
   harmless but can be silenced by renaming the environment.
 * To start fresh, remove the ``ci/reframe/stage`` directory or run ReFrame with
   ``--clean-stagedir``.

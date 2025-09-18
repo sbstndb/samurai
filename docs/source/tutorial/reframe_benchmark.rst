@@ -18,7 +18,9 @@ Prerequisites
   Adjust the package list to match your local preferences (e.g. replace
   ``openmpi`` with another MPI implementation). The important point is that the
   activated environment exposes Samurai headers/libraries as well as the CLI11
-  headers requested by the CMake project.
+  headers requested by the CMake project. The ReFrame configuration uses the
+  ``mpirun`` launcher, so the chosen MPI distribution must expose the command in
+  the environment.
 
 * The Samurai sources (this repository) and the ReFrame project cloned side by
   side. A typical setup is::
@@ -39,9 +41,9 @@ under ``ci/reframe/``:
 * ``ci/reframe/config/local.py`` – single-node configuration that looks for
   ReFrame checks inside ``ci/reframe/checks`` and stores stage/output artefacts
   under ``ci/reframe/``.
-* ``ci/reframe/checks/finite_volume_advection.py`` – builds the
-  ``finite-volume-advection-2d`` demo with CMake and runs it with a short final
-  time to keep executions fast while still producing timing information.
+* ``ci/reframe/checks/finite_volume_advection.py`` – parameterised check that
+  builds the finite-volume demos and runs them with short final times to keep
+  executions fast while still producing timing information.
 
 Both files are regular Python modules, so they can be adapted easily for other
 systems or demos.
@@ -63,15 +65,20 @@ Running the finite-volume benchmark
       $ ../reframe/bin/reframe \
             -C ci/reframe/config/local.py \
             -c ci/reframe/checks \
-            -n FiniteVolumeAdvection2DTest \
+            -n FiniteVolumeDemoTest \
             -r --performance-report
 
    The command stages the sources under ``ci/reframe/stage``, configures CMake
-   with ``-mtune=native -march=native -O3 -g`` and only builds the
-   ``finite-volume-advection-2d`` target. During the run the executable is
-   launched with ``--Tf 0.01 --timers --nfiles 1`` so the timer table is emitted
-   to standard output. ReFrame captures the ``total runtime`` line to populate
-   the performance report. The default reference value (1.8 s with a 50%
+   with ``-mtune=native -march=native -O3 -g`` and builds the demo required by
+   each test instance. Four runs are executed automatically: advection and
+   Burgers, both with 1 and 2 MPI ranks. During the advection runs the
+   executable is launched with ``--Tf 0.01 --timers --nfiles 1`` so the timer
+   table is emitted to standard output. ReFrame captures the ``total runtime``
+   line to populate the performance report. Burgers uses ``--Tf 0.05`` and a
+   single output file, matching the light-weight profiling use case. The
+   default references are currently set to ~3.0 s (1 rank) and ~3.3 s (2 ranks)
+   with generous 80% tolerances; refine them once several runs establish a
+   baseline on your machine.
    tolerance) can be tightened once several runs establish a baseline on your
    machine.
 
@@ -87,11 +94,12 @@ Running the finite-volume benchmark
 Extending the campaign
 ----------------------
 
-* To benchmark another demo, copy
-  ``ci/reframe/checks/finite_volume_advection.py`` and change the ``make``
-  target plus the executable invocation. Because the check is now environment
-  agnostic, additional setup commands can be added via ReFrame hooks if a
-  future system needs custom activation steps.
+* To benchmark another demo, copy the structure in
+  ``ci/reframe/checks/finite_volume_advection.py`` and add an entry in the
+  ``DEMO_CONFIGS`` dictionary with the CMake target, runtime options and sanity
+  pattern. Because the check is environment agnostic, additional setup commands
+  can be added via ReFrame hooks if a future system needs custom activation
+  steps.
 * Conda makes it easy to try different Samurai releases. Simply
   ``conda install samurai=<version>`` in the same environment and rerun ReFrame
   to capture the new timings.

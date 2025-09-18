@@ -17,7 +17,7 @@ site_configuration = {
                     'name': 'default',
                     'descr': 'Local execution',
                     'scheduler': 'local',
-                    'launcher': 'local',
+                    'launcher': 'mpirun',
                     'environs': ['builtin'],
                     'max_jobs': 1,
                 }

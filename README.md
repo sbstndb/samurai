@@ -73,6 +73,7 @@ with homogeneous Dirichlet boundary conditions and $a = (1, 1)$. The initial sol
 
 
 
+
 $$
 u_0(x, y) = \left\\{
 \begin{align*}

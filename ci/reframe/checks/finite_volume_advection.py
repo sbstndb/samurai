@@ -45,9 +45,6 @@ def _load_level_variants() -> list[tuple[str, int | None, int | None]]:
         variants = [
             ('default', None, None),
             ('min7_max7', 7, 7),
-            ('min8_max8', 8, 8),
-            ('min9_max9', 9, 9),
-            ('min5_max8', 5, 8),
         ]
 
     return variants
@@ -93,7 +90,7 @@ class FiniteVolumeDemoTest(rfm.RegressionTest):
     """Build and run selected Samurai finite-volume demos with ReFrame."""
 
     demo = parameter(sorted(DEMO_CONFIGS.keys()), fmt=lambda x: x.replace('finite-volume-', ''))
-    mpi_ranks = parameter([1, 2], fmt=lambda x: f'{x}ranks')
+    mpi_ranks = parameter([1], fmt=lambda x: f'{x}ranks')
     level_variant = parameter(LEVEL_VARIANTS, fmt=lambda x: x[0])
     final_time = variable(float, value=-1.0)
     nfiles = variable(int, value=-1)

@@ -32,28 +32,39 @@ jobs:
               with:
                   path: |
                       ~/.cache/ccache
-                      ~/micromamba/envs/samurai-env
                   key: cppcheck
 
             - name: Mamba and samurai env installation
-              uses: mamba-org/setup-micromamba@v1
+              uses: mamba-org/setup-micromamba@v2
+              env:
+                  MAMBA_ROOT_PREFIX: ${{ runner.temp }}/mamba-root
               with:
+                  download-micromamba: true
+                  micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
                   environment-file: conda/environment.yml
                   environment-name: samurai-env
-                  cache-environment: true
+                  init-shell: none
+                  generate-run-shell: true
+                  cache-environment: false
+                  cache-downloads: false
+                  post-cleanup: all
+                  condarc: |
+                      channels:
+                          - conda-forge
+                      channel_priority: strict
 
             - name: cppcheck installation
-              shell: bash -el {0}
+              shell: micromamba-shell {0}
               run: |
-                  conda install -y cppcheck=2.12 python=3.12 cxx-compiler
+                  micromamba install -y cppcheck=2.12 python=3.12 cxx-compiler
 
             - name: Configure
-              shell: bash -el {0}
+              shell: micromamba-shell {0}
               run: |
                   cmake . -Bbuild -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEMOS=ON
 
             - name: Run cppcheck on samurai
-              shell: bash -el {0}
+              shell: micromamba-shell {0}
               run: |
                   cppcheck --enable=all -q --project=./build/compile_commands.json --suppressions-list=.cppcheck --inline-suppr 2> cppcheck_err.txt
 
@@ -143,7 +154,6 @@ jobs:
               with:
                   path: |
                       ~/.cache/ccache
-                      ~/micromamba-root/envs/samurai-env
                   key: linux-${{ matrix.cpp-version }}
                   restore-keys: |
                       linux-${{ matrix.cpp-version }}
@@ -158,11 +168,23 @@ jobs:
             #     ccache -s -v
 
             - name: Mamba and samurai env installation
-              uses: mamba-org/setup-micromamba@v1
+              uses: mamba-org/setup-micromamba@v2
+              env:
+                  MAMBA_ROOT_PREFIX: ${{ runner.temp }}/mamba-root
               with:
+                  download-micromamba: true
+                  micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
                   environment-file: conda/environment.yml
                   environment-name: samurai-env
-                  cache-environment: true
+                  init-shell: none
+                  generate-run-shell: true
+                  cache-environment: false
+                  cache-downloads: false
+                  post-cleanup: all
+                  condarc: |
+                      channels:
+                          - conda-forge
+                      channel_priority: strict
 
             # - name: Conda update
             #   shell: bash -l {0}
@@ -170,18 +192,18 @@ jobs:
             #       conda update --all
 
             - name: Petsc installation
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
-                  conda install -y petsc pkg-config
+                  micromamba install -y petsc pkg-config
 
-            - name: Conda informations
-              shell: bash -l {0}
+            - name: Micromamba informations
+              shell: micromamba-shell {0}
               run: |
-                  conda info
-                  conda list
+                  micromamba info
+                  micromamba list
 
             - name: Configure
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   export LDFLAGS="${LDFLAGS} -L$CONDA_PREFIX/lib"
                   CC=${{ matrix.cc }} CXX=${{ matrix.cxx }} cmake \
@@ -194,19 +216,19 @@ jobs:
                       -DBUILD_TESTS=ON
 
             - name: Build
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cmake --build build --target all --parallel 2
 
             - name: Test with googletest
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
                   cd build
                   ./tests/test_samurai_lib
 
             - name: Test with pytest
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
                   cd tests
@@ -226,17 +248,28 @@ jobs:
               with:
                   path: |
                       ~/.cache/ccache
-                      ~/micromamba-root/envs/samurai-env
                   key: linux-mpi
                   restore-keys: |
                       linux-mpi
 
             - name: Mamba and samurai env installation
               uses: mamba-org/setup-micromamba@v2
+              env:
+                  MAMBA_ROOT_PREFIX: ${{ runner.temp }}/mamba-root
               with:
+                  download-micromamba: true
+                  micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
                   environment-file: conda/mpi-environment.yml
                   environment-name: samurai-env
-                  cache-environment: true
+                  init-shell: none
+                  generate-run-shell: true
+                  cache-environment: false
+                  cache-downloads: false
+                  post-cleanup: all
+                  condarc: |
+                      channels:
+                          - conda-forge
+                      channel_priority: strict
 
             # - name: Conda update
             #   shell: bash -l {0}
@@ -244,18 +277,18 @@ jobs:
             #       conda update --all
 
             - name: Petsc installation
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
-                  conda install -y petsc pkg-config cxx-compiler
+                  micromamba install -y petsc pkg-config cxx-compiler
 
-            - name: Conda informations
-              shell: bash -l {0}
+            - name: Micromamba informations
+              shell: micromamba-shell {0}
               run: |
-                  conda info
-                  conda list
+                  micromamba info
+                  micromamba list
 
             - name: Configure
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cmake \
                       . \
@@ -267,13 +300,13 @@ jobs:
                       -DBUILD_TESTS=ON
 
             - name: Build
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cmake --build build --target finite-volume-advection-2d --parallel 4
                   cmake --build build --target finite-volume-burgers --parallel 4
 
             - name: MPI test finite-volume-advection-2d
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cd build
                   set -e  # Stop on first failure
@@ -289,7 +322,7 @@ jobs:
                   python ../python/compare.py FV_advection_2d_size_1_ite_ FV_advection_2d_size_9_ite_ --start 1 --end 19
 
             - name: MPI test finite-volume-burgers
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cd build
                   set -e  # Stop on first failure
@@ -310,11 +343,23 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - name: Mamba and samurai env installation
-              uses: mamba-org/setup-micromamba@v1
+              uses: mamba-org/setup-micromamba@v2
+              env:
+                  MAMBA_ROOT_PREFIX: ${{ runner.temp }}/mamba-root
               with:
+                  download-micromamba: true
+                  micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
                   environment-file: conda/environment.yml
                   environment-name: samurai-env
-                  cache-environment: true
+                  init-shell: none
+                  generate-run-shell: true
+                  cache-environment: false
+                  cache-downloads: false
+                  post-cleanup: all
+                  condarc: |
+                      channels:
+                          - conda-forge
+                      channel_priority: strict
 
             # - name: Petsc installation
             #   shell: bash -l {0}
@@ -322,18 +367,18 @@ jobs:
             #     micromamba install -y petsc=3.18 pkg-config
 
             - name: Installl cxx compiler
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   micromamba install -y cxx-compiler\<1.11.0
 
-            - name: micromamba informations
-              shell: bash -l {0}
+            - name: Micromamba informations
+              shell: micromamba-shell {0}
               run: |
                   micromamba info
                   micromamba list
 
             - name: Configure
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cmake \
                       . \
@@ -344,12 +389,12 @@ jobs:
                       -DBUILD_TESTS=ON
 
             - name: Build
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cmake --build ./build --config Release --parallel 3
 
             - name: Run tests
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   ./build/tests/test_samurai_lib
                   cd tests; pytest --h5diff
@@ -368,31 +413,42 @@ jobs:
               with:
                   path: |
                       ~/.cache/ccache
-                      ~/micromamba-root/envs/samurai-env
                   key: linux-mamba-check-nan
                   restore-keys: |
                       linux-mamba-check-nan
 
             - name: Mamba and samurai env installation
               uses: mamba-org/setup-micromamba@v2
+              env:
+                  MAMBA_ROOT_PREFIX: ${{ runner.temp }}/mamba-root
               with:
+                  download-micromamba: true
+                  micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
                   environment-file: conda/environment.yml
                   environment-name: samurai-env
-                  cache-environment: true
+                  init-shell: none
+                  generate-run-shell: true
+                  cache-environment: false
+                  cache-downloads: false
+                  post-cleanup: all
+                  condarc: |
+                      channels:
+                          - conda-forge
+                      channel_priority: strict
 
             - name: Petsc installation
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
-                  conda install -y petsc pkg-config cxx-compiler
+                  micromamba install -y petsc pkg-config cxx-compiler
 
-            - name: Conda informations
-              shell: bash -l {0}
+            - name: Micromamba informations
+              shell: micromamba-shell {0}
               run: |
-                  conda info
-                  conda list
+                  micromamba info
+                  micromamba list
 
             - name: Configure
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cmake \
                       . \
@@ -404,20 +460,20 @@ jobs:
                       -DBUILD_DEMOS=ON
 
             - name: Build
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cmake --build build --target finite-volume-burgers
                   cmake --build build --target finite-volume-lid-driven-cavity
 
             - name: test finite-volume-burgers
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cd build
                   set -e  # Stop on first failure
                   ./demos/FiniteVolume/finite-volume-burgers --min-level 2 --max-level 6
 
             - name: test finite-volume-lid-driven-cavity
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cd build
                   set -e  # Stop on first failure
@@ -438,31 +494,42 @@ jobs:
               with:
                   path: |
                       ~/.cache/ccache
-                      ~/micromamba-root/envs/samurai-env
                   key: linux-mamba-check-nan-mpi
                   restore-keys: |
                       linux-mamba-check-nan-mpi
 
             - name: Mamba and samurai env installation
               uses: mamba-org/setup-micromamba@v2
+              env:
+                  MAMBA_ROOT_PREFIX: ${{ runner.temp }}/mamba-root
               with:
+                  download-micromamba: true
+                  micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
                   environment-file: conda/mpi-environment.yml
                   environment-name: samurai-env
-                  cache-environment: true
+                  init-shell: none
+                  generate-run-shell: true
+                  cache-environment: false
+                  cache-downloads: false
+                  post-cleanup: all
+                  condarc: |
+                      channels:
+                          - conda-forge
+                      channel_priority: strict
 
             - name: Petsc installation
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
-                  conda install -y petsc pkg-config cxx-compiler
+                  micromamba install -y petsc pkg-config cxx-compiler
 
-            - name: Conda informations
-              shell: bash -l {0}
+            - name: Micromamba informations
+              shell: micromamba-shell {0}
               run: |
-                  conda info
-                  conda list
+                  micromamba info
+                  micromamba list
 
             - name: Configure
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cmake \
                       . \
@@ -474,13 +541,13 @@ jobs:
                       -DBUILD_DEMOS=ON
 
             - name: Build
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cmake --build build --target finite-volume-advection-2d
                   cmake --build build --target finite-volume-burgers
 
             - name: test finite-volume-advection-2d
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cd build
                   set -e  # Stop on first failure
@@ -489,7 +556,7 @@ jobs:
                   mpiexec -n 3 ./demos/FiniteVolume/finite-volume-advection-2d --Tf 0.05 --nfiles 1
 
             - name: test finite-volume-burgers
-              shell: bash -l {0}
+              shell: micromamba-shell {0}
               run: |
                   cd build
                   set -e  # Stop on first failure

@@ -239,7 +239,7 @@ jobs:
     #########################################################
     linux-mpi-mamba:
         needs: [pre-commit, cppcheck]
-        runs-on: self-hosted
+        runs-on: ubuntu-22.04
         steps:
             - uses: actions/checkout@v4
 
@@ -287,6 +287,11 @@ jobs:
                   micromamba info
                   micromamba list
 
+            - name: Install ReFrame
+              shell: micromamba-shell {0}
+              run: |
+                  python -m pip install --no-cache-dir reframe
+
             - name: Configure
               shell: micromamba-shell {0}
               run: |
@@ -304,6 +309,29 @@ jobs:
               run: |
                   cmake --build build --target finite-volume-advection-2d --parallel 4
                   cmake --build build --target finite-volume-burgers --parallel 4
+
+            - name: Run ReFrame finite-volume demos
+              shell: micromamba-shell {0}
+              env:
+                  RFM_CHECKPOINT_DIR: ${{ runner.temp }}/reframe-checkpoints
+              run: |
+                  mkdir -p reframe-output
+                  mkdir -p $RFM_CHECKPOINT_DIR
+                  reframe \
+                      -C ci/reframe/config/local.py \
+                      -c ci/reframe/checks/finite_volume_advection.py \
+                      -r \
+                      --prefix reframe-output \
+                      --report-junit reframe-output/reframe-report.xml \
+                      --performance-report
+
+            - name: Upload ReFrame artifacts
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: reframe-results
+                  path: reframe-output
+                  if-no-files-found: warn
 
             - name: MPI test finite-volume-advection-2d
               shell: micromamba-shell {0}

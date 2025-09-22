@@ -385,7 +385,7 @@ jobs:
             - name: Install ReFrame
               shell: micromamba-shell {0}
               run: |
-                  python -m pip install --no-cache-dir reframe
+                  python -m pip install --no-cache-dir reframe-hpc
 
             - name: Configure
               shell: micromamba-shell {0}
@@ -476,7 +476,7 @@ jobs:
             - name: Install ReFrame
               shell: micromamba-shell {0}
               run: |
-                  python -m pip install --no-cache-dir reframe
+                  python -m pip install --no-cache-dir reframe-hpc
 
             - name: Configure
               shell: micromamba-shell {0}

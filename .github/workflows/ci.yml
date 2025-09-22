@@ -287,11 +287,6 @@ jobs:
                   micromamba info
                   micromamba list
 
-            - name: Install ReFrame
-              shell: micromamba-shell {0}
-              run: |
-                  python -m pip install --no-cache-dir reframe
-
             - name: Configure
               shell: micromamba-shell {0}
               run: |
@@ -309,29 +304,6 @@ jobs:
               run: |
                   cmake --build build --target finite-volume-advection-2d --parallel 4
                   cmake --build build --target finite-volume-burgers --parallel 4
-
-            - name: Run ReFrame finite-volume demos
-              shell: micromamba-shell {0}
-              env:
-                  RFM_CHECKPOINT_DIR: ${{ runner.temp }}/reframe-checkpoints
-              run: |
-                  mkdir -p reframe-output
-                  mkdir -p $RFM_CHECKPOINT_DIR
-                  reframe \
-                      -C ci/reframe/config/local.py \
-                      -c ci/reframe/checks/finite_volume_advection.py \
-                      -r \
-                      --prefix reframe-output \
-                      --report-junit reframe-output/reframe-report.xml \
-                      --performance-report
-
-            - name: Upload ReFrame artifacts
-              if: always()
-              uses: actions/upload-artifact@v4
-              with:
-                  name: reframe-results
-                  path: reframe-output
-                  if-no-files-found: warn
 
             - name: MPI test finite-volume-advection-2d
               shell: micromamba-shell {0}
@@ -364,6 +336,97 @@ jobs:
                   python ../python/compare.py burgers_2D_size_1_ite_ burgers_2D_size_3_ite_ --start 1 --end 19
                   python ../python/compare.py burgers_2D_size_1_ite_ burgers_2D_size_4_ite_ --start 1 --end 19
                   python ../python/compare.py burgers_2D_size_1_ite_ burgers_2D_size_6_ite_ --start 1 --end 19
+
+    reframe-self-hosted:
+        needs: [pre-commit, cppcheck]
+        runs-on: [self-hosted, reframe]
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Cache
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cache/ccache
+                  key: reframe-self-hosted
+                  restore-keys: |
+                      reframe-self-hosted
+
+            - name: Mamba and samurai env installation
+              uses: mamba-org/setup-micromamba@v2
+              env:
+                  MAMBA_ROOT_PREFIX: ${{ runner.temp }}/mamba-root
+              with:
+                  download-micromamba: true
+                  micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
+                  environment-file: conda/mpi-environment.yml
+                  environment-name: samurai-env
+                  init-shell: none
+                  generate-run-shell: true
+                  cache-environment: false
+                  cache-downloads: false
+                  post-cleanup: all
+                  condarc: |
+                      channels:
+                          - conda-forge
+                      channel_priority: strict
+
+            - name: Petsc installation
+              shell: micromamba-shell {0}
+              run: |
+                  micromamba install -y petsc pkg-config cxx-compiler
+
+            - name: Micromamba informations
+              shell: micromamba-shell {0}
+              run: |
+                  micromamba info
+                  micromamba list
+
+            - name: Install ReFrame
+              shell: micromamba-shell {0}
+              run: |
+                  python -m pip install --no-cache-dir reframe
+
+            - name: Configure
+              shell: micromamba-shell {0}
+              run: |
+                  cmake \
+                      . \
+                      -Bbuild \
+                      -GNinja \
+                      -DCMAKE_BUILD_TYPE=Release \
+                      -DWITH_MPI=ON \
+                      -DBUILD_DEMOS=ON \
+                      -DBUILD_TESTS=ON
+
+            - name: Build
+              shell: micromamba-shell {0}
+              run: |
+                  cmake --build build --target finite-volume-advection-2d --parallel 4
+                  cmake --build build --target finite-volume-burgers --parallel 4
+
+            - name: Run ReFrame finite-volume demos
+              shell: micromamba-shell {0}
+              env:
+                  RFM_CHECKPOINT_DIR: ${{ runner.temp }}/reframe-checkpoints
+              run: |
+                  mkdir -p reframe-output
+                  mkdir -p $RFM_CHECKPOINT_DIR
+                  python -m reframe \
+                      -C ci/reframe/config/local.py \
+                      -c ci/reframe/checks/finite_volume_advection.py \
+                      -r \
+                      --prefix reframe-output \
+                      --report-junit reframe-output/reframe-report.xml \
+                      --performance-report
+
+            - name: Upload ReFrame artifacts
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: reframe-results
+                  path: reframe-output
+                  if-no-files-found: warn
 
     macos-mamba:
         needs: [pre-commit, cppcheck]

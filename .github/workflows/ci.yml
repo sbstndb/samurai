@@ -412,7 +412,7 @@ jobs:
               run: |
                   mkdir -p reframe-output
                   mkdir -p $RFM_CHECKPOINT_DIR
-                  python -m reframe \
+                  reframe \
                       -C ci/reframe/config/local.py \
                       -c ci/reframe/checks/finite_volume_advection.py \
                       -r \
@@ -503,7 +503,7 @@ jobs:
               run: |
                   mkdir -p reframe-output
                   mkdir -p $RFM_CHECKPOINT_DIR
-                  python -m reframe \
+                  reframe \
                       -C ci/reframe/config/local.py \
                       -c ci/reframe/checks/finite_volume_advection.py \
                       -r \

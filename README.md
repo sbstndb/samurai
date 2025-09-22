@@ -56,6 +56,7 @@ Samurai also offers a flexible and pleasant interface to easily implement numeri
 
 </details>
 
+
 ## Get started
 
 In this section, we propose two examples: the first one solves a 2D advection equation with mesh adaptation using multiresolution, the second one shows the use of set algebra on intervals.
@@ -69,6 +70,16 @@ $$
 $$
 
 with homogeneous Dirichlet boundary conditions and $a = (1, 1)$. The initial solution is given by
+
+
+
+
+
+
+
+
+
+
 
 $$
 u_0(x, y) = \left\\{

@@ -13,3 +13,4 @@ Tutorials
    level_set
    1d_burgers_amr
    reaction_diffusion
+   reframe_benchmark

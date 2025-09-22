@@ -69,15 +69,13 @@ Running the finite-volume benchmark
             -r --performance-report
 
    The command stages the sources under ``ci/reframe/stage``, configures CMake
-   with ``-mtune=native -march=native -O3 -g`` and builds the demo required by
-   each test instance. Four runs are executed automatically: advection and
-   Burgers, both with 1 and 2 MPI ranks. During the advection runs the
-   executable is launched with ``--Tf 0.01 --timers --nfiles 1`` so the timer
-   table is emitted to standard output. ReFrame captures the ``total runtime``
-   line to populate the performance report. Burgers uses ``--Tf 0.05`` and a
-   single output file, matching the light-weight profiling use case. The
-   default references are currently set to ~3.0 s (1 rank) and ~3.3 s (2 ranks)
-   with generous 80% tolerances; refine them once several runs establish a
+   with ``-mtune=native -march=native -O3 -g`` and builds the advection demo
+   required by the test instance. A single run is executed automatically:
+   ``finite-volume-advection-2d`` with one MPI rank. The executable is launched
+   with ``--Tf 0.01 --timers --nfiles 1`` so the timer table is emitted to
+   standard output. ReFrame captures the ``total runtime`` line to populate the
+   performance report. The default reference is currently set to ~3.0 s (1
+   rank) with a generous 80% tolerance; refine it once several runs establish a
    baseline on your machine. The test exposes the variables
    ``FiniteVolumeDemoTest.final_time`` and ``FiniteVolumeDemoTest.nfiles`` so
    you can override the command-line arguments without editing the test::
@@ -87,12 +85,11 @@ Running the finite-volume benchmark
             -S FiniteVolumeDemoTest.nfiles=1
 
    The overrides apply to every demo instance of the run. Level combinations are
-   parameterised as well: by default the campaign exercises
-   ``(min,max) = (7,7), (8,8), (9,9)`` and ``(5,8)`` in addition to the demo
-   defaults. Set the environment variable ``SAMURAI_LEVEL_VARIANTS`` to a
-   comma-separated list of ``min:max`` pairs (use ``none`` to skip an argument)
-   before invoking ReFrame to customise the grid, e.g. ``export
-   SAMURAI_LEVEL_VARIANTS="6:6,6:9,none:10"``.
+   parameterised as well: by default the campaign only runs the
+   ``(min,max) = (7,7)`` configuration. Set the environment variable
+   ``SAMURAI_LEVEL_VARIANTS`` to a comma-separated list of ``min:max`` pairs
+   (use ``none`` to skip an argument) before invoking ReFrame to customise the
+   grid, e.g. ``export SAMURAI_LEVEL_VARIANTS="6:6,6:9,none:10"``.
    tolerance) can be tightened once several runs establish a baseline on your
    machine.
 

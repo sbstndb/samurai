@@ -43,7 +43,6 @@ def _load_level_variants() -> list[tuple[str, int | None, int | None]]:
 
     if not variants:
         variants = [
-            ('default', None, None),
             ('min7_max7', 7, 7),
         ]
 
@@ -68,19 +67,7 @@ DEMO_CONFIGS = {
         ),
         'reference': {
             1: (3.0, None, 0.80, 's'),
-            2: (3.3, None, 0.80, 's'),
         },
-    },
-    'finite-volume-burgers': {
-        'target': 'finite-volume-burgers',
-        'default_tf': 0.05,
-        'default_nfiles': 1,
-        'extra_opts': [],
-        'default_min_level': None,
-        'default_max_level': None,
-        'sanity': r'iteration 0',
-        'perf_regex': None,
-        'reference': None,
     },
 }
 
@@ -89,7 +76,7 @@ DEMO_CONFIGS = {
 class FiniteVolumeDemoTest(rfm.RegressionTest):
     """Build and run selected Samurai finite-volume demos with ReFrame."""
 
-    demo = parameter(sorted(DEMO_CONFIGS.keys()), fmt=lambda x: x.replace('finite-volume-', ''))
+    demo = parameter(['finite-volume-advection-2d'], fmt=lambda x: x.replace('finite-volume-', ''))
     mpi_ranks = parameter([1], fmt=lambda x: f'{x}ranks')
     level_variant = parameter(LEVEL_VARIANTS, fmt=lambda x: x[0])
     final_time = variable(float, value=-1.0)

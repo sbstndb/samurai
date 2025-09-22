@@ -86,7 +86,13 @@ Running the finite-volume benchmark
             -S FiniteVolumeDemoTest.final_time=0.5 \
             -S FiniteVolumeDemoTest.nfiles=1
 
-   The overrides apply to every demo instance of the run.
+   The overrides apply to every demo instance of the run. Level combinations are
+   parameterised as well: by default the campaign exercises
+   ``(min,max) = (7,7), (8,8), (9,9)`` and ``(5,8)`` in addition to the demo
+   defaults. Set the environment variable ``SAMURAI_LEVEL_VARIANTS`` to a
+   comma-separated list of ``min:max`` pairs (use ``none`` to skip an argument)
+   before invoking ReFrame to customise the grid, e.g. ``export
+   SAMURAI_LEVEL_VARIANTS="6:6,6:9,none:10"``.
    tolerance) can be tightened once several runs establish a baseline on your
    machine.
 

@@ -71,6 +71,8 @@ $$
 
 with homogeneous Dirichlet boundary conditions and $a = (1, 1)$. The initial solution is given by
 
+
+
 $$
 u_0(x, y) = \left\\{
 \begin{align*}

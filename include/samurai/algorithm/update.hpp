@@ -4,6 +4,8 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
+#include <type_traits>
 
 #include <xtensor/xfixed.hpp>
 
@@ -32,6 +34,33 @@ namespace mpi = boost::mpi;
 
 namespace samurai
 {
+    enum class UniformMeshId;
+
+    template <class Field, class... Fields>
+    void update_ghost_uniform(Field& field, Fields&... other_fields)
+    {
+        using mesh_t    = typename Field::mesh_t;
+        using mesh_id_t = typename mesh_t::mesh_id_t;
+
+        static_assert(std::is_same_v<mesh_id_t, UniformMeshId>, "update_ghost_uniform expects a uniform mesh");
+        static_assert((std::is_same_v<typename Fields::mesh_t::mesh_id_t, UniformMeshId> && ...),
+                      "update_ghost_uniform expects uniform meshes");
+
+        times::timers.start("ghost update");
+
+        update_outer_ghosts(field, other_fields...);
+        update_ghost_periodic(field, other_fields...);
+        update_ghost_subdomains(field, other_fields...);
+
+        field.ghosts_updated() = true;
+        if constexpr (sizeof...(other_fields) > 0)
+        {
+            ((other_fields.ghosts_updated() = true), ...);
+        }
+
+        times::timers.stop("ghost update");
+    }
+
     template <class Field, class... Fields>
     void update_ghost(Field& field, Fields&... fields)
     {

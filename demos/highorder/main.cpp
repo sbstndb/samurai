@@ -274,7 +274,7 @@ int main(int argc, char* argv[])
         double h = mesh.cell_length(mesh.min_level());
 
         double error = L2_error(u, exact_func);
-        std::cout.precision(2);
+
         samurai::io::print(samurai::io::root, "refinement: {}\n", ite);
         samurai::io::print(samurai::io::root, "L2-error         : {:e}", error);
         if (h_coarse != -1)
@@ -288,7 +288,6 @@ int main(int argc, char* argv[])
 
         double error_recons = L2_error(u_recons, exact_func);
 
-        std::cout.precision(2);
         samurai::io::print(samurai::io::root, "L2-error (recons): {:e}", error_recons);
 
         if (h_coarse != -1)

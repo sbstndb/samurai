@@ -5,7 +5,6 @@
 
 #include "print.hpp"
 #include "utils.hpp"
-#include <fmt/ostream.h>
 #include <xtensor/xfixed.hpp>
 #include <xtensor/xio.hpp>
 

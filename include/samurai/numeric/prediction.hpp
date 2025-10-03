@@ -7,7 +7,6 @@
 #include <type_traits>
 
 #include "../print.hpp"
-#include <fmt/ostream.h>
 #include <xtensor/xadapt.hpp>
 #include <xtensor/xview.hpp>
 

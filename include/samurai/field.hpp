@@ -12,6 +12,7 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
+#include <xtensor/xio.hpp>
 #include <xtensor/xtensor.hpp>
 #include <xtensor/xview.hpp>
 
@@ -533,8 +534,8 @@ namespace samurai
             //                   level_field[cell] = cell.level;
             //               });
             // save(fs::current_path(), "mesh_throw", {true, true}, this->mesh(), coords, level_field);
-            // Avoid formatting of xtensor views/expressions which may be unformattable for fmt
-            samurai::io::print("indices: <unavailable>\n");
+            ((samurai::io::print("{} ", fmt::streamed(index))), ...);
+            samurai::io::print("\n");
             throw std::out_of_range(fmt::format("FIELD ERROR on level {}: try to find interval {}", level, interval));
         }
 
@@ -1164,8 +1165,8 @@ namespace samurai
             //                   level_field[cell] = cell.level;
             //               });
             // save(fs::current_path(), "mesh_throw", {true, true}, this->mesh(), coords, level_field);
-            // Avoid formatting of xtensor views/expressions which may be unformattable for fmt
-            samurai::io::print("indices: <unavailable>\n");
+            ((samurai::io::print("{} ", fmt::streamed(index))), ...);
+            samurai::io::print("\n");
             throw std::out_of_range(fmt::format("FIELD ERROR on level {}: try to find interval {}", level, interval));
         }
 

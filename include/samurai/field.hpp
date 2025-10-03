@@ -12,7 +12,6 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
-
 #include <xtensor/xtensor.hpp>
 #include <xtensor/xview.hpp>
 

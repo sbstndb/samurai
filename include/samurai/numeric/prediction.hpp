@@ -6,10 +6,10 @@
 #include <array>
 #include <type_traits>
 
-#include <xtensor/xadapt.hpp>
-#include <xtensor/xview.hpp>
 #include "../print.hpp"
 #include <fmt/ostream.h>
+#include <xtensor/xadapt.hpp>
+#include <xtensor/xview.hpp>
 
 #include "../operators_base.hpp"
 #include "../storage/utils.hpp"

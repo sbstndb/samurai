@@ -1,7 +1,7 @@
 #pragma once
+#include "../print.hpp"
 #include <petsc.h>
 #include <xtensor/xfixed.hpp>
-#include "../print.hpp"
 
 namespace samurai
 {

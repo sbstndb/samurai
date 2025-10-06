@@ -3,6 +3,7 @@
 #pragma once
 
 #include <CLI/CLI.hpp>
+#include <limits>
 
 namespace samurai
 {

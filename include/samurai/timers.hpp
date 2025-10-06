@@ -10,14 +10,15 @@
 #include <fmt/color.h>
 #include <fmt/format.h>
 
+#include <cmath>
+#include <cstdint>
+
 #include "assert_log_trace.hpp"
 
 #ifdef SAMURAI_WITH_MPI
 #include <boost/mpi.hpp>
 #else
 #include <chrono>
-#include <sys/time.h>
-#include <time.h>
 #endif
 
 namespace samurai

@@ -21,7 +21,6 @@ find_package(Threads)
 
 set(SAMURAI_BENCHMARKS
     benchmark_celllist_construction.cpp
-    benchmark_search.cpp
     benchmark_mesh.cpp
     benchmark_stencil.cpp
     benchmark_field.cpp

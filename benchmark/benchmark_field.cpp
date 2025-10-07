@@ -107,7 +107,7 @@ void FIELD_fill_uniform(benchmark::State& state)
 
 // Mesure ; Remplissage d'un champ 1D de taille de coté n ,en utilisant for_each_cell (mesure d'overhead)
 template <unsigned int dim, unsigned int n_comp>
-void FIELD_for_each_cell_fill_uniform(benchmark::State& state)
+void FIELD_fill_uniform_for_each_cell(benchmark::State& state)
 {
     samurai::Box<double, dim> box = unitary_box<dim>();
     using Config                  = samurai::UniformConfig<dim>;
@@ -199,7 +199,7 @@ void FIELD_add_scalar_uniform(benchmark::State& state)
 
 // Mesure : Ajout d'un scalaire à un champ par "for_each_cell"
 template <unsigned int dim, unsigned int n_comp>
-void FIELD_for_each_cell_add_scalar_uniform(benchmark::State& state)
+void FIELD_add_scalar_uniform_for_each_cell(benchmark::State& state)
 {
     samurai::Box<double, dim> box = unitary_box<dim>();
     using Config                  = samurai::UniformConfig<dim>;
@@ -268,7 +268,7 @@ void FIELD_add_uniform(benchmark::State& state)
 
 // Mesure : Somme de deux champs 1D par "for_each_cell"
 template <unsigned int dim, unsigned int n_comp>
-void FIELD_for_each_cell_add_uniform(benchmark::State& state)
+void FIELD_add_uniform_for_each_cell(benchmark::State& state)
 {
     samurai::Box<double, dim> box = unitary_box<dim>();
     using Config                  = samurai::UniformConfig<dim>;
@@ -347,7 +347,7 @@ void FIELD_complex_expression_uniform(benchmark::State& state)
 
 // Mesure : Expression complexe avec plusieurs opérations arithmétiques (version for_each_cell)
 template <unsigned int dim, unsigned int n_comp>
-void FIELD_for_each_cell_complex_expression_uniform(benchmark::State& state)
+void FIELD_complex_expression_uniform_for_each_cell(benchmark::State& state)
 {
     samurai::Box<double, dim> box = unitary_box<dim>();
     using Config                  = samurai::UniformConfig<dim>;
@@ -395,29 +395,26 @@ void FIELD_for_each_cell_complex_expression_uniform(benchmark::State& state)
 BENCHMARK_TEMPLATE(FIELD_make_field_uniform, 2, 1)->Arg(8);
 BENCHMARK_TEMPLATE(FIELD_make_field_uniform, 2, 2)->Arg(8);
 
+// Pair global and for_each_cell by n_comp for easier comparison
 BENCHMARK_TEMPLATE(FIELD_fill_uniform, 2, 1)->Arg(8);
+BENCHMARK_TEMPLATE(FIELD_fill_uniform_for_each_cell, 2, 1)->Arg(8);
 BENCHMARK_TEMPLATE(FIELD_fill_uniform, 2, 2)->Arg(8);
-
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_fill_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_fill_uniform, 2, 2)->Arg(8);
+BENCHMARK_TEMPLATE(FIELD_fill_uniform_for_each_cell, 2, 2)->Arg(8);
 
 BENCHMARK_TEMPLATE(FIELD_equal_uniform, 2, 1)->Arg(8);
 BENCHMARK_TEMPLATE(FIELD_equal_uniform, 2, 2)->Arg(8);
 
 BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform, 2, 1)->Arg(8);
+BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform_for_each_cell, 2, 1)->Arg(8);
 BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform, 2, 2)->Arg(8);
-
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_scalar_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_scalar_uniform, 2, 2)->Arg(8);
+BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform_for_each_cell, 2, 2)->Arg(8);
 
 BENCHMARK_TEMPLATE(FIELD_add_uniform, 2, 1)->Arg(8);
+BENCHMARK_TEMPLATE(FIELD_add_uniform_for_each_cell, 2, 1)->Arg(8);
 BENCHMARK_TEMPLATE(FIELD_add_uniform, 2, 2)->Arg(8);
-
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_uniform, 2, 2)->Arg(8);
+BENCHMARK_TEMPLATE(FIELD_add_uniform_for_each_cell, 2, 2)->Arg(8);
 
 BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform, 2, 1)->Arg(8);
+BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform_for_each_cell, 2, 1)->Arg(8);
 BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform, 2, 2)->Arg(8);
-
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_complex_expression_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_complex_expression_uniform, 2, 2)->Arg(8);
+BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform_for_each_cell, 2, 2)->Arg(8);

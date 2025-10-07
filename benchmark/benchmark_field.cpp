@@ -137,14 +137,14 @@ void FIELD_for_each_cell_fill_uniform(benchmark::State& state)
 }
 
 // Weird : MPI issue ??? wtf ???
-template <unsigned int dim>
+template <unsigned int dim, unsigned int n_comp>
 void FIELD_equal_uniform(benchmark::State& state)
 {
     samurai::Box<double, dim> box = unitary_box<dim>();
     using Config                  = samurai::UniformConfig<dim>;
     auto mesh                     = samurai::UniformMesh<Config>(box, state.range(0));
-    auto u                        = make_field_wrapper<1>(std::string("u"), mesh);
-    auto v                        = make_field_wrapper<1>(std::string("v"), mesh);
+    auto u                        = make_field_wrapper<n_comp>(std::string("u"), mesh);
+    auto v                        = make_field_wrapper<n_comp>(std::string("v"), mesh);
     u.fill(1.0);
 
     // Ajouter les statistiques
@@ -157,6 +157,8 @@ void FIELD_equal_uniform(benchmark::State& state)
     for (auto _ : state)
     {
         v = u;
+        benchmark::DoNotOptimize(v.array());
+        benchmark::ClobberMemory();
     }
 
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(total_cells));
@@ -186,7 +188,8 @@ void FIELD_add_scalar_uniform(benchmark::State& state)
     for (auto _ : state)
     {
         v = u + 2.0;
-        benchmark::DoNotOptimize(v[0]);
+        benchmark::DoNotOptimize(v.array());
+        benchmark::ClobberMemory();
     }
 
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(total_cells));
@@ -220,6 +223,8 @@ void FIELD_for_each_cell_add_scalar_uniform(benchmark::State& state)
                       {
                           v[cell] = u[cell] + 1.0;
                       });
+        benchmark::DoNotOptimize(v.array());
+        benchmark::ClobberMemory();
     }
 
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(total_cells));
@@ -252,7 +257,8 @@ void FIELD_add_uniform(benchmark::State& state)
     for (auto _ : state)
     {
         w = u + v;
-        benchmark::DoNotOptimize(w[0]);
+        benchmark::DoNotOptimize(w.array());
+        benchmark::ClobberMemory();
     }
 
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(total_cells));
@@ -288,6 +294,8 @@ void FIELD_for_each_cell_add_uniform(benchmark::State& state)
                       {
                           w[cell] = u[cell] + v[cell];
                       });
+        benchmark::DoNotOptimize(w.array());
+        benchmark::ClobberMemory();
     }
 
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(total_cells));
@@ -328,7 +336,8 @@ void FIELD_complex_expression_uniform(benchmark::State& state)
     for (auto _ : state)
     {
         u = 2.0 + v + (w * x) / z;
-        benchmark::DoNotOptimize(u[0]);
+        benchmark::DoNotOptimize(u.array());
+        benchmark::ClobberMemory();
     }
 
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(total_cells));
@@ -373,6 +382,8 @@ void FIELD_for_each_cell_complex_expression_uniform(benchmark::State& state)
                       {
                           u[cell] = 2.0 + v[cell] + (w[cell] * x[cell]) / z[cell];
                       });
+        benchmark::DoNotOptimize(u.array());
+        benchmark::ClobberMemory();
     }
 
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(total_cells));
@@ -380,78 +391,33 @@ void FIELD_for_each_cell_complex_expression_uniform(benchmark::State& state)
                             * static_cast<int64_t>(sizeof(double)) * 5);
 }
 
-BENCHMARK_TEMPLATE(FIELD_make_field_uniform, 1, 1)->Arg(16);
+// Keep only 2D variants, with n_comp = 1 and 2
 BENCHMARK_TEMPLATE(FIELD_make_field_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_make_field_uniform, 3, 1)->Arg(5);
+BENCHMARK_TEMPLATE(FIELD_make_field_uniform, 2, 2)->Arg(8);
 
-BENCHMARK_TEMPLATE(FIELD_make_field_uniform, 1, 4)->Arg(16);
-BENCHMARK_TEMPLATE(FIELD_make_field_uniform, 2, 4)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_make_field_uniform, 3, 4)->Arg(5);
-
-BENCHMARK_TEMPLATE(FIELD_fill_uniform, 1, 1)->Arg(16);
 BENCHMARK_TEMPLATE(FIELD_fill_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_fill_uniform, 3, 1)->Arg(5);
+BENCHMARK_TEMPLATE(FIELD_fill_uniform, 2, 2)->Arg(8);
 
-BENCHMARK_TEMPLATE(FIELD_fill_uniform, 1, 4)->Arg(16);
-BENCHMARK_TEMPLATE(FIELD_fill_uniform, 2, 4)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_fill_uniform, 3, 4)->Arg(5);
-
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_fill_uniform, 1, 1)->Arg(16);
 BENCHMARK_TEMPLATE(FIELD_for_each_cell_fill_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_fill_uniform, 3, 1)->Arg(5);
+BENCHMARK_TEMPLATE(FIELD_for_each_cell_fill_uniform, 2, 2)->Arg(8);
 
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_fill_uniform, 1, 4)->Arg(16);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_fill_uniform, 2, 4)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_fill_uniform, 3, 4)->Arg(5);
+BENCHMARK_TEMPLATE(FIELD_equal_uniform, 2, 1)->Arg(8);
+BENCHMARK_TEMPLATE(FIELD_equal_uniform, 2, 2)->Arg(8);
 
-BENCHMARK_TEMPLATE(FIELD_equal_uniform, 1)->Arg(16);
-BENCHMARK_TEMPLATE(FIELD_equal_uniform, 2)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_equal_uniform, 3)->Arg(5);
-
-BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform, 1, 1)->Arg(16);
 BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform, 3, 1)->Arg(5);
+BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform, 2, 2)->Arg(8);
 
-BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform, 1, 4)->Arg(16);
-BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform, 2, 4)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_add_scalar_uniform, 3, 4)->Arg(5);
-
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_scalar_uniform, 1, 1)->Arg(16);
 BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_scalar_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_scalar_uniform, 3, 1)->Arg(5);
+BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_scalar_uniform, 2, 2)->Arg(8);
 
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_scalar_uniform, 1, 4)->Arg(16);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_scalar_uniform, 2, 4)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_scalar_uniform, 3, 4)->Arg(5);
-
-BENCHMARK_TEMPLATE(FIELD_add_uniform, 1, 1)->Arg(16);
 BENCHMARK_TEMPLATE(FIELD_add_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_add_uniform, 3, 1)->Arg(5);
+BENCHMARK_TEMPLATE(FIELD_add_uniform, 2, 2)->Arg(8);
 
-BENCHMARK_TEMPLATE(FIELD_add_uniform, 1, 4)->Arg(16);
-BENCHMARK_TEMPLATE(FIELD_add_uniform, 2, 4)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_add_uniform, 3, 4)->Arg(5);
-
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_uniform, 1, 1)->Arg(16);
 BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_uniform, 3, 1)->Arg(5);
+BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_uniform, 2, 2)->Arg(8);
 
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_uniform, 1, 4)->Arg(16);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_uniform, 2, 4)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_add_uniform, 3, 4)->Arg(5);
-
-BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform, 1, 1)->Arg(16);
 BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform, 3, 1)->Arg(5);
+BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform, 2, 2)->Arg(8);
 
-BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform, 1, 4)->Arg(16);
-BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform, 2, 4)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_complex_expression_uniform, 3, 4)->Arg(5);
-
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_complex_expression_uniform, 1, 1)->Arg(16);
 BENCHMARK_TEMPLATE(FIELD_for_each_cell_complex_expression_uniform, 2, 1)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_complex_expression_uniform, 3, 1)->Arg(5);
-
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_complex_expression_uniform, 1, 4)->Arg(16);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_complex_expression_uniform, 2, 4)->Arg(8);
-BENCHMARK_TEMPLATE(FIELD_for_each_cell_complex_expression_uniform, 3, 4)->Arg(5);
+BENCHMARK_TEMPLATE(FIELD_for_each_cell_complex_expression_uniform, 2, 2)->Arg(8);

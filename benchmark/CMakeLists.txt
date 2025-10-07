@@ -46,6 +46,11 @@ add_executable(bench_samurai ${SAMURAI_BENCHMARKS})
 # target_include_directories(bench_samurai PRIVATE ${SAMURAI_INCLUDE_DIR})
 target_link_libraries(bench_samurai samurai benchmark::benchmark)
 
+# Work around GCC 14 false-positive -Warray-bounds in xtensor assignments, which can be promoted to errors
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(bench_samurai PRIVATE -Wno-error=array-bounds)
+endif()
+
 # target_include_directories(bench_samurai_lib PRIVATE ${SAMURAI_INCLUDE_DIR})
 # # if(DOWNLOAD_GTEST OR GTEST_SRC_DIR)
 # #     add_dependencies(test_samurai_lib gtest_main)

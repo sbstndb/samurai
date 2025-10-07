@@ -167,7 +167,6 @@ void LEVELCELLARRAY_empty_lcl_to_lca(benchmark::State& state)
         benchmark::DoNotOptimize(lca);
     }
 
-    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(total_intervals));
 }
 
 // Mesure : Construction d'un LevelCellArray à partir d'un LevelCellList composé de n intervalles dans une direction

@@ -48,11 +48,22 @@ namespace samurai
         struct dependent_false;
 
         template <class T>
-        concept element_indexable = requires(const T& v, std::size_t idx)
+        concept has_bracket_index = requires(const T& v, std::size_t idx)
         {
-            { v.size() } -> std::convertible_to<std::size_t>;
             v[idx];
         };
+
+        template <class T>
+        concept has_call_index = requires(const T& v, std::size_t idx)
+        {
+            v(idx);
+        };
+
+        template <class T>
+        concept element_indexable = requires(const T& v)
+        {
+            { v.size() } -> std::convertible_to<std::size_t>;
+        } && (has_bracket_index<T> || has_call_index<T>);
 
         template <class T>
         concept mask_indexable = element_indexable<T> && requires(const T& v, std::size_t idx)
@@ -178,6 +189,125 @@ namespace samurai
 
         T* data() { return m_buf.get(); }
         const T* data() const { return m_buf.get(); }
+
+        template <class Expr>
+        managed_array& operator*=(const Expr& expr)
+            requires detail::element_indexable<Expr>
+        {
+            apply_expression(expr, [](value_type& dst, auto&& factor) { dst *= factor; });
+            return *this;
+        }
+
+        template <class Expr>
+        managed_array& operator/=(const Expr& expr)
+            requires detail::element_indexable<Expr>
+        {
+            apply_expression(expr, [](value_type& dst, auto&& factor) { dst /= factor; });
+            return *this;
+        }
+
+      private:
+
+        template <class Expr, class Func>
+        void apply_expression(const Expr& expr, Func&& func)
+        {
+            using expr_t = std::decay_t<Expr>;
+            const std::size_t expr_size = static_cast<std::size_t>(expr.size());
+            const auto fetch = [&](std::size_t idx)
+            {
+                if constexpr (detail::has_bracket_index<expr_t>)
+                {
+                    return expr[idx];
+                }
+                else
+                {
+                    return expr(idx);
+                }
+            };
+
+            const std::size_t total = size();
+            if (expr_size == 0)
+            {
+                throw std::runtime_error("Expression has zero size");
+            }
+
+            if (expr_size == 1)
+            {
+                const auto factor = fetch(0);
+                for (std::size_t i = 0; i < total; ++i)
+                {
+                    func(m_buf[i], factor);
+                }
+                return;
+            }
+
+            if (m_collapsed)
+            {
+                if (expr_size != total)
+                {
+                    throw std::runtime_error("Incompatible expression size for collapsed managed_array");
+                }
+                for (std::size_t i = 0; i < total; ++i)
+                {
+                    func(m_buf[i], fetch(i));
+                }
+                return;
+            }
+
+            const std::size_t rows = m_rows;
+            const std::size_t cols = m_cols;
+            if (expr_size == total)
+            {
+                for (std::size_t i = 0; i < total; ++i)
+                {
+                    func(m_buf[i], fetch(i));
+                }
+                return;
+            }
+
+            if (expr_size == rows && rows <= cols)
+            {
+                for (std::size_t r = 0; r < rows; ++r)
+                {
+                    const auto factor = fetch(r);
+                    const std::size_t base = r * cols;
+                    for (std::size_t c = 0; c < cols; ++c)
+                    {
+                        func(m_buf[base + c], factor);
+                    }
+                }
+                return;
+            }
+
+            if (expr_size == cols)
+            {
+                for (std::size_t r = 0; r < rows; ++r)
+                {
+                    const std::size_t base = r * cols;
+                    for (std::size_t c = 0; c < cols; ++c)
+                    {
+                        func(m_buf[base + c], fetch(c));
+                    }
+                }
+                return;
+            }
+
+            if (expr_size == rows && rows > cols)
+            {
+                for (std::size_t r = 0; r < rows; ++r)
+                {
+                    const auto factor = fetch(r);
+                    const std::size_t base = r * cols;
+                    for (std::size_t c = 0; c < cols; ++c)
+                    {
+                        func(m_buf[base + c], factor);
+                    }
+                }
+                return;
+            }
+
+            throw std::runtime_error("Expression size incompatible with managed_array dimensions");
+        }
     };
 
     // Lightweight 1D view (contiguous with step)
@@ -212,6 +342,17 @@ namespace samurai
         const value_type& operator[](std::size_t i) const
         {
             return base[(start + i * step) * stride];
+        }
+
+        value_type& operator()(std::size_t i)
+            requires(!std::is_const_v<value_type>)
+        {
+            return (*this)[i];
+        }
+
+        const value_type& operator()(std::size_t i) const
+        {
+            return (*this)[i];
         }
 
         template <class V>
@@ -269,6 +410,52 @@ namespace samurai
             for (std::size_t i = 0; i < n; ++i)
             {
                 (*this)[i] -= rhs[i];
+            }
+            return *this;
+        }
+
+        template <class V>
+        thrust_view_1d& operator&=(const V& rhs)
+            requires(!std::is_const_v<value_type> && detail::element_indexable<V>)
+        {
+            auto n = size();
+            for (std::size_t i = 0; i < n; ++i)
+            {
+                (*this)[i] &= static_cast<value_type>(rhs[i]);
+            }
+            return *this;
+        }
+
+        thrust_view_1d& operator&=(value_type value)
+            requires(!std::is_const_v<value_type>)
+        {
+            auto n = size();
+            for (std::size_t i = 0; i < n; ++i)
+            {
+                (*this)[i] &= value;
+            }
+            return *this;
+        }
+
+        template <class V>
+        thrust_view_1d& operator|=(const V& rhs)
+            requires(!std::is_const_v<value_type> && detail::element_indexable<V>)
+        {
+            auto n = size();
+            for (std::size_t i = 0; i < n; ++i)
+            {
+                (*this)[i] |= static_cast<value_type>(rhs[i]);
+            }
+            return *this;
+        }
+
+        thrust_view_1d& operator|=(value_type value)
+            requires(!std::is_const_v<value_type>)
+        {
+            auto n = size();
+            for (std::size_t i = 0; i < n; ++i)
+            {
+                (*this)[i] |= value;
             }
             return *this;
         }
@@ -548,6 +735,116 @@ namespace samurai
             }
         }
 
+        template <class Container, class Expr, class Func>
+        void apply_container_inplace(Container& container, const Expr& expr, Func&& func)
+        {
+            using value_t = typename Container::value_type;
+            auto expr_size = sequence_size(expr);
+            auto& data     = container.data();
+            auto* buffer   = data.data();
+
+            auto apply_value = [&](std::size_t idx, auto&& factor)
+            {
+                func(buffer[idx], static_cast<value_t>(factor));
+            };
+
+            if (data.collapsed())
+            {
+                const std::size_t total = data.size();
+                if (expr_size == 1)
+                {
+                    const auto factor = element_at(expr, 0);
+                    for (std::size_t i = 0; i < total; ++i)
+                    {
+                        apply_value(i, factor);
+                    }
+                }
+                else if (expr_size == total)
+                {
+                    for (std::size_t i = 0; i < total; ++i)
+                    {
+                        apply_value(i, element_at(expr, i));
+                    }
+                }
+                else
+                {
+                    throw std::runtime_error("Incompatible expression size for collapsed container");
+                }
+            }
+            else
+            {
+                const std::size_t rows = data.rows();
+                const std::size_t cols = data.cols();
+                if constexpr (static_size_first_v<Container::static_size, Container::static_soa, Container::static_can_collapse, Container::static_layout>)
+                {
+                    const std::size_t comps   = rows;
+                    const std::size_t entries = rows * cols;
+                    if (expr_size == comps)
+                    {
+                        for (std::size_t comp = 0; comp < comps; ++comp)
+                        {
+                            const auto factor = element_at(expr, comp);
+                            const std::size_t row_offset = comp * cols;
+                            for (std::size_t j = 0; j < cols; ++j)
+                            {
+                                apply_value(row_offset + j, factor);
+                            }
+                        }
+                    }
+                    else if (expr_size == entries)
+                    {
+                        for (std::size_t idx = 0; idx < entries; ++idx)
+                        {
+                            apply_value(idx, element_at(expr, idx));
+                        }
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Incompatible expression size for component-major container");
+                    }
+                }
+                else
+                {
+                    const std::size_t comps   = cols;
+                    const std::size_t entries = rows * cols;
+                    if (expr_size == comps)
+                    {
+                        for (std::size_t row = 0; row < rows; ++row)
+                        {
+                            const std::size_t row_offset = row * cols;
+                            for (std::size_t comp = 0; comp < comps; ++comp)
+                            {
+                                apply_value(row_offset + comp, element_at(expr, comp));
+                            }
+                        }
+                    }
+                    else if (expr_size == entries)
+                    {
+                        for (std::size_t idx = 0; idx < entries; ++idx)
+                        {
+                            apply_value(idx, element_at(expr, idx));
+                        }
+                    }
+                    else if (expr_size == rows)
+                    {
+                        for (std::size_t row = 0; row < rows; ++row)
+                        {
+                            const auto factor = element_at(expr, row);
+                            const std::size_t row_offset = row * cols;
+                            for (std::size_t comp = 0; comp < cols; ++comp)
+                            {
+                                apply_value(row_offset + comp, factor);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Incompatible expression size for cell-major container");
+                    }
+                }
+            }
+        }
+
         template <class Expr>
         auto make_expr_slice(Expr expr, const range_t<long long>& range);
 
@@ -623,6 +920,24 @@ namespace samurai
             {
                 using std::max;
                 return max(std::forward<A>(a), std::forward<B>(b));
+            }
+        };
+
+        struct bit_and_op
+        {
+            template <class A, class B>
+            static auto apply(A&& a, B&& b)
+            {
+                return std::forward<A>(a) & std::forward<B>(b);
+            }
+        };
+
+        struct bit_or_op
+        {
+            template <class A, class B>
+            static auto apply(A&& a, B&& b)
+            {
+                return std::forward<A>(a) | std::forward<B>(b);
             }
         };
 
@@ -918,8 +1233,12 @@ namespace samurai
     struct thrust_container
     {
         static constexpr layout_type static_layout = SAMURAI_DEFAULT_LAYOUT;
+        static constexpr std::size_t static_size   = size;
+        static constexpr bool        static_soa    = SOA;
+        static constexpr bool        static_can_collapse = can_collapse;
         using container_t                          = managed_array<value_t>;
         using size_type                            = std::size_t;
+        using value_type                           = value_t;
         using default_view_type                    = thrust_view_1d<value_t>; // iterator reference type
 
         thrust_container() = default;
@@ -935,6 +1254,22 @@ namespace samurai
         void resize(std::size_t dynamic_size)
         {
             detail::thrust_shape_helper<value_t, size, SOA, can_collapse, static_layout>::resize(m_data, dynamic_size);
+        }
+
+        template <class Expr>
+        thrust_container& operator*=(const Expr& expr)
+            requires(detail::element_indexable<Expr>)
+        {
+            detail::apply_container_inplace(*this, expr, [](value_type& dst, auto&& factor) { dst *= factor; });
+            return *this;
+        }
+
+        template <class Expr>
+        thrust_container& operator/=(const Expr& expr)
+            requires(detail::element_indexable<Expr>)
+        {
+            detail::apply_container_inplace(*this, expr, [](value_type& dst, auto&& factor) { dst /= factor; });
+            return *this;
         }
 
       private:
@@ -1408,6 +1743,11 @@ namespace samurai
             {
                 return Op::apply(expr[idx]);
             }
+
+            auto operator()(std::size_t idx) const
+            {
+                return (*this)[idx];
+            }
         };
 
         template <class Op, class L, class R>
@@ -1424,6 +1764,11 @@ namespace samurai
             auto operator[](std::size_t idx) const
             {
                 return Op::apply(lhs[idx], rhs[idx]);
+            }
+
+            auto operator()(std::size_t idx) const
+            {
+                return (*this)[idx];
             }
         };
 
@@ -1451,6 +1796,11 @@ namespace samurai
                     return Op::apply(expr[idx], scalar);
                 }
             }
+
+            auto operator()(std::size_t idx) const
+            {
+                return (*this)[idx];
+            }
         };
 
         template <class Expr>
@@ -1469,6 +1819,11 @@ namespace samurai
             auto operator[](std::size_t idx) const
             {
                 return expr[start + idx * step];
+            }
+
+            auto operator()(std::size_t idx) const
+            {
+                return (*this)[idx];
             }
         };
 
@@ -1617,6 +1972,48 @@ namespace samurai
     auto operator-(Scalar s, const Seq& seq)
     {
         return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::minus_op, true>{s, detail::decay_copy(seq)};
+    }
+
+    template <class L, class R>
+        requires(detail::element_indexable<L> && detail::element_indexable<R> && (detail::thrust_sequence<L> || detail::thrust_sequence<R>))
+    auto operator&(const L& lhs, const R& rhs)
+    {
+        return detail::thrust_expr_binary<detail::bit_and_op, std::decay_t<L>, std::decay_t<R>>{detail::decay_copy(lhs), detail::decay_copy(rhs)};
+    }
+
+    template <class Seq, class Scalar>
+        requires(detail::element_indexable<Seq> && detail::scalar_like<Scalar> && detail::thrust_sequence<Seq>)
+    auto operator&(const Seq& seq, Scalar s)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::bit_and_op, false>{s, detail::decay_copy(seq)};
+    }
+
+    template <class Scalar, class Seq>
+        requires(detail::scalar_like<Scalar> && detail::element_indexable<Seq> && detail::thrust_sequence<Seq>)
+    auto operator&(Scalar s, const Seq& seq)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::bit_and_op, true>{s, detail::decay_copy(seq)};
+    }
+
+    template <class L, class R>
+        requires(detail::element_indexable<L> && detail::element_indexable<R> && (detail::thrust_sequence<L> || detail::thrust_sequence<R>))
+    auto operator|(const L& lhs, const R& rhs)
+    {
+        return detail::thrust_expr_binary<detail::bit_or_op, std::decay_t<L>, std::decay_t<R>>{detail::decay_copy(lhs), detail::decay_copy(rhs)};
+    }
+
+    template <class Seq, class Scalar>
+        requires(detail::element_indexable<Seq> && detail::scalar_like<Scalar> && detail::thrust_sequence<Seq>)
+    auto operator|(const Seq& seq, Scalar s)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::bit_or_op, false>{s, detail::decay_copy(seq)};
+    }
+
+    template <class Scalar, class Seq>
+        requires(detail::scalar_like<Scalar> && detail::element_indexable<Seq> && detail::thrust_sequence<Seq>)
+    auto operator|(Scalar s, const Seq& seq)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::bit_or_op, true>{s, detail::decay_copy(seq)};
     }
 
     // Static array aliases (reuse xtensor static forms to avoid reimplementation)

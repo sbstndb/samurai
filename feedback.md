@@ -113,6 +113,7 @@ Suivi
 - Action: restreindre les surcharges et exposer `math::transpose`; vérifier `ctest -L cuda-thrust-masked` + build démo. (ctest OK, build démo bloque désormais sur opérateurs `+` entre vues – voir itération suivante.)
 - Update 2025-10-09 (PM): introduction d’expressions `thrust_expr_*` pour `+/-/*/` et slices, ajout de `range()` côté CUDA. Tests `cuda-thrust-masked` OK. Build démo échoue encore dans `rel_detail.hpp` (`managed_array` ne sait pas `operator*=` avec xt::adapt) – à traiter séparément.
 - Next: ajouter un `operator*=` (et `operator/=`) compatible avec les adaptateurs xt/expressions pour `managed_array` et/ou fournir un wrapper CUDA (`thrust_expr_scale_inplace`) afin que `rel_detail.hpp` compile en backend CUDA. Tester ensuite `cmake --build build_test --target finite-volume-advection-2d -j2`.
+- Update 2025-10-09 (PM+): ajouté `operator*=`, `operator/=`, `operator&=`, `operator|=` sur `managed_array`/`thrust_view_1d` + surcharges bitwise pour les expressions CUDA. `ctest -L cuda-thrust-masked` ✅ et `cmake --build build_test --target finite-volume-advection-2d -j2` ✅ (warnings OMP inchangés). Prochaines investigations: warnings OpenMP bénins; poursuivre avec autres opérateurs MR si besoin.
 
 Références
 - Tests ciblés: `ctest --test-dir build_test -L cuda-thrust-masked --output-on-failure`

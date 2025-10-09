@@ -119,6 +119,117 @@ Références
 - Tests ciblés: `ctest --test-dir build_test -L cuda-thrust-masked --output-on-failure`
 - Démo: `cmake --build build_test --target finite-volume-advection-2d -j2`
 
+## 2025-10-09 – Crash `apply_on_masked` (mask size mismatch)
+
+Contexte
+- Fichier/zone: `include/samurai/storage/cuda/thrust_backend.hpp::detail::mask_binary`
+- Cible/label: exécution `./demos/FiniteVolume/finite-volume-advection-2d`
+- Environnement: backend CUDA/Thrust, build `cmake --build build_test --target finite-volume-advection-2d -j2`
+
+Reproduction
+- 1) `cmake --build build_test --target finite-volume-advection-2d -j2`
+- 2) `./demos/FiniteVolume/finite-volume-advection-2d`
+
+Attendu vs Observé
+- Attendu: démo 2D fonctionnelle.
+- Observé: abort `std::runtime_error` "mask size mismatch: lhs=512 rhs=1" lors de `apply_on_masked` (stack MR coarsening).
+
+Impact
+- Blocant pour les démos MR (coarsening/refinement) avec backend CUDA.
+
+Analyse/hypothèse
+- Les combinaisons de masques (`mask_binary`) n’acceptaient pas la diffusion scalaire (`size()==1`). Les critères MR empilent des réductions sur composantes (taille 1) avec des masques cellule (taille N), provoquant l’exception.
+
+Suivi
+- Action: autoriser la diffusion scalaire dans `mask_binary::size()`/`operator[]` + message détaillé (fait, local 2025-10-09).
+- Action: ajouter un test de non-régression `cuda_backend.apply_on_masked_broadcast_scalar_mask` (`ctest --test-dir build_test -R cuda_backend.apply_on_masked_broadcast_scalar_mask -j3 --output-on-failure`) (fait, local 2025-10-09).
+- Action ouverte: relancer la démo pour confirmer (à faire après intégration du fix).
+
+Références
+- Tests liés: `ctest --test-dir build_test -L cuda-thrust-masked --output-on-failure`
+- Démos liées: `cmake --build build_test --target finite-volume-advection-2d -j2`
+
+## 2025-10-09 – Segfault sur masques temporaires (apply_on_masked)
+
+Contexte
+- Fichier/zone: `include/samurai/storage/cuda/thrust_backend.hpp::operator<` / `operator>`
+- Cible/label: exécution `./demos/FiniteVolume/finite-volume-advection-2d`
+- Environnement: backend CUDA/Thrust, build `cmake --build build_test --target finite-volume-advection-2d -j2`
+
+Reproduction
+- 1) `cmake --build build_test --target finite-volume-advection-2d -j2`
+- 2) `./demos/FiniteVolume/finite-volume-advection-2d`
+
+Attendu vs Observé
+- Attendu: démo fonctionnelle après correction du mismatch de taille.
+- Observé: `SIGSEGV` dans `mask_binary::operator[]` (pile MR coarsen) lorsque le masque est construit via un temporaire (`abs(detail(...)) < eps`).
+
+Impact
+- Blocant: les masques temporaires perdaient leur storage (dangling ref), toute la chaîne MR plantait.
+
+Analyse/hypothèse
+- Les surcharges `<`/`>` stockaient une référence vers l'expression temporaire (`const D&`). Après retour, la référence devenait pendante. Les vues CUDA (thrust_view) sont triviales à copier, donc on peut matérialiser l'expression.
+
+Suivi
+- Action: faire un `decay_copy` dans les surcharges `<`/`>` et accepter `D&&` (fait, local 2025-10-09).
+- Action: ajouter un test `cuda_backend.temporary_expression_mask_lifetime` qui applique un masque construit inline (fait, local 2025-10-09).
+- Action: relancer la démo pour confirmer (à refaire côté utilisateur, la sandbox CLI limite l'exécution directe).
+
+Références
+- Tests liés: `ctest --test-dir build_test -L cuda-thrust-masked --output-on-failure`
+- Démos liées: `cmake --build build_test --target finite-volume-advection-2d -j2`
+
+## 2025-10-09 – Réductions sur masques (sum/all_true) et tests unitaires
+
+Contexte
+- Fichier/zone: `include/samurai/storage/cuda/thrust_backend.hpp` (`math::sum<axis>`, `math::all_true`, diffusions)
+- Tests: `tests/cuda/test_cuda_backend.cpp` (ajout `temporary_expression_mask_lifetime`, `sum_axis_over_mask_expression`, `all_true_mask_chain`)
+
+Reproduction
+- 1) `cmake --build build_test -j2`
+- 2) `ctest --test-dir build_test -R cuda_backend -j3 --output-on-failure`
+
+Attendu vs Observé
+- Attendu: disposer d’un équivalent CUDA pour `sum<axis>` et `all_true` afin d’évaluer les critères MR sans se reposer sur xtensor.
+- Observé: avant correctif, les masques composites étaient mal évalués (diffusion incorrecte, références pendantes), entraînant coarsening global. Les nouveaux tests reproduisent les combinaisons MR hors du code principal et vérifient la diffusion scalaire + chaînes de `&&`.
+
+Analyse/hypothèse
+- Les réductions nécessitent d’inspecter la forme (items/length) des vues CUDA. On propage maintenant cette information via `detail::infer_shape` et on accumule explicitement en traitant les booléens comme des compteurs.
+
+Suivi
+- Action: intégrer ces tests dans la boucle TDD – fait (local 2025-10-09).
+- Action: relancer la démo après validation unitaire pour confirmer que le champ ne s’annule plus (à confirmer côté utilisateur).
+- Action: ajouter des tests autour de `projection`/`variadic_projection` pour capturer les accès MR (fait, local 2025-10-09).
+
+Références
+- Tests liés: `ctest --test-dir build_test -R cuda_backend -j3 --output-on-failure`
+- Démos liées: `cmake --build build_test --target finite-volume-advection-2d -j2`
+
+## 2025-10-09 – Couverture champs CUDA & vue stride en défaut
+
+Contexte
+- Fichiers: `tests/CMakeLists.txt`, `tests/test_field.cpp`
+- Cible: `test_samurai_lib` (label `cuda-thrust`)
+- Actions: exclusion de `test_periodic.cpp` du bundle CUDA; ajout de tests ciblés sur les conteneurs de champs (`noalias` scalaire/vectoriel, vue à pas 2, swap/flags de fantômes).
+
+Reproduction
+- `cmake --build build_test --target test_samurai_lib -j2`
+- `ctest --test-dir build_test -L cuda-thrust -j1 --output-on-failure`
+
+Attendu vs Observé
+- Attendu: tous les nouveaux tests passent, révélant les régressions éventuelles.
+- Observé: `field.strided_interval_assignment` échoue (différence de 1 entre attendu et obtenu sur chaque case paire) ⇒ l’écriture via vue stridée (step=2) ne modifie pas le stockage CUDA.
+
+Impact
+- Majeur pour la couverture: motiver une enquête sur `thrust_view_1d`/`make_range_view` lorsque le range possède un pas > 1 sur des conteneurs collapsés.
+
+Suivi
+- [ ] Diagnostiquer `managed_array` + `view` côté CUDA pour pas>1 (proposer instrumentation/tests unitaires dédiés).
+- [ ] Réintroduire `test_periodic.cpp` une fois la copie périodique multi-dimensionnelle stabilisée.
+
+Références
+- `ctest --test-dir build_test -R field.strided_interval_assignment --output-on-failure`
+
 ## [YYYY‑MM‑DD] Titre bref
 
 Contexte
@@ -157,3 +268,61 @@ Espace de travail initial (exemples à remplir au fil des tests)
 - [À renseigner] `apply_on_masked` paths rencontrés dans une démo.
 
 Fin.
+
+## 2025-10-09 Deep copy CUDA container & stride test update
+
+Contexte
+- Fichiers: `include/samurai/storage/cuda/thrust_backend.hpp`, `tests/cuda/test_cuda_backend.cpp`, `tests/test_field.cpp`
+- Cible/tests: nouveaux tests `cuda_backend.container_copy_is_deep`, `cuda_backend.range_step_write`, `field.strided_interval_assignment`
+- Environnement: build cmake (tests only) + `ctest --test-dir build_test -R <label> -j1`
+
+Reproduction
+- `cmake --build build_test --target test_samurai_lib -j2`
+- `ctest --test-dir build_test -R cuda_backend.container_copy_is_deep --output-on-failure`
+- `ctest --test-dir build_test -R field.strided_interval_assignment --output-on-failure`
+
+Attendu vs Observé
+- Attendu: copier un `ScalarField`/`thrust_container` crée un buffer indépendant; les vues stridées mettent à jour les bons indices.
+- Observé avant fix: copie superficielle via `managed_ptr` ⇒ `ref` suivait les mutations, et le test `field.strided_interval_assignment` signalait des divergences (1.0). Après correctifs, les tests passent et les écritures stridées touchent les offsets retournés par la vue.
+
+Analyse/hypothèse
+- `managed_ptr` n'avait pas de `m_size`, donc copie = simple pointer copy. Ajustement: stockage de la taille + constructeurs/assignations (deep copy + move). Le test de champ utilisait un attendu naïf (`idx % 2`) qui ne reflétait pas les offsets réels (`interval.index` ≠ 0); remplacement par un suivi des adresses réellement écrites.
+
+Suivi
+- Action: surveiller d’autres APIs (`apply_on_masked`, portions MR) pour garantir qu’elles s’appuient sur la même logique de vues → TODO encore ouvert.
+
+Références
+- Tests: `ctest --test-dir build_test -R cuda_backend.container_copy_is_deep`, `ctest --test-dir build_test -R field.strided_interval_assignment`
+
+## 2025-10-09 Masked ops 2D compatibility & xt interop (en cours)
+
+Contexte
+- Fichiers: `include/samurai/storage/cuda/thrust_backend.hpp`
+- Objectif: finaliser `apply_on_masked` pour vues 2D et combinaisons logiques en réutilisant les chemins MR existants (coarsening/refinement, prediction).
+- Environnement: build `cmake --build build_test --target test_samurai_lib -j2`; tests ciblés `ctest --test-dir build_test -L cuda-thrust -j3`.
+
+Reproduction
+- Build unique : `cmake --build build_test --target test_samurai_lib -j2`.
+- Tests: `ctest --test-dir build_test -L cuda-thrust -j3 --output-on-failure` (⚠️ certains cas HDF5 échouent car plusieurs tests écrivent le même fichier en parallèle).
+
+Attendu vs Observé
+- Attendu: 
+  1. Les masques combinant `abs(detail) < eps`, `&&`, `!` fonctionnent sur vues 1D/2D.
+  2. Les vues 2D (`thrust_view_2d`) satisfont les trait xtensor (`xt::view`, `operator()`, `stepper`) même quand elles sont transposées/slicées.
+- Observé: 
+  - Compilation réparée (XT `transpose`, `mask_binary` compile).
+  - Exécution: les tests CUDA custom passent; `ctest -L cuda-thrust` échoue sur suites HDF5 (verrouillage fichier partagé). Besoin de lancer ces tests en série ou de dédupliquer le chemin de sortie.
+
+Analyse/hypothèse
+- Ambiguïtés `sequence_size(...)` résolues en qualifiant toutes les invocations (`detail::sequence_size`).
+- Intégration xt::view: adaptation `samurai::range_t` + `placeholders::all_t` -> `xt::range`/`xt::all`.
+- `thrust_view_2d` a désormais `operator()(std::size_t)` linéaire pour satisfaire `xt::xfunction`.
+- Reste à sécuriser l'environnement HDF5 (verrouillage) avant de cocher les tests MR/HDF5.
+
+Suivi
+- Action 1: Dédier un run séquentiel HDF5 (`ctest -L hdf5 --output-on-failure -j1`) ou modifier les tests pour utiliser des noms de fichiers uniques — à faire avant validation finale.
+- Action 2: Étendre les tests CUDA (labels `cuda_backend.soa_vector_views`, `cuda_backend.aos_vector_views`) pour couvrir les nouveaux chemins `operator()(std::size_t)` et combinaisons de masques multi-dimension, puis ré-activer label filtré `cuda-thrust-masked`.
+
+Références
+- Build: `cmake --build build_test --target test_samurai_lib -j2`
+- Tests: `ctest --test-dir build_test -L cuda-thrust -j3 --output-on-failure`

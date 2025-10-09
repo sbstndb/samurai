@@ -1,9 +1,19 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cmath>
+#include <tuple>
 #include <vector>
 
+#include <samurai/algorithm/update.hpp>
+#include <samurai/bc.hpp>
 #include <samurai/storage/containers_config.hpp>
+#include <samurai/algorithm.hpp>
+#include <samurai/box.hpp>
+#include <samurai/field.hpp>
+#include <samurai/mr/mesh.hpp>
+#include <samurai/numeric/projection.hpp>
+#include <samurai/subset/node.hpp>
 
 namespace samurai
 {
@@ -130,6 +140,55 @@ namespace samurai
         EXPECT_DOUBLE_EQ(single_cell[0], 300.0);
         EXPECT_DOUBLE_EQ(single_cell[1], 301.0);
         EXPECT_DOUBLE_EQ(single_cell[2], 302.0);
+    }
+
+    TEST(cuda_backend, range_step_write)
+    {
+        thrust_container<double, 1, false, true> cont;
+        cont.resize(10);
+        for (std::size_t i = 0; i < 10; ++i)
+        {
+            cont.data()[i] = static_cast<double>(i);
+        }
+
+        auto even_view = view(cont, range_t<long long>{0, 10, 2});
+        ASSERT_EQ(even_view.size(), 5u);
+        for (std::size_t i = 0; i < even_view.size(); ++i)
+        {
+            even_view[i] += 5.0;
+        }
+
+        for (std::size_t i = 0; i < 10; ++i)
+        {
+            const double expected = (i % 2 == 0) ? static_cast<double>(i) + 5.0 : static_cast<double>(i);
+            EXPECT_DOUBLE_EQ(cont.data()[i], expected);
+        }
+    }
+
+    TEST(cuda_backend, container_copy_is_deep)
+    {
+        thrust_container<double, 1, false, true> original;
+        original.resize(6);
+        for (std::size_t i = 0; i < 6; ++i)
+        {
+            original.data()[i] = static_cast<double>(i);
+        }
+
+        auto copied = original;
+
+        thrust_container<double, 1, false, true> assigned;
+        assigned = original;
+
+        original.data()[0] = 42.0;
+        original.data()[3] = -7.0;
+
+        ASSERT_EQ(copied.data().size(), original.data().size());
+        ASSERT_EQ(assigned.data().size(), original.data().size());
+
+        EXPECT_DOUBLE_EQ(copied.data()[0], 0.0);
+        EXPECT_DOUBLE_EQ(copied.data()[3], 3.0);
+        EXPECT_DOUBLE_EQ(assigned.data()[0], 0.0);
+        EXPECT_DOUBLE_EQ(assigned.data()[3], 3.0);
     }
 
     TEST(cuda_backend, math_helpers)
@@ -297,5 +356,271 @@ namespace samurai
             EXPECT_DOUBLE_EQ(cont.data()(0, cell), expected_comp0[cell]);
             EXPECT_DOUBLE_EQ(cont.data()(1, cell), expected_comp1[cell]);
         }
+    }
+
+    TEST(cuda_backend, apply_on_masked_broadcast_scalar_mask)
+    {
+        thrust_container<double, 1, false, true> cont;
+        cont.resize(8);
+        const auto total = cont.data().size();
+        for (std::size_t i = 0; i < total; ++i)
+        {
+            cont.data()[i] = static_cast<double>(i);
+        }
+
+        auto full  = view(cont, range_t<long long>{0, 8, 1});
+        auto first = view(cont, range_t<long long>{0, 1, 1});
+
+        auto mask_full   = (full > 2.5);
+        auto mask_single = (first > -1.0);
+
+        EXPECT_EQ(mask_single.size(), 1u);
+
+        auto combined = mask_full && mask_single;
+        EXPECT_EQ(combined.size(), full.size());
+
+        apply_on_masked(full, combined, [](double& v) { v += 10.0; });
+
+        std::array<double, 8> expected{0.0, 1.0, 2.0, 13.0, 14.0, 15.0, 16.0, 17.0};
+        for (std::size_t idx = 0; idx < full.size(); ++idx)
+        {
+            EXPECT_DOUBLE_EQ(full[idx], expected[idx]);
+        }
+    }
+
+    TEST(cuda_backend, temporary_expression_mask_lifetime)
+    {
+        thrust_container<double, 1, false, true> cont;
+        cont.resize(5);
+        for (std::size_t i = 0; i < cont.data().size(); ++i)
+        {
+            cont.data()[i] = static_cast<double>(i);
+        }
+
+        auto vals = view(cont, range_t<long long>{0, 5, 1});
+        apply_on_masked(vals, (math::abs(vals) < 2.5), [](double& v) { v += 50.0; });
+
+        std::array<double, 5> expected{50.0, 51.0, 52.0, 3.0, 4.0};
+        for (std::size_t i = 0; i < expected.size(); ++i)
+        {
+            EXPECT_DOUBLE_EQ(vals[i], expected[i]);
+        }
+    }
+
+    TEST(cuda_backend, sum_axis_over_mask_expression)
+    {
+        thrust_container<double, 2, true, false> cont;
+        cont.resize(3);
+        // comp0: [0.1, 5.0, 0.4], comp1: [0.05, 0.6, 0.2]
+        cont.data()(0, 0) = 0.1;
+        cont.data()(0, 1) = 5.0;
+        cont.data()(0, 2) = 0.4;
+        cont.data()(1, 0) = 0.05;
+        cont.data()(1, 1) = 0.6;
+        cont.data()(1, 2) = 0.2;
+
+        auto view2d = view(cont, range_t<long long>{0, 3, 1});
+        auto mask_expr = (math::abs(view2d) < 0.7);
+
+        auto sum_axis0 = math::sum<0>(mask_expr);
+        ASSERT_EQ(sum_axis0.size(), 3u);
+        EXPECT_EQ(sum_axis0[0], 2u);
+        EXPECT_EQ(sum_axis0[1], 1u);
+        EXPECT_EQ(sum_axis0[2], 2u);
+
+        auto sum_axis1 = math::sum<1>(mask_expr);
+        ASSERT_EQ(sum_axis1.size(), 2u);
+        EXPECT_EQ(sum_axis1[0], 2u);
+        EXPECT_EQ(sum_axis1[1], 3u);
+    }
+
+    TEST(cuda_backend, all_true_mask_chain)
+    {
+        thrust_container<double, 2, true, false> cont;
+        cont.resize(2);
+        cont.data()(0, 0) = 0.1;
+        cont.data()(0, 1) = 0.9;
+        cont.data()(1, 0) = 0.15;
+        cont.data()(1, 1) = 1.5;
+
+        auto v = view(cont, range_t<long long>{0, 2, 1});
+        auto base_abs = math::abs(v);
+        auto cond = (base_abs < 0.5) && !(base_abs > 1.0) && (v + 0.1 < 1.2) && (math::abs(v - 0.05) < 0.3);
+
+        auto mask = math::all_true<0, 2>(cond);
+        ASSERT_EQ(mask.size(), 2u);
+        EXPECT_TRUE(mask[0]);
+        EXPECT_FALSE(mask[1]);
+    }
+
+    TEST(cuda_backend, update_ghost_mr_scalar)
+    {
+        constexpr std::size_t dim = 2;
+        using Config               = MRConfig<dim>;
+        using Mesh                 = MRMesh<Config>;
+        using mesh_id_t            = typename Mesh::mesh_id_t;
+
+        Box<double, dim> box({0.0, 0.0}, {1.0, 1.0});
+        Mesh mesh{box, 0, 2};
+
+        auto field = make_scalar_field<double>("field", mesh);
+        field.resize();
+
+        make_bc<Dirichlet<1>>(field, 0.0);
+
+        for_each_cell(mesh[mesh_id_t::cells],
+                      [&](auto& cell)
+                      {
+                          field[cell] = static_cast<double>(cell.level + cell.indices[0] + 10 * cell.indices[1]);
+                      });
+
+        update_ghost_mr(field);
+
+        // Probe a cell at level 1 and its parent at level 0 to ensure values are finite.
+        bool checked = false;
+        for_each_cell(mesh[mesh_id_t::cells],
+                      [&](auto& cell)
+                      {
+                          auto val = field[cell];
+                          EXPECT_TRUE(std::isfinite(val));
+                          checked = true;
+                      });
+        EXPECT_TRUE(checked);
+    }
+
+    TEST(cuda_backend, projection_scalar_field)
+    {
+        constexpr std::size_t dim = 2;
+        using Config               = MRConfig<dim>;
+        using Mesh                 = MRMesh<Config>;
+        using mesh_id_t            = typename Mesh::mesh_id_t;
+
+        Box<double, dim> box({0.0, 0.0}, {1.0, 1.0});
+        Mesh mesh{box, 0, 1};
+
+        auto field = make_scalar_field<double>("field", mesh);
+        field.resize();
+
+        auto value_for = [](long long ix, long long iy)
+        {
+            return static_cast<double>(ix + 10 * iy);
+        };
+
+        for_each_cell(mesh[mesh_id_t::cells],
+                      [&](const auto& cell)
+                      {
+                          if (cell.level == 1)
+                          {
+                              field[cell] = value_for(cell.indices[0], cell.indices[1]);
+                          }
+                          else
+                          {
+                              field[cell] = -1.0;
+                          }
+                      });
+
+        auto subset = intersection(mesh[mesh_id_t::reference][1], mesh[mesh_id_t::proj_cells][0]).on(0);
+
+        std::vector<std::tuple<long long, long long, long long>> intervals;
+        bool has_negative = false;
+        subset(
+            [&](const auto& interval, const auto& index)
+            {
+                intervals.emplace_back(interval.start, interval.end, index[0]);
+                if (interval.start < 0)
+                {
+                    has_negative = true;
+                }
+            });
+        EXPECT_FALSE(intervals.empty());
+        EXPECT_FALSE(has_negative) << "projection subset includes negative start interval";
+
+        subset.apply_op(projection(field));
+
+        for_each_cell(mesh[mesh_id_t::cells],
+                      [&](const auto& cell)
+                      {
+                          if (cell.level == 0)
+                          {
+                              const long long ix = cell.indices[0];
+                              const long long iy = cell.indices[1];
+                              const double expected = 0.25 * (value_for(2 * ix, 2 * iy) + value_for(2 * ix, 2 * iy + 1)
+                                                              + value_for(2 * ix + 1, 2 * iy) + value_for(2 * ix + 1, 2 * iy + 1));
+                              EXPECT_DOUBLE_EQ(field[cell], expected);
+                          }
+                      });
+    }
+
+    TEST(cuda_backend, variadic_projection_two_fields)
+    {
+        constexpr std::size_t dim = 2;
+        using Config               = MRConfig<dim>;
+        using Mesh                 = MRMesh<Config>;
+        using mesh_id_t            = typename Mesh::mesh_id_t;
+
+        Box<double, dim> box({0.0, 0.0}, {1.0, 1.0});
+        Mesh mesh{box, 0, 1};
+
+        auto field_a = make_scalar_field<double>("field_a", mesh);
+        auto field_b = make_scalar_field<double>("field_b", mesh);
+        field_a.resize();
+        field_b.resize();
+
+        auto value_a = [](long long ix, long long iy)
+        {
+            return static_cast<double>(ix + 100 * iy);
+        };
+        auto value_b = [](long long ix, long long iy)
+        {
+            return static_cast<double>(2 * ix - 3 * iy);
+        };
+
+        for_each_cell(mesh[mesh_id_t::cells],
+                      [&](const auto& cell)
+                      {
+                          if (cell.level == 1)
+                          {
+                              field_a[cell] = value_a(cell.indices[0], cell.indices[1]);
+                              field_b[cell] = value_b(cell.indices[0], cell.indices[1]);
+                          }
+                          else
+                          {
+                              field_a[cell] = 0.0;
+                              field_b[cell] = 0.0;
+                          }
+                      });
+
+        auto subset = intersection(mesh[mesh_id_t::reference][1], mesh[mesh_id_t::proj_cells][0]).on(0);
+        std::vector<std::tuple<long long, long long, long long>> intervals;
+        bool has_negative = false;
+        subset(
+            [&](const auto& interval, const auto& index)
+            {
+                intervals.emplace_back(interval.start, interval.end, index[0]);
+                if (interval.start < 0)
+                {
+                    has_negative = true;
+                }
+            });
+        EXPECT_FALSE(intervals.empty());
+        EXPECT_FALSE(has_negative) << "variadic projection subset includes negative start interval";
+
+        subset.apply_op(variadic_projection(field_a, field_b));
+
+        for_each_cell(mesh[mesh_id_t::cells],
+                      [&](const auto& cell)
+                      {
+                          if (cell.level == 0)
+                          {
+                              const long long ix = cell.indices[0];
+                              const long long iy = cell.indices[1];
+                              const double expected_a = 0.25 * (value_a(2 * ix, 2 * iy) + value_a(2 * ix, 2 * iy + 1)
+                                                                + value_a(2 * ix + 1, 2 * iy) + value_a(2 * ix + 1, 2 * iy + 1));
+                              const double expected_b = 0.25 * (value_b(2 * ix, 2 * iy) + value_b(2 * ix, 2 * iy + 1)
+                                                                + value_b(2 * ix + 1, 2 * iy) + value_b(2 * ix + 1, 2 * iy + 1));
+                              EXPECT_DOUBLE_EQ(field_a[cell], expected_a);
+                              EXPECT_DOUBLE_EQ(field_b[cell], expected_b);
+                          }
+                      });
     }
 }

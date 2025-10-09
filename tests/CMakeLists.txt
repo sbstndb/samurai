@@ -5,15 +5,33 @@ find_package(rapidcheck QUIET)
 message(STATUS "Found Rapidcheck: ${rapidcheck_FOUND}")
 
 find_package(Threads)
+find_package(CLI11 2.3 CONFIG REQUIRED)
 
 set(COMMON_BASE
     main.cpp
 )
 
 if(DEFINED SAMURAI_FIELD_CONTAINER AND SAMURAI_FIELD_CONTAINER MATCHES cuda)
-    # Minimal CUDA backend tests while the adapter matures
     set(SAMURAI_TESTS
         cuda/test_cuda_backend.cpp
+        cuda/test_cuda_additional.cpp
+        test_box.cpp
+        test_corner_projection.cpp
+        test_cell.cpp
+        test_cell_array.cpp
+        test_cell_list.cpp
+        test_level_cell_list.cpp
+        test_field.cpp
+        test_find.cpp
+        test_for_each.cpp
+        test_subset.cpp
+        test_domain_with_hole.cpp
+        test_hdf5.cpp
+        test_restart.cpp
+        test_scaling.cpp
+        test_interval.cpp
+        test_list_of_intervals.cpp
+        test_utils.cpp
     )
 else()
     set(SAMURAI_TESTS
@@ -78,14 +96,16 @@ else()
     target_link_libraries(test_samurai_lib samurai gtest_main gtest)
 endif()
 
+if(CLI11_FOUND)
+    target_link_libraries(test_samurai_lib CLI11::CLI11)
+    get_filename_component(_cli11_prefix "${CLI11_DIR}/../.." ABSOLUTE)
+    target_include_directories(test_samurai_lib PRIVATE "${_cli11_prefix}/include")
+endif()
+
 # Register tests with CTest
 include(GoogleTest)
 if(DEFINED SAMURAI_FIELD_CONTAINER AND SAMURAI_FIELD_CONTAINER MATCHES cuda)
-    gtest_discover_tests(test_samurai_lib
-        TEST_FILTER "cuda_backend.apply_on_masked_*"
-        PROPERTIES LABELS "cuda-thrust-masked")
-    gtest_discover_tests(test_samurai_lib
-        TEST_FILTER "*-cuda_backend.apply_on_masked_*")
+    gtest_discover_tests(test_samurai_lib PROPERTIES LABELS "cuda-thrust")
 else()
     gtest_discover_tests(test_samurai_lib)
 endif()

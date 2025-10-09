@@ -1,4 +1,5 @@
 #pragma once
+#include <type_traits>
 #include "../timers.hpp"
 #include "gauss_legendre.hpp"
 
@@ -14,8 +15,20 @@ namespace samurai
         }
         else // vector view
         {
-            using namespace samurai::math;
-            norm_square = sum(x * x);
+            auto expr       = x * x;
+            norm_square     = 0.0;
+            const std::size_t n = static_cast<std::size_t>(expr.size());
+            for (std::size_t i = 0; i < n; ++i)
+            {
+                if constexpr (requires { expr[i]; })
+                {
+                    norm_square += static_cast<double>(expr[i]);
+                }
+                else
+                {
+                    norm_square += static_cast<double>(expr(i));
+                }
+            }
         }
         return norm_square;
     }

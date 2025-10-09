@@ -12,14 +12,92 @@
 #include <array>
 #include <algorithm>
 #include <stdexcept>
+#include <sstream>
 #include <cmath>
 #include <cassert>
 #include <limits>
+#include <iterator>
 
 #include <cuda_runtime.h>
 
+#include <xtensor/xlayout.hpp>
+#include <xtensor/xexpression.hpp>
+#include <xtensor/xiterator.hpp>
+#include <xtensor/xstrides.hpp>
+#include <xtensor/xslice.hpp>
+#include <xtensor/xview.hpp>
+
 #include "../utils.hpp"
 #include "../xtensor/xtensor_static.hpp"
+
+namespace samurai
+{
+    template <class T>
+    struct range_t;
+
+    namespace placeholders
+    {
+        struct all_t;
+    }
+}
+
+namespace xt
+{
+    namespace samurai_detail
+    {
+        template <class T>
+        struct is_samurai_range : std::false_type
+        {
+        };
+
+        template <class T>
+        struct is_samurai_range<samurai::range_t<T>> : std::true_type
+        {
+        };
+
+        template <class T>
+        struct is_samurai_all : std::false_type
+        {
+        };
+
+        template <>
+        struct is_samurai_all<samurai::placeholders::all_t> : std::true_type
+        {
+        };
+
+        template <class T>
+        struct is_samurai_slice : std::bool_constant<is_samurai_range<T>::value || is_samurai_all<T>::value>
+        {
+        };
+
+        template <class Slice>
+        inline decltype(auto) convert_slice(Slice&& slice)
+        {
+            if constexpr (is_samurai_range<std::decay_t<Slice>>::value)
+            {
+                return xt::range(slice.start, slice.end, slice.step);
+            }
+            else if constexpr (is_samurai_all<std::decay_t<Slice>>::value)
+            {
+                return xt::all();
+            }
+            else
+            {
+                return std::forward<Slice>(slice);
+            }
+        }
+    } // namespace samurai_detail
+
+    template <class E, class... S>
+        requires((samurai_detail::is_samurai_slice<std::decay_t<S>>::value || ...))
+    inline auto view(E&& e, S&&... slices)
+    {
+        return xt::detail::make_view_impl(
+            std::forward<E>(e),
+            std::make_index_sequence<sizeof...(S)>{},
+            samurai_detail::convert_slice(std::forward<S>(slices))...);
+    }
+}
 
 namespace samurai
 {
@@ -88,19 +166,119 @@ namespace samurai
 
         template <class DST, class SRC>
         void sub_elements(DST& dst, const SRC& src);
+
+        template <class View>
+        decltype(auto) element_at(View& view, std::size_t idx);
+
+        template <class View>
+        decltype(auto) element_at(const View& view, std::size_t idx);
+
+        template <class Mask>
+        std::size_t mask_size(const Mask& mask);
+
+        template <class Mask>
+        class mask_const_iterator
+        {
+          public:
+            using iterator_category = std::forward_iterator_tag;
+            using difference_type   = std::ptrdiff_t;
+            using value_type        = bool;
+            using reference         = bool;
+            using pointer           = void;
+
+            mask_const_iterator() = default;
+            mask_const_iterator(const Mask* mask, std::size_t index)
+                : m_mask(mask)
+                , m_index(index)
+            {
+            }
+
+            bool operator*() const
+            {
+                return (*m_mask)[m_index];
+            }
+
+            mask_const_iterator& operator++()
+            {
+                ++m_index;
+                return *this;
+            }
+
+            mask_const_iterator operator++(int)
+            {
+                mask_const_iterator tmp(*this);
+                ++(*this);
+                return tmp;
+            }
+
+            bool operator==(const mask_const_iterator& other) const
+            {
+                return m_mask == other.m_mask && m_index == other.m_index;
+            }
+
+            bool operator!=(const mask_const_iterator& other) const
+            {
+                return !(*this == other);
+            }
+
+          private:
+            const Mask* m_mask  = nullptr;
+            std::size_t m_index = 0;
+        };
     }
+
+    template <class T>
+    struct thrust_view_1d;
 
     // Small RAII for cudaMallocManaged
     template <class T>
     struct managed_ptr
     {
         T* ptr = nullptr;
+        std::size_t m_size = 0;
 
         managed_ptr() = default;
+
         explicit managed_ptr(std::size_t n)
         {
             allocate(n);
         }
+
+        managed_ptr(const managed_ptr& other)
+        {
+            copy_from(other);
+        }
+
+        managed_ptr& operator=(const managed_ptr& other)
+        {
+            if (this != &other)
+            {
+                copy_from(other);
+            }
+            return *this;
+        }
+
+        managed_ptr(managed_ptr&& other) noexcept
+            : ptr(other.ptr)
+            , m_size(other.m_size)
+        {
+            other.ptr   = nullptr;
+            other.m_size = 0;
+        }
+
+        managed_ptr& operator=(managed_ptr&& other) noexcept
+        {
+            if (this != &other)
+            {
+                reset();
+                ptr        = other.ptr;
+                m_size     = other.m_size;
+                other.ptr  = nullptr;
+                other.m_size = 0;
+            }
+            return *this;
+        }
+
         ~managed_ptr()
         {
             reset();
@@ -120,6 +298,7 @@ namespace samurai
                 throw std::runtime_error("cudaMallocManaged failed");
             }
             ptr = static_cast<T*>(p);
+            m_size = n;
         }
 
         void reset()
@@ -129,10 +308,28 @@ namespace samurai
                 ::cudaFree(ptr);
                 ptr = nullptr;
             }
+            m_size = 0;
         }
 
         T* get() const { return ptr; }
+        std::size_t size() const { return m_size; }
         T& operator[](std::size_t i) const { return ptr[i]; }
+
+      private:
+        void copy_from(const managed_ptr& other)
+        {
+            if (other.m_size == 0)
+            {
+                reset();
+                return;
+            }
+            if (ptr == nullptr || m_size != other.m_size)
+            {
+                allocate(other.m_size);
+            }
+            std::copy(other.ptr, other.ptr + other.m_size, ptr);
+            m_size = other.m_size;
+        }
     };
 
     // Managed 2D array wrapper with optional 1D collapsed mode
@@ -140,6 +337,7 @@ namespace samurai
     struct managed_array
     {
         using value_type = T;
+        using default_view_type = thrust_view_1d<value_type>;
         using size_type  = std::size_t;
 
         managed_ptr<T> m_buf{};
@@ -312,25 +510,197 @@ namespace samurai
 
     // Lightweight 1D view (contiguous with step)
     template <class T>
-    struct thrust_view_1d
+    struct thrust_view_1d : xt::xexpression<thrust_view_1d<T>>
     {
+        thrust_view_1d() = default;
+        thrust_view_1d(const thrust_view_1d&) = default;
+        thrust_view_1d(thrust_view_1d&&) = default;
+        thrust_view_1d& operator=(const thrust_view_1d&) = default;
+        thrust_view_1d& operator=(thrust_view_1d&&) = default;
+        ~thrust_view_1d() = default;
+
         using value_type   = T;
         using scalar_type  = std::remove_const_t<T>;
         using pointer_type = value_type*;
+        using pointer       = pointer_type;
+        using const_pointer = const scalar_type*;
+        using size_type    = std::size_t;
+        using shape_type   = std::array<std::size_t, 1>;
+        using difference_type = std::ptrdiff_t;
+        using reference       = value_type&;
+        using const_reference = const value_type&;
+        using bool_load_type  = bool;
+        using storage_type    = thrust_view_1d;
+        using inner_shape_type       = shape_type;
+        using inner_strides_type     = shape_type;
+        using inner_backstrides_type = shape_type;
+        using storage_iterator              = pointer_type;
+        using const_storage_iterator        = const_pointer;
+        using storage_reverse_iterator      = std::reverse_iterator<storage_iterator>;
+        using const_storage_reverse_iterator = std::reverse_iterator<const_storage_iterator>;
+        using iterator               = storage_iterator;
+        using const_iterator         = const_storage_iterator;
+        using reverse_iterator       = storage_reverse_iterator;
+        using const_reverse_iterator = const_storage_reverse_iterator;
+        using expression_tag         = xt::xtensor_expression_tag;
+        using stepper                = xt::xindexed_stepper<thrust_view_1d, false>;
+        using const_stepper          = xt::xindexed_stepper<thrust_view_1d, true>;
+        inline static constexpr bool contiguous_layout = false;
+        inline static constexpr xt::layout_type static_layout =
+#ifdef SAMURAI_CONTAINER_LAYOUT_COL_MAJOR
+            xt::layout_type::column_major;
+#else
+            xt::layout_type::row_major;
+#endif
+        inline static constexpr layout_type samurai_layout =
+#ifdef SAMURAI_CONTAINER_LAYOUT_COL_MAJOR
+            layout_type::column_major;
+#else
+            layout_type::row_major;
+#endif
 
         pointer_type base{nullptr};
         std::size_t  start{0};
-        std::size_t  end{0};
+        std::size_t  stop{0};
         std::size_t  step{1};
         std::size_t  stride{1}; // element stride in underlying storage
 
         std::size_t size() const
         {
-            if (end <= start)
+            if (stop <= start)
             {
                 return 0;
             }
-            return (end - start + (step - 1)) / step;
+            return (stop - start + (step - 1)) / step;
+        }
+
+        std::size_t dimension() const { return 1; }
+
+        std::size_t shape(std::size_t axis) const
+        {
+            if (axis == 0)
+            {
+                return size();
+            }
+            throw std::out_of_range("axis out of bounds for thrust_view_1d");
+        }
+
+        std::array<std::size_t, 1> shape() const
+        {
+            return {size()};
+        }
+
+        std::size_t stride_value() const
+        {
+            return step * stride;
+        }
+
+        inner_strides_type strides() const
+        {
+            return {stride_value()};
+        }
+
+        inner_backstrides_type backstrides() const
+        {
+            if (size() == 0)
+            {
+                return {0};
+            }
+            return {(size() - 1) * stride_value()};
+        }
+
+        xt::layout_type layout() const
+        {
+            return static_layout;
+        }
+
+        bool is_contiguous() const
+        {
+            return step == 1 && stride == 1;
+        }
+
+        std::size_t storage_span() const
+        {
+            if (size() == 0)
+            {
+                return 0;
+            }
+            return (size() - 1) * stride_value() + 1;
+        }
+
+        pointer data()
+            requires(!std::is_const_v<value_type>)
+        {
+            return base + start * stride;
+        }
+
+        const_pointer data() const
+        {
+            return base + start * stride;
+        }
+
+        storage_iterator storage_begin()
+            requires(!std::is_const_v<value_type>)
+        {
+            return data();
+        }
+
+        storage_iterator storage_end()
+            requires(!std::is_const_v<value_type>)
+        {
+            return data() + storage_span();
+        }
+
+        const_storage_iterator storage_begin() const
+        {
+            return data();
+        }
+
+        const_storage_iterator storage_end() const
+        {
+            return data() + storage_span();
+        }
+
+        storage_reverse_iterator storage_rbegin()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_reverse_iterator(storage_end());
+        }
+
+        storage_reverse_iterator storage_rend()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_reverse_iterator(storage_begin());
+        }
+
+        const_storage_reverse_iterator storage_rbegin() const
+        {
+            return const_storage_reverse_iterator(storage_end());
+        }
+
+        const_storage_reverse_iterator storage_rend() const
+        {
+            return const_storage_reverse_iterator(storage_begin());
+        }
+
+        const_storage_iterator storage_cbegin() const
+        {
+            return storage_begin();
+        }
+
+        const_storage_iterator storage_cend() const
+        {
+            return storage_end();
+        }
+
+        const_storage_reverse_iterator storage_crbegin() const
+        {
+            return const_storage_reverse_iterator(storage_end());
+        }
+
+        const_storage_reverse_iterator storage_crend() const
+        {
+            return const_storage_reverse_iterator(storage_begin());
         }
 
         value_type& operator[](std::size_t i)
@@ -355,15 +725,144 @@ namespace samurai
             return (*this)[i];
         }
 
+        iterator begin()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_begin();
+        }
+
+        iterator end()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_end();
+        }
+
+        const_iterator begin() const
+        {
+            return storage_begin();
+        }
+
+        const_iterator end() const
+        {
+            return storage_end();
+        }
+
+        const_iterator cbegin() const
+        {
+            return storage_begin();
+        }
+
+        const_iterator cend() const
+        {
+            return storage_end();
+        }
+
+        reverse_iterator rbegin()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_rbegin();
+        }
+
+        reverse_iterator rend()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_rend();
+        }
+
+        const_reverse_iterator rbegin() const
+        {
+            return storage_rbegin();
+        }
+
+        const_reverse_iterator rend() const
+        {
+            return storage_rend();
+        }
+
+        const_reverse_iterator crbegin() const
+        {
+            return storage_rbegin();
+        }
+
+        const_reverse_iterator crend() const
+        {
+            return storage_rend();
+        }
+
+        storage_type& storage()
+            requires(!std::is_const_v<value_type>)
+        {
+            return *this;
+        }
+
+        const storage_type& storage() const
+        {
+            return *this;
+        }
+
+        std::size_t data_offset() const
+        {
+            return start * stride;
+        }
+
+        template <class Strides>
+        bool has_linear_assign(const Strides&) const
+        {
+            return false;
+        }
+
+        template <class S>
+        bool broadcast_shape(S& shape, bool /*reuse_cache*/ = false) const
+        {
+            return xt::broadcast_shape(this->shape(), shape);
+        }
+
+        template <class S>
+        auto stepper_begin(const S&) requires(!std::is_const_v<value_type>)
+        {
+            return xt::xindexed_stepper<thrust_view_1d, false>(this, data_offset());
+        }
+
+        template <class S>
+        auto stepper_end(const S&, xt::layout_type) requires(!std::is_const_v<value_type>)
+        {
+            return xt::xindexed_stepper<thrust_view_1d, false>(this, size(), true);
+        }
+
+        template <class S>
+        auto stepper_begin(const S&) const
+        {
+            return xt::xindexed_stepper<thrust_view_1d, true>(this, data_offset());
+        }
+
+        template <class S>
+        auto stepper_end(const S&, xt::layout_type) const
+        {
+            return xt::xindexed_stepper<thrust_view_1d, true>(this, size(), true);
+        }
+
+        template <class It>
+        reference element(It first, It last)
+            requires(!std::is_const_v<value_type>)
+        {
+            assert(std::distance(first, last) == 1);
+            (void)last;
+            return (*this)(static_cast<std::size_t>(*first));
+        }
+
+        template <class It>
+        const_reference element(It first, It last) const
+        {
+            assert(std::distance(first, last) == 1);
+            (void)last;
+            return (*this)(static_cast<std::size_t>(*first));
+        }
+
         template <class V>
         thrust_view_1d& operator=(const V& rhs)
             requires(!std::is_const_v<value_type> && detail::element_indexable<V>)
         {
-            auto n = size();
-            for (std::size_t i = 0; i < n; ++i)
-            {
-                (*this)[i] = rhs[i];
-            }
+            detail::assign_elements(*this, rhs);
             return *this;
         }
 
@@ -394,11 +893,7 @@ namespace samurai
         thrust_view_1d& operator+=(const V& rhs)
             requires(!std::is_const_v<value_type> && detail::element_indexable<V>)
         {
-            auto n = size();
-            for (std::size_t i = 0; i < n; ++i)
-            {
-                (*this)[i] += rhs[i];
-            }
+            detail::add_elements(*this, rhs);
             return *this;
         }
 
@@ -406,11 +901,7 @@ namespace samurai
         thrust_view_1d& operator-=(const V& rhs)
             requires(!std::is_const_v<value_type> && detail::element_indexable<V>)
         {
-            auto n = size();
-            for (std::size_t i = 0; i < n; ++i)
-            {
-                (*this)[i] -= rhs[i];
-            }
+            detail::sub_elements(*this, rhs);
             return *this;
         }
 
@@ -418,10 +909,11 @@ namespace samurai
         thrust_view_1d& operator&=(const V& rhs)
             requires(!std::is_const_v<value_type> && detail::element_indexable<V>)
         {
-            auto n = size();
+            const auto n = size();
             for (std::size_t i = 0; i < n; ++i)
             {
-                (*this)[i] &= static_cast<value_type>(rhs[i]);
+                auto&& ref = detail::element_at(*this, i);
+                ref &= static_cast<value_type>(detail::element_at(rhs, i));
             }
             return *this;
         }
@@ -441,10 +933,11 @@ namespace samurai
         thrust_view_1d& operator|=(const V& rhs)
             requires(!std::is_const_v<value_type> && detail::element_indexable<V>)
         {
-            auto n = size();
+            const auto n = size();
             for (std::size_t i = 0; i < n; ++i)
             {
-                (*this)[i] |= static_cast<value_type>(rhs[i]);
+                auto&& ref = detail::element_at(*this, i);
+                ref |= static_cast<value_type>(detail::element_at(rhs, i));
             }
             return *this;
         }
@@ -485,11 +978,54 @@ namespace samurai
 
     // 2D view: items x range length (row-major in memory for items-first layouts)
     template <class T>
-    struct thrust_view_2d
+    struct thrust_view_2d : xt::xexpression<thrust_view_2d<T>>
     {
+        thrust_view_2d() = default;
+        thrust_view_2d(const thrust_view_2d&) = default;
+        thrust_view_2d(thrust_view_2d&&) = default;
+        thrust_view_2d& operator=(const thrust_view_2d&) = default;
+        thrust_view_2d& operator=(thrust_view_2d&&) = default;
+        ~thrust_view_2d() = default;
+
         using value_type   = T;
         using scalar_type  = std::remove_const_t<std::decay_t<T>>;
         using pointer_type = value_type*;
+        using pointer       = pointer_type;
+        using const_pointer = const scalar_type*;
+        using size_type    = std::size_t;
+        using shape_type   = std::array<std::size_t, 2>;
+        using difference_type = std::ptrdiff_t;
+        using reference       = value_type&;
+        using const_reference = const value_type&;
+        using bool_load_type  = bool;
+        using inner_shape_type       = shape_type;
+        using inner_strides_type     = shape_type;
+        using inner_backstrides_type = shape_type;
+        using storage_type           = thrust_view_2d;
+        using storage_iterator              = pointer_type;
+        using const_storage_iterator        = const_pointer;
+        using storage_reverse_iterator      = std::reverse_iterator<storage_iterator>;
+        using const_storage_reverse_iterator = std::reverse_iterator<const_storage_iterator>;
+        using iterator               = storage_iterator;
+        using const_iterator         = const_storage_iterator;
+        using reverse_iterator       = storage_reverse_iterator;
+        using const_reverse_iterator = const_storage_reverse_iterator;
+        using expression_tag         = xt::xtensor_expression_tag;
+        using stepper                = xt::xindexed_stepper<thrust_view_2d, false>;
+        using const_stepper          = xt::xindexed_stepper<thrust_view_2d, true>;
+        inline static constexpr bool contiguous_layout = false;
+        inline static constexpr xt::layout_type static_layout =
+#ifdef SAMURAI_CONTAINER_LAYOUT_COL_MAJOR
+            xt::layout_type::column_major;
+#else
+            xt::layout_type::row_major;
+#endif
+        inline static constexpr layout_type samurai_layout =
+#ifdef SAMURAI_CONTAINER_LAYOUT_COL_MAJOR
+            layout_type::column_major;
+#else
+            layout_type::row_major;
+#endif
 
         pointer_type base{nullptr};
         std::size_t  items{0};   // number of components/items
@@ -500,6 +1036,284 @@ namespace samurai
         std::size_t items_count() const { return items; }
         std::size_t length_count() const { return length; }
         std::size_t size() const { return items * length; }
+
+        std::size_t dimension() const { return 2; }
+
+        std::size_t shape(std::size_t axis) const
+        {
+            if (axis == 0)
+            {
+                return items_count();
+            }
+            if (axis == 1)
+            {
+                return length_count();
+            }
+            throw std::out_of_range("axis out of bounds for thrust_view_2d");
+        }
+
+        std::array<std::size_t, 2> shape() const
+        {
+            return {items_count(), length_count()};
+        }
+
+        inner_strides_type strides() const
+        {
+            return {item_stride, length_stride};
+        }
+
+        inner_backstrides_type backstrides() const
+        {
+            if (items == 0 || length == 0)
+            {
+                return {0, 0};
+            }
+            return {(items - 1) * item_stride, (length - 1) * length_stride};
+        }
+
+        xt::layout_type layout() const
+        {
+            return static_layout;
+        }
+
+        bool is_contiguous() const
+        {
+            return false;
+        }
+
+        std::size_t storage_span() const
+        {
+            if (items == 0 || length == 0)
+            {
+                return 0;
+            }
+            const std::size_t max_item_offset   = (items - 1) * item_stride;
+            const std::size_t max_length_offset = (length - 1) * length_stride;
+            return max_item_offset + max_length_offset + 1;
+        }
+
+        pointer_type data()
+            requires(!std::is_const_v<value_type>)
+        {
+            return base;
+        }
+
+        const_pointer data() const
+        {
+            return base;
+        }
+
+        storage_iterator storage_begin()
+            requires(!std::is_const_v<value_type>)
+        {
+            return data();
+        }
+
+        storage_iterator storage_end()
+            requires(!std::is_const_v<value_type>)
+        {
+            return data() + storage_span();
+        }
+
+        const_storage_iterator storage_begin() const
+        {
+            return data();
+        }
+
+        const_storage_iterator storage_end() const
+        {
+            return data() + storage_span();
+        }
+
+        storage_reverse_iterator storage_rbegin()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_reverse_iterator(storage_end());
+        }
+
+        storage_reverse_iterator storage_rend()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_reverse_iterator(storage_begin());
+        }
+
+        const_storage_reverse_iterator storage_rbegin() const
+        {
+            return const_storage_reverse_iterator(storage_end());
+        }
+
+        const_storage_reverse_iterator storage_rend() const
+        {
+            return const_storage_reverse_iterator(storage_begin());
+        }
+
+        const_storage_iterator storage_cbegin() const
+        {
+            return storage_begin();
+        }
+
+        const_storage_iterator storage_cend() const
+        {
+            return storage_end();
+        }
+
+        const_storage_reverse_iterator storage_crbegin() const
+        {
+            return const_storage_reverse_iterator(storage_end());
+        }
+
+        const_storage_reverse_iterator storage_crend() const
+        {
+            return const_storage_reverse_iterator(storage_begin());
+        }
+
+        iterator begin()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_begin();
+        }
+
+        iterator end()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_end();
+        }
+
+        const_iterator begin() const
+        {
+            return storage_begin();
+        }
+
+        const_iterator end() const
+        {
+            return storage_end();
+        }
+
+        const_iterator cbegin() const
+        {
+            return storage_begin();
+        }
+
+        const_iterator cend() const
+        {
+            return storage_end();
+        }
+
+        reverse_iterator rbegin()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_rbegin();
+        }
+
+        reverse_iterator rend()
+            requires(!std::is_const_v<value_type>)
+        {
+            return storage_rend();
+        }
+
+        const_reverse_iterator rbegin() const
+        {
+            return storage_rbegin();
+        }
+
+        const_reverse_iterator rend() const
+        {
+            return storage_rend();
+        }
+
+        const_reverse_iterator crbegin() const
+        {
+            return storage_rbegin();
+        }
+
+        const_reverse_iterator crend() const
+        {
+            return storage_rend();
+        }
+
+        storage_type& storage()
+            requires(!std::is_const_v<value_type>)
+        {
+            return *this;
+        }
+
+        const storage_type& storage() const
+        {
+            return *this;
+        }
+
+        std::size_t data_offset() const
+        {
+            return 0;
+        }
+
+        template <class Strides>
+        bool has_linear_assign(const Strides&) const
+        {
+            return false;
+        }
+
+        template <class S>
+        bool broadcast_shape(S& shape, bool /*reuse_cache*/ = false) const
+        {
+            return xt::broadcast_shape(this->shape(), shape);
+        }
+
+        template <class S>
+        auto stepper_begin(const S&) requires(!std::is_const_v<value_type>)
+        {
+            return xt::xindexed_stepper<thrust_view_2d, false>(this, data_offset());
+        }
+
+        template <class S>
+        auto stepper_end(const S&, xt::layout_type) requires(!std::is_const_v<value_type>)
+        {
+            return xt::xindexed_stepper<thrust_view_2d, false>(this, size(), true);
+        }
+
+        template <class S>
+        auto stepper_begin(const S&) const
+        {
+            return xt::xindexed_stepper<thrust_view_2d, true>(this, data_offset());
+        }
+
+        template <class S>
+        auto stepper_end(const S&, xt::layout_type) const
+        {
+            return xt::xindexed_stepper<thrust_view_2d, true>(this, size(), true);
+        }
+
+        template <class It>
+        reference element(It first, It last)
+            requires(!std::is_const_v<value_type>)
+        {
+            assert(std::distance(first, last) == 2);
+            (void)last;
+            auto item_idx = static_cast<std::size_t>(*first);
+            auto pos_idx  = static_cast<std::size_t>(*(first + 1));
+            return (*this)(item_idx, pos_idx);
+        }
+
+        template <class It>
+        const_reference element(It first, It last) const
+        {
+            assert(std::distance(first, last) == 2);
+            (void)last;
+            auto item_idx = static_cast<std::size_t>(*first);
+            auto pos_idx  = static_cast<std::size_t>(*(first + 1));
+            return (*this)(item_idx, pos_idx);
+        }
+
+        value_type& operator()(std::size_t idx)
+            requires(!std::is_const_v<value_type>)
+        {
+            return (*this)[idx];
+        }
+
+        const value_type& operator()(std::size_t idx) const
+        {
+            return (*this)[idx];
+        }
 
         value_type& operator[](std::size_t idx)
             requires(!std::is_const_v<value_type>)
@@ -529,7 +1343,7 @@ namespace samurai
             thrust_view_1d<value_type> v;
             v.base   = base + j * length_stride;
             v.start  = 0;
-            v.end    = items;
+            v.stop   = items;
             v.step   = 1;
             v.stride = item_stride;
             return v;
@@ -540,7 +1354,7 @@ namespace samurai
             thrust_view_1d<value_type> v;
             v.base   = base + item * item_stride;
             v.start  = 0;
-            v.end    = length;
+            v.stop   = length;
             v.step   = 1;
             v.stride = length_stride;
             return v;
@@ -603,6 +1417,54 @@ namespace samurai
             return *this;
         }
     };
+
+    template <class L, class R>
+    bool operator==(const thrust_view_1d<L>& lhs, const thrust_view_1d<R>& rhs)
+    {
+        const std::size_t n = lhs.size();
+        if (n != rhs.size())
+        {
+            return false;
+        }
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            if (lhs[i] != rhs[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    template <class L, class R>
+    bool operator!=(const thrust_view_1d<L>& lhs, const thrust_view_1d<R>& rhs)
+    {
+        return !(lhs == rhs);
+    }
+
+    template <class L, class R>
+    bool operator==(const thrust_view_2d<L>& lhs, const thrust_view_2d<R>& rhs)
+    {
+        if (lhs.items_count() != rhs.items_count() || lhs.length_count() != rhs.length_count())
+        {
+            return false;
+        }
+        const std::size_t total = lhs.size();
+        for (std::size_t idx = 0; idx < total; ++idx)
+        {
+            if (lhs[idx] != rhs[idx])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    template <class L, class R>
+    bool operator!=(const thrust_view_2d<L>& lhs, const thrust_view_2d<R>& rhs)
+    {
+        return !(lhs == rhs);
+    }
 
     namespace detail
     {
@@ -672,6 +1534,19 @@ namespace samurai
         {
         };
 
+        template <class T>
+        struct vector_wrapper;
+
+        template <class T>
+        struct is_vector_wrapper : std::false_type
+        {
+        };
+
+        template <class T>
+        struct is_vector_wrapper<vector_wrapper<T>> : std::true_type
+        {
+        };
+
         template <class Op, class Expr>
         struct thrust_expr_unary;
 
@@ -713,7 +1588,22 @@ namespace samurai
         concept thrust_expression = is_thrust_expr<std::decay_t<T>>::value;
 
         template <class T>
-        concept thrust_sequence = is_thrust_view<std::decay_t<T>>::value || thrust_expression<T> || is_std_vector<std::decay_t<T>>::value;
+        concept thrust_sequence = is_thrust_view<std::decay_t<T>>::value || thrust_expression<T> || is_std_vector<std::decay_t<T>>::value
+            || is_vector_wrapper<std::decay_t<T>>::value;
+
+        template <class T>
+        concept has_size_method = requires(const T& v) {
+            { v.size() } -> std::convertible_to<std::size_t>;
+        };
+
+        template <class T>
+        concept has_items_length = requires(const T& v) {
+            { v.items_count() } -> std::convertible_to<std::size_t>;
+            { v.length_count() } -> std::convertible_to<std::size_t>;
+        };
+
+        template <class T>
+        concept sequence_accessible = has_size_method<T> || has_items_length<T> || thrust_expression<T>;
 
         template <class V>
         using element_value_t = std::remove_cvref_t<decltype(std::declval<const V&>()[std::declval<std::size_t>()])>;
@@ -735,11 +1625,107 @@ namespace samurai
             }
         }
 
+        struct expression_shape
+        {
+            std::size_t items{0};
+            std::size_t length{0};
+            bool        valid{false};
+        };
+
+        template <class Expr>
+        expression_shape infer_shape(const Expr& expr)
+        {
+            if constexpr (requires { expr.items_count(); expr.length_count(); })
+            {
+                return expression_shape{expr.items_count(), expr.length_count(), true};
+            }
+            else if constexpr (requires { expr.lhs; })
+            {
+                auto lhs_shape = infer_shape(expr.lhs);
+                if (lhs_shape.valid)
+                {
+                    return lhs_shape;
+                }
+                if constexpr (requires { expr.rhs; })
+                {
+                    return infer_shape(expr.rhs);
+                }
+            }
+            else if constexpr (requires { expr.expr; })
+            {
+                return infer_shape(expr.expr);
+            }
+            else if constexpr (requires { expr.mask; })
+            {
+                return infer_shape(expr.mask);
+            }
+            else if constexpr (requires { expr.ref; })
+            {
+                return infer_shape(expr.ref);
+            }
+
+            return expression_shape{0u, detail::sequence_size(expr), false};
+        }
+
+        template <class T>
+        struct vector_wrapper
+        {
+            std::vector<T> data;
+
+            std::size_t size() const { return data.size(); }
+
+            void resize(std::size_t n) { data.resize(n); }
+
+            T operator[](std::size_t idx) const
+            {
+                return data[idx];
+            }
+
+            void set(std::size_t idx, T value)
+            {
+                data[idx] = value;
+            }
+        };
+
+        template <>
+        struct vector_wrapper<bool>
+        {
+            std::vector<unsigned char> data;
+
+            std::size_t size() const { return data.size(); }
+
+            void resize(std::size_t n) { data.resize(n); }
+
+            bool operator[](std::size_t idx) const
+            {
+                return data[idx] != 0u;
+            }
+
+            void set(std::size_t idx, bool value)
+            {
+                data[idx] = value ? 1u : 0u;
+            }
+        };
+
+        template <class Expr>
+        auto evaluate_to_vector(const Expr& expr)
+        {
+            using value_t = element_value_t<Expr>;
+            vector_wrapper<value_t> out;
+            const auto total = detail::sequence_size(expr);
+            out.resize(total);
+            for (std::size_t idx = 0; idx < total; ++idx)
+            {
+                out.set(idx, element_at(expr, idx));
+            }
+            return out;
+        }
+
         template <class Container, class Expr, class Func>
         void apply_container_inplace(Container& container, const Expr& expr, Func&& func)
         {
             using value_t = typename Container::value_type;
-            auto expr_size = sequence_size(expr);
+            auto expr_size = detail::sequence_size(expr);
             auto& data     = container.data();
             auto* buffer   = data.data();
 
@@ -1000,11 +1986,11 @@ namespace samurai
             if constexpr ((size == 1) && can_collapse)
             {
                 thrust_view_1d<val_type> v{};
-                v.base   = base_ptr + start_sz;
-                v.start  = 0;
-                v.end    = length;
-                v.step   = 1;
-                v.stride = step_sz;
+                v.base   = base_ptr;
+                v.start  = start_sz;
+                v.stop   = static_cast<std::size_t>(range.end);
+                v.step   = step_sz;
+                v.stride = 1;
                 return v;
             }
             else
@@ -1087,7 +2073,7 @@ namespace samurai
             {
                 v.base   = base_ptr + index;
                 v.start  = 0;
-                v.end    = 1;
+                v.stop   = 1;
                 v.step   = 1;
                 v.stride = 1;
             }
@@ -1096,7 +2082,7 @@ namespace samurai
                 const std::size_t cols = data.cols();
                 v.base   = base_ptr + index;
                 v.start  = 0;
-                v.end    = size;
+                v.stop   = size;
                 v.step   = 1;
                 v.stride = cols;
             }
@@ -1105,7 +2091,7 @@ namespace samurai
                 const std::size_t cols = data.cols();
                 v.base   = base_ptr + index * cols;
                 v.start  = 0;
-                v.end    = size;
+                v.stop   = size;
                 v.step   = 1;
                 v.stride = 1;
             }
@@ -1131,7 +2117,7 @@ namespace samurai
                 const std::size_t cols = data.cols();
                 v.base   = base_ptr + item * cols + start_sz;
                 v.start  = 0;
-                v.end    = len;
+                v.stop   = len;
                 v.step   = 1;
                 v.stride = step_sz;
             }
@@ -1140,7 +2126,7 @@ namespace samurai
                 const std::size_t cols = data.cols();
                 v.base   = base_ptr + start_sz * cols + item;
                 v.start  = 0;
-                v.end    = len;
+                v.stop   = len;
                 v.step   = 1;
                 v.stride = step_sz * cols;
             }
@@ -1150,12 +2136,50 @@ namespace samurai
         template <class DST, class SRC>
         void assign_elements(DST& dst, const SRC& src)
         {
-            if constexpr (requires { dst.size(); src.size(); } && !requires { dst.column(std::size_t{}); })
+            using src_decay = std::decay_t<SRC>;
+            if constexpr (std::is_arithmetic_v<src_decay>)
+            {
+                if constexpr (requires { dst.size(); } && !requires { dst.column(std::size_t{}); })
+                {
+                    const auto n = dst.size();
+                    for (std::size_t i = 0; i < n; ++i)
+                    {
+                        auto&& ref = detail::element_at(dst, i);
+                        using ref_t = std::remove_reference_t<decltype(ref)>;
+                        ref        = static_cast<ref_t>(src);
+                    }
+                }
+                else if constexpr (requires { dst.column(std::size_t{}); dst.length_count(); })
+                {
+                    for (std::size_t j = 0; j < dst.length_count(); ++j)
+                    {
+                        auto dst_col = dst.column(j);
+                        assign_elements(dst_col, src);
+                    }
+                }
+                else if constexpr (detail::sequence_accessible<std::decay_t<DST>>)
+                {
+                    const auto n = detail::sequence_size(dst);
+                    for (std::size_t i = 0; i < n; ++i)
+                    {
+                        auto&& ref = detail::element_at(dst, i);
+                        using ref_t = std::remove_reference_t<decltype(ref)>;
+                        ref        = static_cast<ref_t>(src);
+                    }
+                }
+                else
+                {
+                    static_assert(dependent_false<DST>::value, "Unsupported scalar assignment target");
+                }
+            }
+            else if constexpr (requires { dst.size(); src.size(); } && !requires { dst.column(std::size_t{}); })
             {
                 assert(dst.size() == src.size());
                 for (std::size_t i = 0; i < dst.size(); ++i)
                 {
-                    dst[i] = src[i];
+                    auto&& ref = detail::element_at(dst, i);
+                    using ref_t = std::remove_reference_t<decltype(ref)>;
+                    ref        = static_cast<ref_t>(detail::element_at(src, i));
                 }
             }
             else if constexpr (requires { dst.column(std::size_t{}); src.column(std::size_t{}); dst.length_count(); src.length_count(); })
@@ -1168,6 +2192,18 @@ namespace samurai
                     assign_elements(dst_col, src_col);
                 }
             }
+            else if constexpr (detail::sequence_accessible<std::decay_t<DST>> && detail::sequence_accessible<std::decay_t<SRC>>)
+            {
+                const auto dst_size = detail::sequence_size(dst);
+                const auto src_size = detail::sequence_size(src);
+                assert(dst_size == src_size);
+                (void)src_size;
+                for (std::size_t i = 0; i < dst_size; ++i)
+                {
+                    auto&& ref = detail::element_at(dst, i);
+                    ref        = detail::element_at(src, i);
+                }
+            }
             else
             {
                 static_assert(dependent_false<DST>::value, "Unsupported assignment between views");
@@ -1177,12 +2213,50 @@ namespace samurai
         template <class DST, class SRC>
         void add_elements(DST& dst, const SRC& src)
         {
-            if constexpr (requires { dst.size(); src.size(); } && !requires { dst.column(std::size_t{}); })
+            using src_decay = std::decay_t<SRC>;
+            if constexpr (std::is_arithmetic_v<src_decay>)
+            {
+                if constexpr (requires { dst.size(); } && !requires { dst.column(std::size_t{}); })
+                {
+                    const auto n = dst.size();
+                    for (std::size_t i = 0; i < n; ++i)
+                    {
+                        auto&& ref = detail::element_at(dst, i);
+                        using ref_t = std::remove_reference_t<decltype(ref)>;
+                        ref += static_cast<ref_t>(src);
+                    }
+                }
+                else if constexpr (requires { dst.column(std::size_t{}); dst.length_count(); })
+                {
+                    for (std::size_t j = 0; j < dst.length_count(); ++j)
+                    {
+                        auto dst_col = dst.column(j);
+                        add_elements(dst_col, src);
+                    }
+                }
+                else if constexpr (detail::sequence_accessible<std::decay_t<DST>>)
+                {
+                    const auto n = detail::sequence_size(dst);
+                    for (std::size_t i = 0; i < n; ++i)
+                    {
+                        auto&& ref = detail::element_at(dst, i);
+                        using ref_t = std::remove_reference_t<decltype(ref)>;
+                        ref += static_cast<ref_t>(src);
+                    }
+                }
+                else
+                {
+                    static_assert(dependent_false<DST>::value, "Unsupported scalar addition target");
+                }
+            }
+            else if constexpr (requires { dst.size(); src.size(); } && !requires { dst.column(std::size_t{}); })
             {
                 assert(dst.size() == src.size());
                 for (std::size_t i = 0; i < dst.size(); ++i)
                 {
-                    dst[i] += src[i];
+                    auto&& ref = detail::element_at(dst, i);
+                    using ref_t = std::remove_reference_t<decltype(ref)>;
+                    ref += static_cast<ref_t>(detail::element_at(src, i));
                 }
             }
             else if constexpr (requires { dst.column(std::size_t{}); src.column(std::size_t{}); dst.length_count(); src.length_count(); })
@@ -1195,6 +2269,18 @@ namespace samurai
                     add_elements(dst_col, src_col);
                 }
             }
+            else if constexpr (detail::sequence_accessible<std::decay_t<DST>> && detail::sequence_accessible<std::decay_t<SRC>>)
+            {
+                const auto dst_size = detail::sequence_size(dst);
+                const auto src_size = detail::sequence_size(src);
+                assert(dst_size == src_size);
+                (void)src_size;
+                for (std::size_t i = 0; i < dst_size; ++i)
+                {
+                    auto&& ref = detail::element_at(dst, i);
+                    ref += detail::element_at(src, i);
+                }
+            }
             else
             {
                 static_assert(dependent_false<DST>::value, "Unsupported += between views");
@@ -1204,12 +2290,50 @@ namespace samurai
         template <class DST, class SRC>
         void sub_elements(DST& dst, const SRC& src)
         {
-            if constexpr (requires { dst.size(); src.size(); } && !requires { dst.column(std::size_t{}); })
+            using src_decay = std::decay_t<SRC>;
+            if constexpr (std::is_arithmetic_v<src_decay>)
+            {
+                if constexpr (requires { dst.size(); } && !requires { dst.column(std::size_t{}); })
+                {
+                    const auto n = dst.size();
+                    for (std::size_t i = 0; i < n; ++i)
+                    {
+                        auto&& ref = detail::element_at(dst, i);
+                        using ref_t = std::remove_reference_t<decltype(ref)>;
+                        ref -= static_cast<ref_t>(src);
+                    }
+                }
+                else if constexpr (requires { dst.column(std::size_t{}); dst.length_count(); })
+                {
+                    for (std::size_t j = 0; j < dst.length_count(); ++j)
+                    {
+                        auto dst_col = dst.column(j);
+                        sub_elements(dst_col, src);
+                    }
+                }
+                else if constexpr (detail::sequence_accessible<std::decay_t<DST>>)
+                {
+                    const auto n = detail::sequence_size(dst);
+                    for (std::size_t i = 0; i < n; ++i)
+                    {
+                        auto&& ref = detail::element_at(dst, i);
+                        using ref_t = std::remove_reference_t<decltype(ref)>;
+                        ref -= static_cast<ref_t>(src);
+                    }
+                }
+                else
+                {
+                    static_assert(dependent_false<DST>::value, "Unsupported scalar subtraction target");
+                }
+            }
+            else if constexpr (requires { dst.size(); src.size(); } && !requires { dst.column(std::size_t{}); })
             {
                 assert(dst.size() == src.size());
                 for (std::size_t i = 0; i < dst.size(); ++i)
                 {
-                    dst[i] -= src[i];
+                    auto&& ref = detail::element_at(dst, i);
+                    using ref_t = std::remove_reference_t<decltype(ref)>;
+                    ref -= static_cast<ref_t>(detail::element_at(src, i));
                 }
             }
             else if constexpr (requires { dst.column(std::size_t{}); src.column(std::size_t{}); dst.length_count(); src.length_count(); })
@@ -1220,6 +2344,18 @@ namespace samurai
                     auto dst_col = dst.column(j);
                     auto src_col = src.column(j);
                     sub_elements(dst_col, src_col);
+                }
+            }
+            else if constexpr (detail::sequence_accessible<std::decay_t<DST>> && detail::sequence_accessible<std::decay_t<SRC>>)
+            {
+                const auto dst_size = detail::sequence_size(dst);
+                const auto src_size = detail::sequence_size(src);
+                assert(dst_size == src_size);
+                (void)src_size;
+                for (std::size_t i = 0; i < dst_size; ++i)
+                {
+                    auto&& ref = detail::element_at(dst, i);
+                    ref -= detail::element_at(src, i);
                 }
             }
             else
@@ -1464,6 +2600,19 @@ namespace samurai
         return std::array<std::size_t, 1>{detail::sequence_size(expr)};
     }
 
+    template <class E>
+    auto shape(const xt::xexpression<E>& expr, std::size_t axis)
+    {
+        const auto& derived = expr.derived_cast();
+        return derived.shape()[static_cast<std::size_t>(axis)];
+    }
+
+    template <class E>
+    auto shape(const xt::xexpression<E>& expr)
+    {
+        return expr.derived_cast().shape();
+    }
+
     template <class D>
     auto noalias(D&& d)
     {
@@ -1535,6 +2684,79 @@ namespace samurai
             res.length_stride = v.item_stride;
             return res;
         }
+
+        template <std::size_t axis, class Expr>
+        auto sum(const Expr& expr)
+        {
+            static_assert(axis < 2, "sum axis out of range for CUDA backend");
+            using value_t = detail::element_value_t<Expr>;
+            using sum_value_t = std::conditional_t<std::is_same_v<std::remove_cv_t<value_t>, bool>, std::size_t, value_t>;
+            const auto shape = detail::infer_shape(expr);
+
+            if (!shape.valid)
+            {
+                auto base = detail::evaluate_to_vector(expr);
+                detail::vector_wrapper<sum_value_t> out;
+                out.resize(base.size());
+                for (std::size_t idx = 0; idx < base.size(); ++idx)
+                {
+                    out.set(idx, static_cast<sum_value_t>(base[idx]));
+                }
+                return out;
+            }
+
+            if constexpr (axis == 0)
+            {
+                detail::vector_wrapper<sum_value_t> out;
+                out.resize(shape.length);
+                for (std::size_t pos = 0; pos < shape.length; ++pos)
+                {
+                    sum_value_t acc{};
+                    for (std::size_t item = 0; item < shape.items; ++item)
+                    {
+                        const std::size_t idx = item + pos * shape.items;
+                        acc += static_cast<sum_value_t>(detail::element_at(expr, idx));
+                    }
+                    out.set(pos, acc);
+                }
+                return out;
+            }
+            else
+            {
+                detail::vector_wrapper<sum_value_t> out;
+                out.resize(shape.items);
+                for (std::size_t item = 0; item < shape.items; ++item)
+                {
+                    sum_value_t acc{};
+                    for (std::size_t pos = 0; pos < shape.length; ++pos)
+                    {
+                        const std::size_t idx = item + pos * shape.items;
+                        acc += static_cast<sum_value_t>(detail::element_at(expr, idx));
+                    }
+                    out.set(item, acc);
+                }
+                return out;
+            }
+        }
+
+        template <std::size_t axis, std::size_t size, class Expr>
+        auto all_true(const Expr& expr)
+        {
+            auto sums = sum<axis>(expr);
+            detail::vector_wrapper<bool> mask;
+            mask.resize(sums.size());
+            if (sums.size() == 0)
+            {
+                return mask;
+            }
+            using entry_t = std::remove_cv_t<decltype(sums[0])>;
+            const auto threshold = static_cast<entry_t>(size - 1);
+            for (std::size_t idx = 0; idx < sums.size(); ++idx)
+            {
+                mask.set(idx, static_cast<bool>(sums[idx] > threshold));
+            }
+            return mask;
+        }
     }
 
 
@@ -1543,34 +2765,77 @@ namespace samurai
         template <class Mask>
         struct mask_negation
         {
+            using value_type     = bool;
+            using const_iterator = mask_const_iterator<mask_negation>;
+
             Mask mask;
 
-            bool operator[](std::size_t idx) const { return !static_cast<bool>(mask[idx]); }
+            value_type operator[](std::size_t idx) const { return !static_cast<bool>(mask[idx]); }
             std::size_t size() const { return mask.size(); }
+
+            const_iterator begin() const { return const_iterator{this, 0}; }
+            const_iterator end() const { return const_iterator{this, size()}; }
+            const_iterator cbegin() const { return begin(); }
+            const_iterator cend() const { return end(); }
         };
 
         template <class Mask1, class Mask2, class BinaryOp>
         struct mask_binary
         {
+            using value_type     = bool;
+            using const_iterator = mask_const_iterator<mask_binary>;
+
             Mask1   lhs;
             Mask2   rhs;
             BinaryOp op;
 
-            bool operator[](std::size_t idx) const
+            value_type operator[](std::size_t idx) const
             {
-                return op(static_cast<bool>(lhs[idx]), static_cast<bool>(rhs[idx]));
+                const auto s1 = mask_size(lhs);
+                const auto s2 = mask_size(rhs);
+                const std::size_t lhs_idx = (s1 == 1) ? 0 : idx;
+                const std::size_t rhs_idx = (s2 == 1) ? 0 : idx;
+
+                if (lhs_idx >= s1 || rhs_idx >= s2)
+                {
+                    std::ostringstream oss;
+                    oss << "mask_binary index out of range: idx=" << idx << " lhs_size=" << s1 << " rhs_size=" << s2;
+                    throw std::out_of_range(oss.str());
+                }
+
+                return op(static_cast<bool>(lhs[lhs_idx]), static_cast<bool>(rhs[rhs_idx]));
             }
 
             std::size_t size() const
             {
-                const auto s1 = lhs.size();
-                const auto s2 = rhs.size();
+                const auto s1 = mask_size(lhs);
+                const auto s2 = mask_size(rhs);
+                if (s1 == s2)
+                {
+                    return s1;
+                }
+                if (s1 == 1)
+                {
+                    return s2;
+                }
+                if (s2 == 1)
+                {
+                    return s1;
+                }
+
                 if (s1 != s2)
                 {
-                    throw std::runtime_error("mask size mismatch");
+                    std::ostringstream oss;
+                    oss << "mask size mismatch: lhs=" << s1 << " rhs=" << s2;
+                    throw std::runtime_error(oss.str());
                 }
                 return s1;
             }
+
+            const_iterator begin() const { return const_iterator{this, 0}; }
+            const_iterator end() const { return const_iterator{this, size()}; }
+            const_iterator cbegin() const { return begin(); }
+            const_iterator cend() const { return end(); }
         };
 
         struct mask_logical_and
@@ -1585,31 +2850,63 @@ namespace samurai
     }
 
     template <class D>
-        requires detail::mask_indexable<D>
-    auto operator>(const D& v, double x)
+        requires(detail::mask_indexable<std::decay_t<D>> && detail::thrust_sequence<std::decay_t<D>>)
+    auto operator>(D&& v, double x)
     {
         struct mask_view
         {
-            const D&  ref;
-            double    thresh;
-            bool operator[](std::size_t i) const { return ref[i] > thresh; }
-            std::size_t size() const { return ref.size(); }
+            using value_type     = bool;
+            using const_iterator = detail::mask_const_iterator<mask_view>;
+
+            std::decay_t<D> ref;
+            double          thresh;
+
+            value_type operator[](std::size_t i) const
+            {
+                return static_cast<value_type>(detail::element_at(ref, i) > thresh);
+            }
+
+            std::size_t size() const
+            {
+                return detail::sequence_size(ref);
+            }
+
+            const_iterator begin() const { return const_iterator{this, 0}; }
+            const_iterator end() const { return const_iterator{this, size()}; }
+            const_iterator cbegin() const { return begin(); }
+            const_iterator cend() const { return end(); }
         };
-        return mask_view{v, x};
+        return mask_view{detail::decay_copy(std::forward<D>(v)), x};
     }
 
     template <class D>
-        requires detail::mask_indexable<D>
-    auto operator<(const D& v, double x)
+        requires(detail::mask_indexable<std::decay_t<D>> && detail::thrust_sequence<std::decay_t<D>>)
+    auto operator<(D&& v, double x)
     {
         struct mask_view
         {
-            const D&  ref;
-            double    thresh;
-            bool operator[](std::size_t i) const { return ref[i] < thresh; }
-            std::size_t size() const { return ref.size(); }
+            using value_type     = bool;
+            using const_iterator = detail::mask_const_iterator<mask_view>;
+
+            std::decay_t<D> ref;
+            double          thresh;
+
+            value_type operator[](std::size_t i) const
+            {
+                return static_cast<value_type>(detail::element_at(ref, i) < thresh);
+            }
+
+            std::size_t size() const
+            {
+                return detail::sequence_size(ref);
+            }
+
+            const_iterator begin() const { return const_iterator{this, 0}; }
+            const_iterator end() const { return const_iterator{this, size()}; }
+            const_iterator cbegin() const { return begin(); }
+            const_iterator cend() const { return end(); }
         };
-        return mask_view{v, x};
+        return mask_view{detail::decay_copy(std::forward<D>(v)), x};
     }
 
     template <class Mask>
@@ -1670,6 +2967,23 @@ namespace samurai
             else
             {
                 static_assert(dependent_false<Mask>::value, "Unsupported mask type in apply_on_masked");
+            }
+        }
+
+        template <class Mask>
+        std::size_t mask_size(const Mask& mask)
+        {
+            if constexpr (requires { mask.size(); })
+            {
+                return static_cast<std::size_t>(mask.size());
+            }
+            else if constexpr (sequence_accessible<Mask>)
+            {
+                return sequence_size(mask);
+            }
+            else
+            {
+                static_assert(dependent_false<Mask>::value, "Unsupported mask type for size()");
             }
         }
 
@@ -1736,7 +3050,7 @@ namespace samurai
 
             std::size_t size() const
             {
-                return sequence_size(expr);
+                return detail::sequence_size(expr);
             }
 
             auto operator[](std::size_t idx) const
@@ -1758,7 +3072,7 @@ namespace samurai
 
             std::size_t size() const
             {
-                return std::min(sequence_size(lhs), sequence_size(rhs));
+                return std::min(detail::sequence_size(lhs), detail::sequence_size(rhs));
             }
 
             auto operator[](std::size_t idx) const
@@ -1782,7 +3096,7 @@ namespace samurai
 
             std::size_t size() const
             {
-                return sequence_size(expr);
+                return detail::sequence_size(expr);
             }
 
             auto operator[](std::size_t idx) const
@@ -1834,7 +3148,7 @@ namespace samurai
             {
                 throw std::invalid_argument("range.step must be positive");
             }
-            const auto total_size = sequence_size(expr);
+            const auto total_size = detail::sequence_size(expr);
             if (range.start < 0 || static_cast<std::size_t>(range.start) > total_size)
             {
                 throw std::out_of_range("range.start out of bounds for expression slice");
@@ -1854,7 +3168,19 @@ namespace samurai
     template <class DST, class CRIT, class FUNC>
     void apply_on_masked(DST&& dst, const CRIT& criteria, FUNC&& func)
     {
-        for (std::size_t i = 0; i < criteria.size(); ++i)
+        const auto mask_total = detail::mask_size(criteria);
+        if constexpr (detail::sequence_accessible<std::decay_t<DST>>)
+        {
+            const auto dst_total = detail::sequence_size(dst);
+            if (dst_total != mask_total)
+            {
+                std::ostringstream oss;
+                oss << "apply_on_masked size mismatch: mask=" << mask_total << " dst=" << dst_total;
+                throw std::runtime_error(oss.str());
+            }
+        }
+
+        for (std::size_t i = 0; i < mask_total; ++i)
         {
             if (detail::mask_value(criteria, i))
             {
@@ -1867,7 +3193,8 @@ namespace samurai
     template <class CRIT, class FUNC>
     void apply_on_masked(const CRIT& criteria, FUNC&& func)
     {
-        for (std::size_t i = 0; i < criteria.size(); ++i)
+        const auto mask_total = detail::mask_size(criteria);
+        for (std::size_t i = 0; i < mask_total; ++i)
         {
             if (detail::mask_value(criteria, i))
             {
@@ -2022,4 +3349,25 @@ namespace samurai
 
     template <class value_type, std::size_t size, bool /*SOA*/, bool can_collapse>
     using thrust_local_collapsable_array = CollapsableArray<thrust_static_array<value_type, size, false>, value_type, size, can_collapse>;
+}
+
+namespace xt
+{
+    template <class T>
+    struct xiterable_inner_types<samurai::thrust_view_1d<T>>
+    {
+        using expression_type  = samurai::thrust_view_1d<T>;
+        using inner_shape_type = typename expression_type::shape_type;
+        using stepper          = xindexed_stepper<expression_type, false>;
+        using const_stepper    = xindexed_stepper<expression_type, true>;
+    };
+
+    template <class T>
+    struct xiterable_inner_types<samurai::thrust_view_2d<T>>
+    {
+        using expression_type  = samurai::thrust_view_2d<T>;
+        using inner_shape_type = typename expression_type::shape_type;
+        using stepper          = xindexed_stepper<expression_type, false>;
+        using const_stepper    = xindexed_stepper<expression_type, true>;
+    };
 }

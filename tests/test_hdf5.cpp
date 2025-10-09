@@ -1,6 +1,10 @@
 #include <map>
+#include <atomic>
+#include <chrono>
+#include <filesystem>
 
 #include <gtest/gtest.h>
+#include <fmt/format.h>
 
 #include <samurai/arguments.hpp>
 #include <samurai/box.hpp>
@@ -11,6 +15,38 @@
 
 namespace samurai
 {
+    namespace
+    {
+        inline std::string make_unique_stem(const std::string& stem)
+        {
+            static std::atomic_uint64_t seq{0};
+            auto now = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+            return fmt::format("{}-{}-{}", stem, now, seq.fetch_add(1));
+        }
+
+        struct temp_hdf5_file
+        {
+            std::filesystem::path base_path;
+
+            explicit temp_hdf5_file(const std::string& stem)
+            {
+                namespace fs = std::filesystem;
+                auto dir     = fs::temp_directory_path();
+                base_path    = dir / make_unique_stem(stem);
+            }
+
+            ~temp_hdf5_file()
+            {
+                namespace fs = std::filesystem;
+                std::error_code ec;
+                fs::remove(base_path.string() + ".h5", ec);
+                fs::remove(base_path.string() + ".xdmf", ec);
+            }
+
+            std::string string() const { return base_path.string(); }
+        };
+    }
+
     template <typename T>
     class hdf5_test : public ::testing::Test
     {
@@ -24,19 +60,23 @@ namespace samurai
     template <typename mesh_t>
     void test_save(const mesh_t& mesh)
     {
-        save("test_save_mesh.h5", mesh);
-        save("test", "test_save_mesh.h5", mesh);
-        save("test", "test_save_mesh.h5", {true, true}, mesh);
-        save("test_save_mesh.h5", {true, true}, mesh);
+        temp_hdf5_file tmp("samurai_test_save_mesh");
+        auto filename = tmp.string();
+        save(filename, mesh);
+        save("test", filename, mesh);
+        save("test", filename, {true, true}, mesh);
+        save(filename, {true, true}, mesh);
     }
 
     template <typename config_t>
     void test_save_uniform(const UniformMesh<config_t>& mesh)
     {
-        save("test_save_mesh.h5", mesh);
-        save("test", "test_save_mesh.h5", mesh);
-        save("test", "test_save_mesh.h5", {true}, mesh);
-        save("test_save_mesh.h5", {true}, mesh);
+        temp_hdf5_file tmp("samurai_test_save_uniform_mesh");
+        auto filename = tmp.string();
+        save(filename, mesh);
+        save("test", filename, mesh);
+        save("test", filename, {true}, mesh);
+        save(filename, {true}, mesh);
     }
 
     TYPED_TEST(hdf5_test, cell_array)

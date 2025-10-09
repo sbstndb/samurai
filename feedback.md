@@ -85,6 +85,39 @@ Commandes usuelles
 
 Modèle d’item (à copier‑coller)
 ```
+## 2025-10-09 Compilation demos (finite-volume-advection-2d)
+
+Contexte
+- Fichier/zone: `include/samurai/storage/cuda/thrust_backend.hpp`, `demos/FiniteVolume/advection_2d.cpp`
+- Cible/label: build démo `finite-volume-advection-2d`
+- Environnement: backend CUDA (Thrust), build `cmake --build build_test --target finite-volume-advection-2d -j2`
+
+Reproduction
+- 1) `cmake --build build_test --target finite-volume-advection-2d -j2`
+- 2) Compilation échoue avec erreurs sur `operator>`/`operator<` et `math::transpose`
+
+Attendu vs Observé
+- Attendu: compilation de la démo en backend CUDA.
+- Observé: 
+  - nos surcharges `operator>`/`operator<` capturent `std::strong_ordering` (timers) et accèdent à `ref[i]` / `ref.size()` non définis.
+  - `math::transpose` absent du namespace CUDA, MR ne compile plus.
+
+Impact
+- Blocant pour la compilation des démos; surfaces affectées: toutes cibles utilisant `timers` et MR operators.
+
+Analyse/hypothèse
+- Les opérateurs doivent être restreints aux vues indexables (`size()`, `operator[]`).
+- Fournir `math::transpose` (alias vers `xt::transpose`) suffit pour la phase M1 (fallback host).
+
+Suivi
+- Action: restreindre les surcharges et exposer `math::transpose`; vérifier `ctest -L cuda-thrust-masked` + build démo. (ctest OK, build démo bloque désormais sur opérateurs `+` entre vues – voir itération suivante.)
+- Update 2025-10-09 (PM): introduction d’expressions `thrust_expr_*` pour `+/-/*/` et slices, ajout de `range()` côté CUDA. Tests `cuda-thrust-masked` OK. Build démo échoue encore dans `rel_detail.hpp` (`managed_array` ne sait pas `operator*=` avec xt::adapt) – à traiter séparément.
+- Next: ajouter un `operator*=` (et `operator/=`) compatible avec les adaptateurs xt/expressions pour `managed_array` et/ou fournir un wrapper CUDA (`thrust_expr_scale_inplace`) afin que `rel_detail.hpp` compile en backend CUDA. Tester ensuite `cmake --build build_test --target finite-volume-advection-2d -j2`.
+
+Références
+- Tests ciblés: `ctest --test-dir build_test -L cuda-thrust-masked --output-on-failure`
+- Démo: `cmake --build build_test --target finite-volume-advection-2d -j2`
+
 ## [YYYY‑MM‑DD] Titre bref
 
 Contexte

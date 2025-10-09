@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <concepts>
 #include <utility>
 #include <vector>
 #include <array>
@@ -13,6 +14,7 @@
 #include <stdexcept>
 #include <cmath>
 #include <cassert>
+#include <limits>
 
 #include <cuda_runtime.h>
 
@@ -44,6 +46,22 @@ namespace samurai
     {
         template <class T>
         struct dependent_false;
+
+        template <class T>
+        concept element_indexable = requires(const T& v, std::size_t idx)
+        {
+            { v.size() } -> std::convertible_to<std::size_t>;
+            v[idx];
+        };
+
+        template <class T>
+        concept mask_indexable = element_indexable<T> && requires(const T& v, std::size_t idx)
+        {
+            { static_cast<bool>(v[idx]) } -> std::convertible_to<bool>;
+        };
+
+        template <class T>
+        concept scalar_like = std::is_arithmetic_v<std::remove_cvref_t<T>>;
 
         template <class T>
         auto decay_copy(T&& v)
@@ -198,12 +216,23 @@ namespace samurai
 
         template <class V>
         thrust_view_1d& operator=(const V& rhs)
-            requires(!std::is_const_v<value_type>)
+            requires(!std::is_const_v<value_type> && detail::element_indexable<V>)
         {
             auto n = size();
             for (std::size_t i = 0; i < n; ++i)
             {
                 (*this)[i] = rhs[i];
+            }
+            return *this;
+        }
+
+        thrust_view_1d& operator=(scalar_type value)
+            requires(!std::is_const_v<value_type>)
+        {
+            auto n = size();
+            for (std::size_t i = 0; i < n; ++i)
+            {
+                (*this)[i] = value;
             }
             return *this;
         }
@@ -222,7 +251,7 @@ namespace samurai
 
         template <class V>
         thrust_view_1d& operator+=(const V& rhs)
-            requires(!std::is_const_v<value_type>)
+            requires(!std::is_const_v<value_type> && detail::element_indexable<V>)
         {
             auto n = size();
             for (std::size_t i = 0; i < n; ++i)
@@ -234,7 +263,7 @@ namespace samurai
 
         template <class V>
         thrust_view_1d& operator-=(const V& rhs)
-            requires(!std::is_const_v<value_type>)
+            requires(!std::is_const_v<value_type> && detail::element_indexable<V>)
         {
             auto n = size();
             for (std::size_t i = 0; i < n; ++i)
@@ -429,6 +458,172 @@ namespace samurai
         template <class T>
         struct dependent_false : std::false_type
         {
+        };
+
+        template <class T>
+        struct is_thrust_view : std::false_type
+        {
+        };
+
+        template <class T>
+        struct is_thrust_view<thrust_view_1d<T>> : std::true_type
+        {
+        };
+
+        template <class T>
+        struct is_thrust_view<thrust_view_2d<T>> : std::true_type
+        {
+        };
+
+        template <class T>
+        struct is_std_vector : std::false_type
+        {
+        };
+
+        template <class T, class Alloc>
+        struct is_std_vector<std::vector<T, Alloc>> : std::true_type
+        {
+        };
+
+        template <class Op, class Expr>
+        struct thrust_expr_unary;
+
+        template <class Op, class L, class R>
+        struct thrust_expr_binary;
+
+        template <class Scalar, class Expr, class Op, bool left>
+        struct thrust_expr_scalar;
+
+        template <class Expr>
+        struct thrust_expr_slice;
+
+        template <class T>
+        struct is_thrust_expr : std::false_type
+        {
+        };
+
+        template <class Op, class Expr>
+        struct is_thrust_expr<thrust_expr_unary<Op, Expr>> : std::true_type
+        {
+        };
+
+        template <class Op, class L, class R>
+        struct is_thrust_expr<thrust_expr_binary<Op, L, R>> : std::true_type
+        {
+        };
+
+        template <class Scalar, class Expr, class Op, bool left>
+        struct is_thrust_expr<thrust_expr_scalar<Scalar, Expr, Op, left>> : std::true_type
+        {
+        };
+
+        template <class Expr>
+        struct is_thrust_expr<thrust_expr_slice<Expr>> : std::true_type
+        {
+        };
+
+        template <class T>
+        concept thrust_expression = is_thrust_expr<std::decay_t<T>>::value;
+
+        template <class T>
+        concept thrust_sequence = is_thrust_view<std::decay_t<T>>::value || thrust_expression<T> || is_std_vector<std::decay_t<T>>::value;
+
+        template <class V>
+        using element_value_t = std::remove_cvref_t<decltype(std::declval<const V&>()[std::declval<std::size_t>()])>;
+
+        template <class Seq>
+        std::size_t sequence_size(const Seq& seq)
+        {
+            if constexpr (requires { seq.size(); })
+            {
+                return static_cast<std::size_t>(seq.size());
+            }
+            else if constexpr (requires { seq.length_count(); seq.items_count(); })
+            {
+                return seq.length_count() * seq.items_count();
+            }
+            else
+            {
+                static_assert(dependent_false<Seq>::value, "Sequence type without size()");
+            }
+        }
+
+        template <class Expr>
+        auto make_expr_slice(Expr expr, const range_t<long long>& range);
+
+        struct plus_op
+        {
+            template <class A, class B>
+            static auto apply(A&& a, B&& b)
+            {
+                return std::forward<A>(a) + std::forward<B>(b);
+            }
+        };
+
+        struct minus_op
+        {
+            template <class A, class B>
+            static auto apply(A&& a, B&& b)
+            {
+                return std::forward<A>(a) - std::forward<B>(b);
+            }
+        };
+
+        struct mult_op
+        {
+            template <class A, class B>
+            static auto apply(A&& a, B&& b)
+            {
+                return std::forward<A>(a) * std::forward<B>(b);
+            }
+        };
+
+        struct div_op
+        {
+            template <class A, class B>
+            static auto apply(A&& a, B&& b)
+            {
+                return std::forward<A>(a) / std::forward<B>(b);
+            }
+        };
+
+        struct neg_op
+        {
+            template <class A>
+            static auto apply(A&& a)
+            {
+                return -std::forward<A>(a);
+            }
+        };
+
+        struct abs_op
+        {
+            template <class A>
+            static auto apply(A&& a)
+            {
+                using std::abs;
+                return abs(std::forward<A>(a));
+            }
+        };
+
+        struct min_op
+        {
+            template <class A, class B>
+            static auto apply(A&& a, B&& b)
+            {
+                using std::min;
+                return min(std::forward<A>(a), std::forward<B>(b));
+            }
+        };
+
+        struct max_op
+        {
+            template <class A, class B>
+            static auto apply(A&& a, B&& b)
+            {
+                using std::max;
+                return max(std::forward<A>(a), std::forward<B>(b));
+            }
         };
 
         template <class View>
@@ -807,6 +1002,13 @@ namespace samurai
         return detail::make_item_view<value_t, size, SOA, can_collapse>(container, item, range);
     }
 
+    template <class Expr>
+    auto view(Expr&& expr, const range_t<long long>& range)
+        requires detail::thrust_expression<std::decay_t<Expr>>
+    {
+        return detail::make_expr_slice(detail::decay_copy(std::forward<Expr>(expr)), range);
+    }
+
     template <class T>
     auto view(thrust_view_2d<T>& v2d, placeholders::all_t, std::size_t j)
     {
@@ -909,6 +1111,24 @@ namespace samurai
         return std::array<std::size_t, 2>{view.items_count(), view.length_count()};
     }
 
+    template <class Expr>
+    auto shape(const Expr& expr, std::size_t axis)
+        requires detail::thrust_expression<std::decay_t<Expr>>
+    {
+        if (axis != 0)
+        {
+            throw std::out_of_range("axis out of bounds for 1D expression");
+        }
+        return detail::sequence_size(expr);
+    }
+
+    template <class Expr>
+    auto shape(const Expr& expr)
+        requires detail::thrust_expression<std::decay_t<Expr>>
+    {
+        return std::array<std::size_t, 1>{detail::sequence_size(expr)};
+    }
+
     template <class D>
     auto noalias(D&& d)
     {
@@ -922,6 +1142,20 @@ namespace samurai
         std::vector<T> v(n);
         std::fill(v.begin(), v.end(), T{});
         return v;
+    }
+
+    template <class T1, class T2>
+    auto range(const T1& start, const T2& end)
+    {
+        using value_type = long long;
+        return range_t<value_type>{static_cast<value_type>(start), static_cast<value_type>(end), static_cast<value_type>(1)};
+    }
+
+    template <class T>
+    auto range(const T& start)
+    {
+        using value_type = long long;
+        return range_t<value_type>{static_cast<value_type>(start), std::numeric_limits<value_type>::max(), static_cast<value_type>(1)};
     }
 
     namespace math
@@ -938,39 +1172,36 @@ namespace samurai
         template <class V>
         auto abs(const V& v)
         {
-            using scalar_t = std::remove_const_t<std::decay_t<decltype(v[0])>>;
-            std::vector<scalar_t> res(v.size());
-            for (std::size_t i = 0; i < v.size(); ++i)
-            {
-                res[i] = static_cast<scalar_t>(std::abs(v[i]));
-            }
-            return res;
+            return detail::thrust_expr_unary<detail::abs_op, std::decay_t<V>>{detail::decay_copy(v)};
         }
 
         template <class V1, class V2>
         auto minimum(const V1& a, const V2& b)
         {
-            using scalar_t = std::remove_const_t<std::decay_t<decltype(a[0])>>;
-            std::vector<scalar_t> res(a.size());
-            for (std::size_t i = 0; i < a.size(); ++i)
-            {
-                res[i] = std::min<scalar_t>(a[i], b[i]);
-            }
-            return res;
+            return detail::thrust_expr_binary<detail::min_op, std::decay_t<V1>, std::decay_t<V2>>{detail::decay_copy(a),
+                                                                                                  detail::decay_copy(b)};
         }
 
         template <class V1, class V2>
         auto maximum(const V1& a, const V2& b)
         {
-            using scalar_t = std::remove_const_t<std::decay_t<decltype(a[0])>>;
-            std::vector<scalar_t> res(a.size());
-            for (std::size_t i = 0; i < a.size(); ++i)
-            {
-                res[i] = std::max<scalar_t>(a[i], b[i]);
-            }
+            return detail::thrust_expr_binary<detail::max_op, std::decay_t<V1>, std::decay_t<V2>>{detail::decay_copy(a),
+                                                                                                  detail::decay_copy(b)};
+        }
+
+        template <class T>
+        auto transpose(thrust_view_2d<T> v)
+        {
+            thrust_view_2d<T> res{};
+            res.base          = v.base;
+            res.items         = v.length_count();
+            res.length        = v.items_count();
+            res.item_stride   = v.length_stride;
+            res.length_stride = v.item_stride;
             return res;
         }
     }
+
 
     namespace detail
     {
@@ -1019,6 +1250,7 @@ namespace samurai
     }
 
     template <class D>
+        requires detail::mask_indexable<D>
     auto operator>(const D& v, double x)
     {
         struct mask_view
@@ -1032,6 +1264,7 @@ namespace samurai
     }
 
     template <class D>
+        requires detail::mask_indexable<D>
     auto operator<(const D& v, double x)
     {
         struct mask_view
@@ -1160,6 +1393,106 @@ namespace samurai
                 static_assert(dependent_false<View>::value, "Unsupported view type for apply_on_masked");
             }
         }
+
+        template <class Op, class Expr>
+        struct thrust_expr_unary
+        {
+            Expr expr;
+
+            std::size_t size() const
+            {
+                return sequence_size(expr);
+            }
+
+            auto operator[](std::size_t idx) const
+            {
+                return Op::apply(expr[idx]);
+            }
+        };
+
+        template <class Op, class L, class R>
+        struct thrust_expr_binary
+        {
+            L lhs;
+            R rhs;
+
+            std::size_t size() const
+            {
+                return std::min(sequence_size(lhs), sequence_size(rhs));
+            }
+
+            auto operator[](std::size_t idx) const
+            {
+                return Op::apply(lhs[idx], rhs[idx]);
+            }
+        };
+
+        template <class Scalar, class Expr, class Op, bool left>
+        struct thrust_expr_scalar
+        {
+            using scalar_t = std::remove_cvref_t<Scalar>;
+
+            scalar_t scalar;
+            Expr      expr;
+
+            std::size_t size() const
+            {
+                return sequence_size(expr);
+            }
+
+            auto operator[](std::size_t idx) const
+            {
+                if constexpr (left)
+                {
+                    return Op::apply(scalar, expr[idx]);
+                }
+                else
+                {
+                    return Op::apply(expr[idx], scalar);
+                }
+            }
+        };
+
+        template <class Expr>
+        struct thrust_expr_slice
+        {
+            Expr        expr;
+            std::size_t start{0};
+            std::size_t step{1};
+            std::size_t length{0};
+
+            std::size_t size() const
+            {
+                return length;
+            }
+
+            auto operator[](std::size_t idx) const
+            {
+                return expr[start + idx * step];
+            }
+        };
+
+        template <class Expr>
+        auto make_expr_slice(Expr expr, const range_t<long long>& range)
+        {
+            if (range.step <= 0)
+            {
+                throw std::invalid_argument("range.step must be positive");
+            }
+            const auto total_size = sequence_size(expr);
+            if (range.start < 0 || static_cast<std::size_t>(range.start) > total_size)
+            {
+                throw std::out_of_range("range.start out of bounds for expression slice");
+            }
+            const long long max_end = static_cast<long long>(total_size);
+            const long long clamped_end = (range.end < 0 || range.end > max_end) ? max_end : range.end;
+            const auto len = compute_length(range.start, clamped_end, range.step);
+            thrust_expr_slice<Expr> slice{std::move(expr),
+                                          static_cast<std::size_t>(range.start),
+                                          static_cast<std::size_t>(range.step),
+                                          len};
+            return slice;
+        }
     }
 
     // Masked apply (host/UVM baseline)
@@ -1196,6 +1529,94 @@ namespace samurai
         std::vector<T> res(v.size());
         std::fill(res.begin(), res.end(), T{});
         return res;
+    }
+
+    template <class L, class R>
+        requires(detail::element_indexable<L> && detail::element_indexable<R> && (detail::thrust_sequence<L> || detail::thrust_sequence<R>))
+    auto operator+(const L& lhs, const R& rhs)
+    {
+        return detail::thrust_expr_binary<detail::plus_op, std::decay_t<L>, std::decay_t<R>>{detail::decay_copy(lhs),
+                                                                                             detail::decay_copy(rhs)};
+    }
+
+    template <class L, class R>
+        requires(detail::element_indexable<L> && detail::element_indexable<R> && (detail::thrust_sequence<L> || detail::thrust_sequence<R>))
+    auto operator-(const L& lhs, const R& rhs)
+    {
+        return detail::thrust_expr_binary<detail::minus_op, std::decay_t<L>, std::decay_t<R>>{detail::decay_copy(lhs),
+                                                                                               detail::decay_copy(rhs)};
+    }
+
+    template <class L, class R>
+        requires(detail::element_indexable<L> && detail::element_indexable<R> && (detail::thrust_sequence<L> || detail::thrust_sequence<R>))
+    auto operator*(const L& lhs, const R& rhs)
+    {
+        return detail::thrust_expr_binary<detail::mult_op, std::decay_t<L>, std::decay_t<R>>{detail::decay_copy(lhs),
+                                                                                              detail::decay_copy(rhs)};
+    }
+
+    template <class L, class R>
+        requires(detail::element_indexable<L> && detail::element_indexable<R> && (detail::thrust_sequence<L> || detail::thrust_sequence<R>))
+    auto operator/(const L& lhs, const R& rhs)
+    {
+        return detail::thrust_expr_binary<detail::div_op, std::decay_t<L>, std::decay_t<R>>{detail::decay_copy(lhs),
+                                                                                            detail::decay_copy(rhs)};
+    }
+
+    template <class Seq>
+        requires detail::element_indexable<Seq> && detail::thrust_sequence<Seq>
+    auto operator-(const Seq& seq)
+    {
+        return detail::thrust_expr_unary<detail::neg_op, std::decay_t<Seq>>{detail::decay_copy(seq)};
+    }
+
+    template <class Scalar, class Seq>
+        requires(detail::scalar_like<Scalar> && detail::element_indexable<Seq> && detail::thrust_sequence<Seq>)
+    auto operator*(Scalar s, const Seq& seq)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::mult_op, true>{s, detail::decay_copy(seq)};
+    }
+
+    template <class Seq, class Scalar>
+        requires(detail::element_indexable<Seq> && detail::scalar_like<Scalar> && detail::thrust_sequence<Seq>)
+    auto operator*(const Seq& seq, Scalar s)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::mult_op, false>{s, detail::decay_copy(seq)};
+    }
+
+    template <class Seq, class Scalar>
+        requires(detail::element_indexable<Seq> && detail::scalar_like<Scalar> && detail::thrust_sequence<Seq>)
+    auto operator/(const Seq& seq, Scalar s)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::div_op, false>{s, detail::decay_copy(seq)};
+    }
+
+    template <class Seq, class Scalar>
+        requires(detail::element_indexable<Seq> && detail::scalar_like<Scalar> && detail::thrust_sequence<Seq>)
+    auto operator+(const Seq& seq, Scalar s)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::plus_op, false>{s, detail::decay_copy(seq)};
+    }
+
+    template <class Scalar, class Seq>
+        requires(detail::scalar_like<Scalar> && detail::element_indexable<Seq> && detail::thrust_sequence<Seq>)
+    auto operator+(Scalar s, const Seq& seq)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::plus_op, true>{s, detail::decay_copy(seq)};
+    }
+
+    template <class Seq, class Scalar>
+        requires(detail::element_indexable<Seq> && detail::scalar_like<Scalar> && detail::thrust_sequence<Seq>)
+    auto operator-(const Seq& seq, Scalar s)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::minus_op, false>{s, detail::decay_copy(seq)};
+    }
+
+    template <class Scalar, class Seq>
+        requires(detail::scalar_like<Scalar> && detail::element_indexable<Seq> && detail::thrust_sequence<Seq>)
+    auto operator-(Scalar s, const Seq& seq)
+    {
+        return detail::thrust_expr_scalar<Scalar, std::decay_t<Seq>, detail::minus_op, true>{s, detail::decay_copy(seq)};
     }
 
     // Static array aliases (reuse xtensor static forms to avoid reimplementation)

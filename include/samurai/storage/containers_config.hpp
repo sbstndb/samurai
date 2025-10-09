@@ -9,14 +9,17 @@
 //----------------------------------------------------------------------------//
 
 // clang-format off
+// Ensure xt:: symbols (xview/xfixed) are visible before wrappers that reference them
+#include "xtensor/xtensor_static.hpp"
 #include "std/algebraic_array.hpp"
 #if defined(SAMURAI_FIELD_CONTAINER_EIGEN3)
     // #define EIGEN_DEFAULT_DENSE_INDEX_TYPE int64_t
     #include "eigen/eigen.hpp"
+#elif defined(SAMURAI_FIELD_CONTAINER_CUDA)
+    #include "cuda/thrust_backend.hpp"
 #else
     #include "xtensor/xtensor.hpp"
 #endif
-#include "xtensor/xtensor_static.hpp"
 
 #if defined(SAMURAI_FIELD_CONTAINER_EIGEN3) || defined(SAMURAI_FLUX_CONTAINER_EIGEN3) || defined(SAMURAI_STATIC_MAT_CONTAINER_EIGEN3)
     #include "eigen/eigen_static.hpp"
@@ -40,6 +43,17 @@ namespace samurai
 
     template <class T>
     using default_view_t = Eigen::IndexedView<T, Eigen::internal::ArithmeticSequenceRange<16777215, -1, 16777215>, Eigen::internal::SingleRange<0>>;
+#elif defined(SAMURAI_FIELD_CONTAINER_CUDA)
+
+    template <class value_type, std::size_t size = 1, bool SOA = false, bool can_collapse = true>
+    using field_data_storage_t = thrust_container<value_type, size, SOA, can_collapse>;
+
+    template <class value_type, std::size_t size, bool SOA = false, bool can_collapse = true>
+    using local_field_data_t = thrust_local_collapsable_array<value_type, size, SOA, can_collapse>;
+
+    template <class T>
+    using default_view_t = typename T::default_view_type;
+
 #else // SAMURAI_FIELD_CONTAINER_XTENSOR
 
     template <class value_type, std::size_t size = 1, bool SOA = false, bool can_collapse = true>
@@ -59,6 +73,8 @@ namespace samurai
     template <class value_type, std::size_t size, bool SOA = false>
 #if defined(SAMURAI_FIELD_CONTAINER_EIGEN3)
     using Array = eigen_static_array<value_type, size, SOA>;
+#elif defined(SAMURAI_FIELD_CONTAINER_CUDA)
+    using Array = thrust_static_array<value_type, size, SOA>;
 #else // SAMURAI_FIELD_CONTAINER_XTENSOR
     using Array = xtensor_static_array<value_type, size>;
 #endif

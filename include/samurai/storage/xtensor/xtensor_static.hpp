@@ -5,6 +5,7 @@
 
 #include "../collapsable.hpp"
 #include <xtensor/xfixed.hpp>
+#include <xtensor/xview.hpp>
 
 namespace samurai
 {

@@ -52,7 +52,7 @@ option(WITH_OPENMP "Enable OpenMP" OFF)
 option(WITH_PETSC "Enable PETSc" OFF)
 option(SAMURAI_CONTAINER_LAYOUT_COL_MAJOR "Set the containers' layout to column-major" OFF)
 
-set(FIELD_CONTAINER_LIST "xtensor" "eigen3")
+set(FIELD_CONTAINER_LIST "xtensor" "eigen3" "cuda")
 set(SAMURAI_FIELD_CONTAINER "xtensor" CACHE STRING "Container to store fields: ${FIELD_CONTAINER_LIST}")
 set_property(CACHE SAMURAI_FIELD_CONTAINER PROPERTY STRINGS ${FIELD_CONTAINER_LIST})
 
@@ -146,6 +146,27 @@ if(SAMURAI_FIELD_CONTAINER MATCHES eigen3)
   message(STATUS "Using Eigen3 as field container")
 endif()
 
+if(SAMURAI_FIELD_CONTAINER MATCHES cuda)
+  message(STATUS "Using CUDA/Thrust as field container")
+  # Header-only backend relying on CUDA runtime for managed allocations
+  find_package(CUDAToolkit REQUIRED)
+  # We still depend on xtensor headers for fixed-size arrays in various parts
+  list(APPEND DEPENDENCIES_CONFIGURED xtensor)
+  find_package(xtensor CONFIG REQUIRED)
+  if (xtensor_VERSION VERSION_GREATER_EQUAL "0.26.0")
+    message(FATAL_ERROR "xtensor version ${xtensor_VERSION} is too new. Maximum allowed version is 0.25.")
+  endif()
+  if(SAMURAI_CONTAINER_LAYOUT_COL_MAJOR)
+    message(FATAL_ERROR "CUDA/Thrust backend currently supports only row-major layout. Disable SAMURAI_CONTAINER_LAYOUT_COL_MAJOR.")
+  endif()
+  target_link_system_libraries(
+    samurai
+    INTERFACE
+    CUDA::cudart
+    xtensor
+  )
+endif()
+
 if(SAMURAI_FIELD_CONTAINER MATCHES eigen3 OR SAMURAI_FLUX_CONTAINER MATCHES eigen3 OR SAMURAI_STATIC_MAT_CONTAINER MATCHES eigen3)
   message(STATUS "Using Eigen3 as field container")
   list(APPEND DEPENDENCIES_CONFIGURED Eigen3)
@@ -208,6 +229,8 @@ if(BUILD_BENCHMARKS)
 endif()
 
 if(BUILD_TESTS)
+  include(CTest)
+  enable_testing()
   add_subdirectory(tests)
 endif()
 

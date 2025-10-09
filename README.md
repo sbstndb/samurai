@@ -313,6 +313,84 @@ add_executable(my_samurai_project main.cpp)
 target_link_libraries(my_samurai_project PRIVATE samurai::samurai)
 ```
 
+## Developer notes (CUDA/Thrust + TDD)
+
+We are introducing an experimental CUDA backend for Samurai based on Thrust. The work is organized with test‑driven development so that each capability is covered by targeted tests and validated against the existing suite and demo programs.
+
+TDD roadmap (high level):
+- Storage/view unit tests: slicing (`view`), assignment (`noalias(lhs)=rhs`), in‑place ops (`+=`, `*=`), and reductions (`sum`).
+- Field integration tests: scalar/vector fields over intervals, `for_each_interval`, and iterator semantics (`*it` equals expected chunks).
+- Algorithmic smoke tests: prediction/transfer minimal cases on uniform meshes.
+- Demo build checks: compile a subset of demos and run with small grids.
+- Masked operations: `apply_on_masked` supported from day one (functional baseline), with a device variant planned next.
+
+Running tests and demos side by side:
+- Configure once with demos and tests enabled:
+  ```bash
+  cmake -S . -B build_test -DBUILD_DEMOS=ON -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+  ```
+- Build all tests and a specific demo target:
+  ```bash
+  # Important: limit parallelism to avoid RAM pressure
+  cmake --build build_test -j2
+  cmake --build build_test --target finite-volume-advection-2d -j2
+  ```
+- Run the test suite:
+  ```bash
+  # Tests can run with at most 3 workers
+  ctest --test-dir build_test -j3
+  ```
+
+Notes:
+- If you see “No rule to make target …”, make sure the CMake configure step completed without interruption and that you are in the build directory created by CMake.
+- Demo target names come from `demos/*/CMakeLists.txt` (`add_executable`). For example: `finite-volume-advection-1d`, `finite-volume-advection-2d`, `finite-volume-burgers`, `finite-volume-level-set`, `pablo-bubble-2d`, `tutorial-burgers1d-step-0` …
+
+- For a detailed TDD guide and labeling scheme, see `TESTING.md`.
+
+### Spack workflow (optional)
+
+If you use Spack to setup dependencies and environment:
+
+```bash
+. ~/spack/share/spack/setup-env.sh
+spack load samurai@0.26.1
+spack load cli11/5
+cd ~/sbstndbs/samurai_cuda
+mkdir -p build_test && cd build_test
+cmake -DBUILD_DEMOS=ON -DBUILD_TESTS=ON ..
+
+# Build a specific demo (example):
+cmake --build . --target finite-volume-advection-2d -j2
+
+# Run tests
+ctest -j3
+```
+
+Tip: you can discover available demo targets with
+
+```bash
+rg -n "add_executable\(" demos | sed 's/.*add_executable(\([^ ]*\).*/\1/'
+```
+
+### Workflow de développement (FR)
+
+- Nous testons en continu pour valider chaque étape.
+- Les tests sont écrits de manière très fine, afin d’isoler la sous‑partie en cause en cas d’échec.
+- Nous ajoutons des tests spécifiques (backend CUDA) tout en vérifiant la suite existante et certaines démos.
+- Commits élémentaires et atomiques; pas de `git push` durant cette phase d’exploration.
+- Utiliser les labels CTest pour cibler rapidement:
+  ```bash
+  ctest --test-dir build_test -L cuda-thrust-views --output-on-failure
+  ctest --test-dir build_test -R storage_cuda_views --output-on-failure
+  ```
+
+Restrictions initiales du backend CUDA
+- Mémoire unifiée CUDA (UVM) activée par défaut pour préserver les accès host (`field[cell]`).
+- Layout supporté: row‑major uniquement au départ (erreur CMake si col‑major est demandé avec `-DSAMURAI_FIELD_CONTAINER=cuda`).
+- `apply_on_masked`:
+  - Implémentation initiale de référence (M1): exécution côté host via UVM (fonctionnelle et validée par tests).
+  - Variante device optimisée (M2): via `where(mask, expr_true, expr_false)` et/ou `thrust::for_each_n` avec prédicats device.
+
 ## Get help
 
 For a better understanding of all the components of samurai, you can consult the documentation https://hpc-math-samurai.readthedocs.io.

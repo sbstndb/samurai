@@ -32,6 +32,7 @@ namespace samurai
         using size_type   = typename backend_t::size_type;
         using container_t = typename backend_t::container_t;
         static constexpr auto static_layout = backend_t::static_layout;
+        static constexpr bool uses_xtensor_backend = true;
 
         thrust_container() = default;
 

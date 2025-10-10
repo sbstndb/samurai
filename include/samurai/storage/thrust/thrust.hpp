@@ -146,34 +146,109 @@ namespace samurai
         backend_t m_backend;
     };
 
+
+    template <class value_type, bool SOA>
+    class thrust_container<value_type, 1, SOA, true>
+    {
+      public:
+
+        using storage_tag = detail::thrust_host_vector_tag;
+        using backend_t   = detail::host_vector_container<value_type>;
+        using size_type   = typename backend_t::size_type;
+        using container_t = backend_t;
+        static constexpr auto static_layout = SAMURAI_DEFAULT_LAYOUT;
+        static constexpr bool uses_xtensor_backend = false;
+
+        thrust_container() = default;
+
+        explicit thrust_container(std::size_t dynamic_size)
+            : m_backend(dynamic_size)
+        {
+        }
+
+        const backend_t& backend() const
+        {
+            return m_backend;
+        }
+
+        backend_t& backend()
+        {
+            return m_backend;
+        }
+
+        const auto& data() const
+        {
+            return m_backend;
+        }
+
+        auto& data()
+        {
+            return m_backend;
+        }
+
+        value_type& operator[](size_type index)
+        {
+            return m_backend[index];
+        }
+
+        const value_type& operator[](size_type index) const
+        {
+            return m_backend[index];
+        }
+
+        size_type value_count() const
+        {
+            return static_cast<size_type>(m_backend.size());
+        }
+
+        void fill(const value_type& value)
+        {
+            m_backend.fill(value);
+        }
+
+        void resize(std::size_t dynamic_size)
+        {
+            m_backend.resize(dynamic_size);
+        }
+
+      private:
+
+        backend_t m_backend;
+    };
+
     template <class value_type, std::size_t size, bool SOA = false, bool can_collapse = true>
     using thrust_collapsable_static_array = xtensor_collapsable_static_array<value_type, size, can_collapse>;
 
-    template <class value_type, std::size_t size, bool SOA, bool can_collapse>
+    template <class value_type, std::size_t size, bool SOA, bool can_collapse,
+              std::enable_if_t<!((size == 1) && can_collapse), int> = 0>
     auto& view_backend(thrust_container<value_type, size, SOA, can_collapse>& container)
     {
         return container.backend();
     }
 
-    template <class value_type, std::size_t size, bool SOA, bool can_collapse>
+    template <class value_type, std::size_t size, bool SOA, bool can_collapse,
+              std::enable_if_t<!((size == 1) && can_collapse), int> = 0>
     const auto& view_backend(const thrust_container<value_type, size, SOA, can_collapse>& container)
     {
         return container.backend();
     }
 
-    template <class value_t, std::size_t size, bool SOA, bool can_collapse>
+    template <class value_t, std::size_t size, bool SOA, bool can_collapse,
+              std::enable_if_t<!((size == 1) && can_collapse), int> = 0>
     auto view(const thrust_container<value_t, size, SOA, can_collapse>& container, const range_t<long long>& range)
     {
         return view(view_backend(container), range);
     }
 
-    template <class value_t, std::size_t size, bool SOA, bool can_collapse>
+    template <class value_t, std::size_t size, bool SOA, bool can_collapse,
+              std::enable_if_t<!((size == 1) && can_collapse), int> = 0>
     auto view(thrust_container<value_t, size, SOA, can_collapse>& container, const range_t<long long>& range)
     {
         return view(view_backend(container), range);
     }
 
-    template <class value_t, std::size_t size, bool SOA, bool can_collapse>
+    template <class value_t, std::size_t size, bool SOA, bool can_collapse,
+              std::enable_if_t<!((size == 1) && can_collapse), int> = 0>
     auto view(const thrust_container<value_t, size, SOA, can_collapse>& container,
               const range_t<std::size_t>& range_item,
               const range_t<long long>& range)
@@ -181,7 +256,8 @@ namespace samurai
         return view(view_backend(container), range_item, range);
     }
 
-    template <class value_t, std::size_t size, bool SOA, bool can_collapse>
+    template <class value_t, std::size_t size, bool SOA, bool can_collapse,
+              std::enable_if_t<!((size == 1) && can_collapse), int> = 0>
     auto view(thrust_container<value_t, size, SOA, can_collapse>& container,
               const range_t<std::size_t>& range_item,
               const range_t<long long>& range)
@@ -189,27 +265,94 @@ namespace samurai
         return view(view_backend(container), range_item, range);
     }
 
-    template <class value_t, std::size_t size, bool SOA, bool can_collapse>
+    template <class value_t, std::size_t size, bool SOA, bool can_collapse,
+              std::enable_if_t<!((size == 1) && can_collapse), int> = 0>
     auto view(const thrust_container<value_t, size, SOA, can_collapse>& container, std::size_t item, const range_t<long long>& range)
     {
         return view(view_backend(container), item, range);
     }
 
-    template <class value_t, std::size_t size, bool SOA, bool can_collapse>
+    template <class value_t, std::size_t size, bool SOA, bool can_collapse,
+              std::enable_if_t<!((size == 1) && can_collapse), int> = 0>
     auto view(thrust_container<value_t, size, SOA, can_collapse>& container, std::size_t item, const range_t<long long>& range)
     {
         return view(view_backend(container), item, range);
     }
 
-    template <class value_t, std::size_t size, bool SOA, bool can_collapse>
+    template <class value_t, std::size_t size, bool SOA, bool can_collapse,
+              std::enable_if_t<!((size == 1) && can_collapse), int> = 0>
     auto view(const thrust_container<value_t, size, SOA, can_collapse>& container, std::size_t index)
     {
         return view(view_backend(container), index);
     }
 
-    template <class value_t, std::size_t size, bool SOA, bool can_collapse>
+    template <class value_t, std::size_t size, bool SOA, bool can_collapse,
+              std::enable_if_t<!((size == 1) && can_collapse), int> = 0>
     auto view(thrust_container<value_t, size, SOA, can_collapse>& container, std::size_t index)
     {
         return view(view_backend(container), index);
     }
+    template <class value_t, bool SOA>
+    auto view(thrust_container<value_t, 1, SOA, true>& container, const range_t<long long>& range)
+    {
+        auto adapted = detail::adapt_host_vector(container.backend());
+        return xt::view(adapted, xt::range(range.start, range.end, range.step));
+    }
+
+    template <class value_t, bool SOA>
+    auto view(const thrust_container<value_t, 1, SOA, true>& container, const range_t<long long>& range)
+    {
+        auto adapted = detail::adapt_host_vector(container.backend());
+        return xt::view(adapted, xt::range(range.start, range.end, range.step));
+    }
+
+    template <class value_t, bool SOA>
+    auto view(thrust_container<value_t, 1, SOA, true>& container,
+              const range_t<std::size_t>& /*range_item*/, const range_t<long long>& range)
+    {
+        return view(container, range);
+    }
+
+    template <class value_t, bool SOA>
+    auto view(const thrust_container<value_t, 1, SOA, true>& container,
+              const range_t<std::size_t>& /*range_item*/, const range_t<long long>& range)
+    {
+        return view(container, range);
+    }
+
+    template <class value_t, bool SOA>
+    auto view(thrust_container<value_t, 1, SOA, true>& container, std::size_t /*item*/, const range_t<long long>& range)
+    {
+        return view(container, range);
+    }
+
+    template <class value_t, bool SOA>
+    auto view(const thrust_container<value_t, 1, SOA, true>& container, std::size_t /*item*/, const range_t<long long>& range)
+    {
+        return view(container, range);
+    }
+
+    template <class value_t, bool SOA>
+    auto view(thrust_container<value_t, 1, SOA, true>& container, std::size_t index)
+    {
+        range_t<long long> single{static_cast<long long>(index), static_cast<long long>(index + 1), 1};
+        return view(container, single);
+    }
+
+    template <class value_t, bool SOA>
+    auto view(const thrust_container<value_t, 1, SOA, true>& container, std::size_t index)
+    {
+        range_t<long long> single{static_cast<long long>(index), static_cast<long long>(index + 1), 1};
+        return view(container, single);
+    }
+
+    template <class VecL, class VecR>
+        requires(detail::is_host_vector_container_v<VecL> && detail::is_host_vector_container_v<VecR>)
+    bool compare(const VecL& lhs, const VecR& rhs)
+    {
+        auto lhs_view = detail::adapt_host_vector(lhs);
+        auto rhs_view = detail::adapt_host_vector(rhs);
+        return samurai::compare(lhs_view, rhs_view);
+    }
 }
+

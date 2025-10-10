@@ -3,6 +3,14 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <type_traits>
+
+#include <thrust/host_vector.h>
+
+#include <xtensor/xadapt.hpp>
+
 #include "../xtensor/xtensor.hpp"
 #include "../xtensor/xtensor_static.hpp"
 
@@ -13,6 +21,53 @@ namespace samurai
         struct thrust_xtensor_tag
         {
         };
+
+        struct thrust_host_vector_tag
+        {
+        };
+
+        template <class T>
+        class host_vector_container : public thrust::host_vector<T>
+        {
+          public:
+
+            using base_type = thrust::host_vector<T>;
+            using base_type::base_type;
+
+            void fill(const T& value)
+            {
+                std::fill(this->begin(), this->end(), value);
+            }
+        };
+
+        template <class T>
+        struct is_host_vector_container : std::false_type
+        {
+        };
+
+        template <class T>
+        struct is_host_vector_container<host_vector_container<T>> : std::true_type
+        {
+        };
+
+        template <class T>
+        inline constexpr bool is_host_vector_container_v = is_host_vector_container<std::remove_cvref_t<T>>::value;
+
+        template <class Vector>
+        inline auto adapt_host_vector(Vector& vec)
+        {
+            using size_type = typename Vector::size_type;
+            auto shape      = std::array<std::size_t, 1>{static_cast<std::size_t>(vec.size())};
+            return xt::adapt(vec.data(), static_cast<size_type>(vec.size()), xt::no_ownership(), shape);
+        }
+
+        template <class Vector>
+        inline auto adapt_host_vector(const Vector& vec)
+        {
+            using size_type = typename Vector::size_type;
+            auto shape      = std::array<std::size_t, 1>{static_cast<std::size_t>(vec.size())};
+            return xt::adapt(vec.data(), static_cast<size_type>(vec.size()), xt::no_ownership(), shape);
+        }
     }
     //----------------------------------------------------------------------------//
     // Temporary Thrust backend scaffolding.                                      //

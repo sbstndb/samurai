@@ -44,6 +44,11 @@ namespace samurai
             return m_backend;
         }
 
+        size_type value_count() const
+        {
+            return m_backend.data().size();
+        }
+
         const auto& data() const
         {
             return m_backend.data();
@@ -52,6 +57,11 @@ namespace samurai
         auto& data()
         {
             return m_backend.data();
+        }
+
+        void fill(const value_type& value)
+        {
+            m_backend.data().fill(value);
         }
 
         void resize(std::size_t dynamic_size)

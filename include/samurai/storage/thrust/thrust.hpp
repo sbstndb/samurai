@@ -8,6 +8,12 @@
 
 namespace samurai
 {
+    namespace detail
+    {
+        struct thrust_xtensor_tag
+        {
+        };
+    }
     //----------------------------------------------------------------------------//
     // Temporary Thrust backend scaffolding.                                      //
     //                                                                            //
@@ -21,6 +27,7 @@ namespace samurai
     {
       public:
 
+        using storage_tag = detail::thrust_xtensor_tag;
         using backend_t   = xtensor_container<value_type, size, SOA, can_collapse>;
         using size_type   = typename backend_t::size_type;
         using container_t = typename backend_t::container_t;

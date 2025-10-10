@@ -45,6 +45,7 @@ namespace samurai
         static constexpr layout_type static_layout = SAMURAI_DEFAULT_LAYOUT;
         using container_t = xt::xtensor<value_t, ((size == 1) && can_collapse) ? 1 : 2, detail::xtensor_layout_v<static_layout>>;
         using size_type   = std::size_t;
+        using value_type  = value_t;
 
         xtensor_container() = default;
 
@@ -62,6 +63,26 @@ namespace samurai
         container_t& data()
         {
             return m_data;
+        }
+
+        value_type& operator[](size_type index)
+        {
+            return m_data[index];
+        }
+
+        const value_type& operator[](size_type index) const
+        {
+            return m_data[index];
+        }
+
+        size_type value_count() const
+        {
+            return m_data.size();
+        }
+
+        void fill(const value_type& value)
+        {
+            m_data.fill(value);
         }
 
         void resize(std::size_t dynamic_size)

@@ -24,7 +24,6 @@ namespace samurai
         using backend_t   = xtensor_container<value_type, size, SOA, can_collapse>;
         using size_type   = typename backend_t::size_type;
         using container_t = typename backend_t::container_t;
-        using value_type_tag = value_type;
         static constexpr auto static_layout = backend_t::static_layout;
 
         thrust_container() = default;
@@ -44,11 +43,6 @@ namespace samurai
             return m_backend;
         }
 
-        size_type value_count() const
-        {
-            return m_backend.data().size();
-        }
-
         const auto& data() const
         {
             return m_backend.data();
@@ -59,9 +53,24 @@ namespace samurai
             return m_backend.data();
         }
 
+        value_type& operator[](size_type index)
+        {
+            return m_backend[index];
+        }
+
+        const value_type& operator[](size_type index) const
+        {
+            return m_backend[index];
+        }
+
+        size_type value_count() const
+        {
+            return m_backend.value_count();
+        }
+
         void fill(const value_type& value)
         {
-            m_backend.data().fill(value);
+            m_backend.fill(value);
         }
 
         void resize(std::size_t dynamic_size)

@@ -53,6 +53,7 @@ namespace samurai
         static constexpr layout_type static_layout = SAMURAI_DEFAULT_LAYOUT; // cppcheck-suppress unusedStructMember
         using container_t                          = detail::eigen_type_t<value_t, size, SOA>;
         using size_type                            = Eigen::Index;
+        using value_type                           = value_t;
 
         eigen_container() = default;
 
@@ -70,6 +71,26 @@ namespace samurai
         container_t& data()
         {
             return m_data;
+        }
+
+        value_type& operator[](size_type index)
+        {
+            return m_data(index);
+        }
+
+        const value_type& operator[](size_type index) const
+        {
+            return m_data(index);
+        }
+
+        size_type value_count() const
+        {
+            return static_cast<size_type>(m_data.size());
+        }
+
+        void fill(const value_type& value)
+        {
+            m_data.setConstant(value);
         }
 
         void resize(size_type dynamic_size)

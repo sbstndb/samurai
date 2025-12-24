@@ -568,7 +568,7 @@ namespace samurai
             update_outer_ghosts(min_level - 1, field, other_fields...);
             times::expert_timers.stop("algorithm:update:update_ghost_mr:min_level_minus_1");
         }
-        
+
         times::expert_timers.start("algorithm:update:update_ghost_mr:min_level");
         update_ghost_periodic(min_level, field, other_fields...);
         update_ghost_subdomains(min_level, field, other_fields...);

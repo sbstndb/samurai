@@ -15,7 +15,7 @@ namespace samurai
         static std::size_t graduation_width = std::numeric_limits<std::size_t>::max();
         static int max_stencil_radius       = std::numeric_limits<int>::max();
 
-        static bool timers = false;
+        static bool timers        = false;
         static bool expert_timers = false;
 #ifdef SAMURAI_WITH_MPI
         static bool dont_redirect_output = false;

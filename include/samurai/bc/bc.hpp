@@ -14,10 +14,8 @@
 #include "../static_algorithm.hpp"
 #include "../stencil.hpp"
 #include "../storage/containers.hpp"
-#include "../utils.hpp"
 #include "../timers.hpp"
-
-
+#include "../utils.hpp"
 
 #define APPLY_AND_STENCIL_FUNCTIONS(STENCIL_SIZE)                                                                                         \
     using apply_function_##STENCIL_SIZE = std::function<void(Field&, const std::array<cell_t, STENCIL_SIZE>&, const value_t&)>;           \
@@ -755,7 +753,7 @@ namespace samurai
     auto make_bc(Field& field, typename FunctionBc<Field>::function_t func)
     {
         times::expert_timers.start("bc:make_bc_function");
-        auto& mesh = detail::get_mesh(field.mesh());
+        auto& mesh  = detail::get_mesh(field.mesh());
         auto result = field.attach_bc(bc_type<Field>(mesh, FunctionBc<Field>(func)));
         times::expert_timers.stop("bc:make_bc_function");
         return result;
@@ -767,7 +765,7 @@ namespace samurai
         times::expert_timers.start("bc:make_bc_function_typed");
         using bc_impl = typename bc_type::template impl_t<Field>;
 
-        auto& mesh = detail::get_mesh(field.mesh());
+        auto& mesh  = detail::get_mesh(field.mesh());
         auto result = field.attach_bc(bc_impl(mesh, FunctionBc<Field>(func)));
         times::expert_timers.stop("bc:make_bc_function_typed");
         return result;
@@ -780,7 +778,7 @@ namespace samurai
     auto make_bc(Field& field)
     {
         times::expert_timers.start("bc:make_bc_default");
-        auto& mesh = detail::get_mesh(field.mesh());
+        auto& mesh  = detail::get_mesh(field.mesh());
         auto result = field.attach_bc(bc_type<Field>(mesh, ConstantBc<Field>()));
         times::expert_timers.stop("bc:make_bc_default");
         return result;
@@ -792,7 +790,7 @@ namespace samurai
         times::expert_timers.start("bc:make_bc_default_typed");
         using bc_impl = typename bc_type::template impl_t<Field>;
 
-        auto& mesh = detail::get_mesh(field.mesh());
+        auto& mesh  = detail::get_mesh(field.mesh());
         auto result = field.attach_bc(bc_impl(mesh, ConstantBc<Field>()));
         times::expert_timers.stop("bc:make_bc_default_typed");
         return result;
@@ -811,7 +809,7 @@ namespace samurai
                       "The number of constant values should be equal to the "
                       "number of components in the field");
 
-        auto& mesh = detail::get_mesh(field.mesh());
+        auto& mesh  = detail::get_mesh(field.mesh());
         auto result = field.attach_bc(bc_type<Field>(mesh, ConstantBc<Field>(v1, v...)));
         times::expert_timers.stop("bc:make_bc_constant");
         return result;
@@ -829,7 +827,7 @@ namespace samurai
 
         using bc_impl = typename bc_type::template impl_t<Field>;
 
-        auto& mesh = detail::get_mesh(field.mesh());
+        auto& mesh  = detail::get_mesh(field.mesh());
         auto result = field.attach_bc(bc_impl(mesh, ConstantBc<Field>(v1, v...)));
         times::expert_timers.stop("bc:make_bc_constant_typed");
         return result;

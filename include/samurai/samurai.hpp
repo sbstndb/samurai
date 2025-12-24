@@ -106,7 +106,7 @@ namespace samurai
             std::cout << std::endl;
             times::timers.print();
         }
-        
+
         if (args::expert_timers) // cppcheck-suppress knownConditionTrueFalse
         {
             std::cout << std::endl << "=== Expert Timers ===" << std::endl;

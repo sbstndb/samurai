@@ -898,8 +898,8 @@ namespace samurai
     {
         times::expert_timers.start("algorithm:prediction:variadic_prediction");
         auto result = make_field_operator_function<variadic_prediction_op>(std::integral_constant<std::size_t, order>{},
-                                                                   std::integral_constant<bool, enlarge>{},
-                                                                   std::forward<T>(fields)...);
+                                                                           std::integral_constant<bool, enlarge>{},
+                                                                           std::forward<T>(fields)...);
         times::expert_timers.stop("algorithm:prediction:variadic_prediction");
         return result;
     }
@@ -909,9 +909,9 @@ namespace samurai
     {
         times::expert_timers.start("algorithm:prediction:prediction");
         auto result = make_field_operator_function<prediction_op>(field,
-                                                           field,
-                                                           std::integral_constant<std::size_t, order>{},
-                                                           std::integral_constant<bool, dest_on_level>{});
+                                                                  field,
+                                                                  std::integral_constant<std::size_t, order>{},
+                                                                  std::integral_constant<bool, dest_on_level>{});
         times::expert_timers.stop("algorithm:prediction:prediction");
         return result;
     }
@@ -921,9 +921,9 @@ namespace samurai
     {
         times::expert_timers.start("algorithm:prediction:prediction_with_source");
         auto result = make_field_operator_function<prediction_op>(field_dest,
-                                                           field_src,
-                                                           std::integral_constant<std::size_t, order>{},
-                                                           std::integral_constant<bool, dest_on_level>{});
+                                                                  field_src,
+                                                                  std::integral_constant<std::size_t, order>{},
+                                                                  std::integral_constant<bool, dest_on_level>{});
         times::expert_timers.stop("algorithm:prediction:prediction_with_source");
         return result;
     }

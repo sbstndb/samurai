@@ -594,6 +594,74 @@ namespace samurai
         update_ghost_mr(fields.elements());
     }
 
+    //==========================================================================
+    //                    update_ghost_uniform
+    //==========================================================================
+
+    /**
+     * @brief Update ghosts for uniform mesh (single level, no prediction/projection)
+     *
+     * For uniform meshes, ghost update is much simpler:
+     * - Only one level exists
+     * - No projection from finer levels
+     * - No prediction from coarser levels
+     * - Just apply boundary conditions and periodic ghosts
+     */
+    template <class Field, class... Fields>
+    void update_ghost_uniform(Field& field, Fields&... other_fields)
+    {
+        times::timers.start("ghost update");
+
+        auto& mesh = field.mesh();
+        auto level = mesh.min_level();  // = max_level for uniform mesh
+
+        update_outer_ghosts(level, field, other_fields...);
+        update_ghost_periodic(level, field, other_fields...);
+        update_ghost_subdomains(level, field, other_fields...);
+
+        field.ghosts_updated() = true;
+        ((other_fields.ghosts_updated() = true), ...);
+
+        times::timers.stop("ghost update");
+    }
+
+    inline void update_ghost_uniform()
+    {
+    }
+
+    template <class... T>
+    inline void update_ghost_uniform(std::tuple<T...>& fields)
+    {
+        std::apply(
+            [](T&... tupleArgs)
+            {
+                update_ghost_uniform(tupleArgs...);
+            },
+            fields);
+    }
+
+    template <class... T>
+    inline void update_ghost_uniform(Field_tuple<T...>& fields)
+    {
+        update_ghost_uniform(fields.elements());
+    }
+
+    template <class Field>
+    void update_ghost_uniform_if_needed(Field& field)
+    {
+        if (!field.ghosts_updated())
+        {
+            update_ghost_uniform(field);
+        }
+    }
+
+    template <class Field, class... Fields>
+    void update_ghost_uniform_if_needed(Field& field, Fields&... other_fields)
+    {
+        update_ghost_uniform_if_needed(field);
+        update_ghost_uniform_if_needed(other_fields...);
+    }
+
     template <bool to_send, class Field>
     auto outer_subdomain_corner(std::size_t level, Field& field, const typename Field::mesh_t::mpi_subdomain_t& neighbour)
     {

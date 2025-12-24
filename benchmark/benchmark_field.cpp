@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 
-#include <xtensor/xfixed.hpp>
+#include <xtensor/containers/xfixed.hpp>
 
 #include <samurai/algorithm.hpp>
 #include <samurai/amr/mesh.hpp>

@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 #include <functional>
 
-#include <xtensor/xfixed.hpp>
+#include <xtensor/containers/xfixed.hpp>
 
 #include <samurai/algorithm.hpp>
 #include <samurai/cell_array.hpp>

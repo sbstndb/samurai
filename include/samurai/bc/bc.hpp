@@ -14,6 +14,7 @@
 #include "../static_algorithm.hpp"
 #include "../stencil.hpp"
 #include "../storage/containers.hpp"
+#include "../timers.hpp"
 #include "../utils.hpp"
 
 #define APPLY_AND_STENCIL_FUNCTIONS(STENCIL_SIZE)                                                                                         \
@@ -751,17 +752,23 @@ namespace samurai
     template <template <class> class bc_type, class Field>
     auto make_bc(Field& field, typename FunctionBc<Field>::function_t func)
     {
-        auto& mesh = detail::get_mesh(field.mesh());
-        return field.attach_bc(bc_type<Field>(mesh, FunctionBc<Field>(func)));
+        times::expert_timers.start("bc:make_bc_function");
+        auto& mesh  = detail::get_mesh(field.mesh());
+        auto result = field.attach_bc(bc_type<Field>(mesh, FunctionBc<Field>(func)));
+        times::expert_timers.stop("bc:make_bc_function");
+        return result;
     }
 
     template <class bc_type, class Field>
     auto make_bc(Field& field, typename FunctionBc<Field>::function_t func)
     {
+        times::expert_timers.start("bc:make_bc_function_typed");
         using bc_impl = typename bc_type::template impl_t<Field>;
 
-        auto& mesh = detail::get_mesh(field.mesh());
-        return field.attach_bc(bc_impl(mesh, FunctionBc<Field>(func)));
+        auto& mesh  = detail::get_mesh(field.mesh());
+        auto result = field.attach_bc(bc_impl(mesh, FunctionBc<Field>(func)));
+        times::expert_timers.stop("bc:make_bc_function_typed");
+        return result;
     }
 
     /**
@@ -770,17 +777,23 @@ namespace samurai
     template <template <class> class bc_type, class Field>
     auto make_bc(Field& field)
     {
-        auto& mesh = detail::get_mesh(field.mesh());
-        return field.attach_bc(bc_type<Field>(mesh, ConstantBc<Field>()));
+        times::expert_timers.start("bc:make_bc_default");
+        auto& mesh  = detail::get_mesh(field.mesh());
+        auto result = field.attach_bc(bc_type<Field>(mesh, ConstantBc<Field>()));
+        times::expert_timers.stop("bc:make_bc_default");
+        return result;
     }
 
     template <class bc_type, class Field>
     auto make_bc(Field& field)
     {
+        times::expert_timers.start("bc:make_bc_default_typed");
         using bc_impl = typename bc_type::template impl_t<Field>;
 
-        auto& mesh = detail::get_mesh(field.mesh());
-        return field.attach_bc(bc_impl(mesh, ConstantBc<Field>()));
+        auto& mesh  = detail::get_mesh(field.mesh());
+        auto result = field.attach_bc(bc_impl(mesh, ConstantBc<Field>()));
+        times::expert_timers.stop("bc:make_bc_default_typed");
+        return result;
     }
 
     /**
@@ -789,19 +802,23 @@ namespace samurai
     template <template <class> class bc_type, class Field, class... T>
     auto make_bc(Field& field, typename Field::value_type v1, T... v)
     {
+        times::expert_timers.start("bc:make_bc_constant");
         static_assert(std::is_same_v<typename Field::value_type, std::common_type_t<typename Field::value_type, T...>>,
                       "The constant value type must be the same as the field value_type");
         static_assert(Field::n_comp == sizeof...(T) + 1,
                       "The number of constant values should be equal to the "
                       "number of components in the field");
 
-        auto& mesh = detail::get_mesh(field.mesh());
-        return field.attach_bc(bc_type<Field>(mesh, ConstantBc<Field>(v1, v...)));
+        auto& mesh  = detail::get_mesh(field.mesh());
+        auto result = field.attach_bc(bc_type<Field>(mesh, ConstantBc<Field>(v1, v...)));
+        times::expert_timers.stop("bc:make_bc_constant");
+        return result;
     }
 
     template <class bc_type, class Field, class... T>
     auto make_bc(Field& field, typename Field::value_type v1, T... v)
     {
+        times::expert_timers.start("bc:make_bc_constant_typed");
         static_assert(std::is_same_v<typename Field::value_type, std::common_type_t<typename Field::value_type, T...>>,
                       "The constant value type must be the same as the field value_type");
         static_assert(Field::n_comp == sizeof...(T) + 1,
@@ -810,8 +827,10 @@ namespace samurai
 
         using bc_impl = typename bc_type::template impl_t<Field>;
 
-        auto& mesh = detail::get_mesh(field.mesh());
-        return field.attach_bc(bc_impl(mesh, ConstantBc<Field>(v1, v...)));
+        auto& mesh  = detail::get_mesh(field.mesh());
+        auto result = field.attach_bc(bc_impl(mesh, ConstantBc<Field>(v1, v...)));
+        times::expert_timers.stop("bc:make_bc_constant_typed");
+        return result;
     }
 
 } // namespace samurai

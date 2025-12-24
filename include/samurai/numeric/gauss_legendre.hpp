@@ -31,19 +31,24 @@ namespace samurai
         template <std::size_t func_result_size, std::size_t dim, class TInterval, class Func>
         auto quadrature(const Cell<dim, TInterval>& cell, Func&& f)
         {
+            times::expert_timers.start("numeric:gauss_legendre_quadrature");
             const double half_h = cell.length / 2;
             if constexpr (func_result_size == 1)
             {
                 double sum = 0;
                 compute_quadrature_sum(cell, sum, f);
-                return pow(half_h, dim) * sum;
+                auto result = pow(half_h, dim) * sum;
+                times::expert_timers.stop("numeric:gauss_legendre_quadrature");
+                return result;
             }
             else
             {
                 Array<double, func_result_size, false> sum;
                 sum.fill(0);
                 compute_quadrature_sum(cell, sum, f);
-                return eval(pow(half_h, dim) * sum);
+                auto result = eval(pow(half_h, dim) * sum);
+                times::expert_timers.stop("numeric:gauss_legendre_quadrature");
+                return result;
             }
         }
 

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <algorithm>
+#include <map>
 
 #include <xtensor/containers/xfixed.hpp>
 
@@ -501,8 +502,10 @@ namespace samurai
     template <class Field, class... Fields>
     void update_outer_ghosts(std::size_t level, Field& field, Fields&... fields)
     {
+        times::expert_timers.start("algorithm:update:update_outer_ghosts");
         update_outer_ghosts(level, field);
         update_outer_ghosts(level, fields...);
+        times::expert_timers.stop("algorithm:update:update_outer_ghosts");
     }
 
     template <class Field>
@@ -528,35 +531,52 @@ namespace samurai
         constexpr std::size_t pred_order = Field::mesh_t::config::prediction_stencil_radius;
 
         times::timers.start("ghost update");
+        times::expert_timers.start("algorithm:update:update_ghost_mr");
 
         auto& mesh            = field.mesh();
         auto max_level        = mesh.max_level();
         std::size_t min_level = 0;
 
+        times::expert_timers.start("algorithm:update:update_ghost_mr:outer_ghosts_max_level");
         update_outer_ghosts(max_level, field, other_fields...);
+        times::expert_timers.stop("algorithm:update:update_ghost_mr:outer_ghosts_max_level");
 
         for (std::size_t level = max_level; level > min_level; --level)
         {
+            times::expert_timers.start("algorithm:update:update_ghost_mr:level_down");
+            times::expert_timers.start("algorithm:update:update_ghost_mr:periodic_subdomains");
             update_ghost_periodic(level, field, other_fields...);
             update_ghost_subdomains(level, field, other_fields...);
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:periodic_subdomains");
 
+            times::expert_timers.start("algorithm:update:update_ghost_mr:projection");
             auto set_at_levelm1 = intersection(mesh[mesh_id_t::reference][level], mesh[mesh_id_t::proj_cells][level - 1]).on(level - 1);
             set_at_levelm1.apply_op(variadic_projection(field, other_fields...));
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:projection");
 
+            times::expert_timers.start("algorithm:update:update_ghost_mr:outer_ghosts");
             update_outer_ghosts(level - 1, field, other_fields...);
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:outer_ghosts");
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:level_down");
         }
 
         if (min_level > 0 && min_level != max_level)
         {
+            times::expert_timers.start("algorithm:update:update_ghost_mr:min_level_minus_1");
             update_ghost_periodic(min_level - 1, field, other_fields...);
             update_ghost_subdomains(min_level - 1, field, other_fields...);
             update_outer_ghosts(min_level - 1, field, other_fields...);
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:min_level_minus_1");
         }
+
+        times::expert_timers.start("algorithm:update:update_ghost_mr:min_level");
         update_ghost_periodic(min_level, field, other_fields...);
         update_ghost_subdomains(min_level, field, other_fields...);
+        times::expert_timers.stop("algorithm:update:update_ghost_mr:min_level");
 
         for (std::size_t level = min_level + 1; level <= max_level; ++level)
         {
+            times::expert_timers.start("algorithm:update:update_ghost_mr:level_up");
             auto pred_ghosts = difference(mesh[mesh_id_t::all_cells][level],
                                           union_(mesh[mesh_id_t::cells][level], mesh[mesh_id_t::proj_cells][level]));
             auto expr        = intersection(pred_ghosts, mesh.subdomain(), mesh[mesh_id_t::all_cells][level - 1]).on(level);
@@ -564,12 +584,14 @@ namespace samurai
             expr.apply_op(variadic_prediction<pred_order, false>(field, other_fields...));
             update_ghost_periodic(level, field, other_fields...);
             update_ghost_subdomains(level, field, other_fields...);
+            times::expert_timers.stop("algorithm:update:update_ghost_mr:level_up");
         }
         // save(fs::current_path(), "update_ghosts", {true, true}, mesh, field);
 
         field.ghosts_updated() = true;
         ((other_fields.ghosts_updated() = true), ...);
 
+        times::expert_timers.stop("algorithm:update:update_ghost_mr");
         times::timers.stop("ghost update");
     }
 
@@ -678,7 +700,11 @@ namespace samurai
                         std::copy(field(level, i, index).begin(), field(level, i, index).end(), std::back_inserter(to_send[i_neigh]));
                     });
 
+                samurai::times::expert_timers.start("mpi:update_ghost_subdomains:isend");
+                samurai::times::expert_timers.start("mpi:update_tag_subdomains:isend");
                 req.push_back(world.isend(neighbour.rank, neighbour.rank, to_send[i_neigh++]));
+                samurai::times::expert_timers.stop("mpi:update_tag_subdomains:isend");
+                samurai::times::expert_timers.stop("mpi:update_ghost_subdomains:isend");
             }
         }
 
@@ -689,7 +715,11 @@ namespace samurai
                 std::vector<value_t> to_recv;
                 std::ptrdiff_t count = 0;
 
+                samurai::times::expert_timers.start("mpi:update_ghost_subdomains:recv");
+                samurai::times::expert_timers.start("mpi:update_tag_subdomains:recv");
                 world.recv(neighbour.rank, world.rank(), to_recv);
+                samurai::times::expert_timers.stop("mpi:update_tag_subdomains:recv");
+                samurai::times::expert_timers.stop("mpi:update_ghost_subdomains:recv");
                 auto in_interface = intersection(neighbour.mesh[mesh_id_t::reference][level],
                                                  mesh[mesh_id_t::reference][level],
                                                  neighbour.mesh.subdomain())
@@ -713,15 +743,21 @@ namespace samurai
                                   });
             }
         }
+        samurai::times::expert_timers.start("mpi:update_ghost_subdomains:wait_all");
+        samurai::times::expert_timers.start("mpi:update_tag_subdomains:wait_all");
         mpi::wait_all(req.begin(), req.end());
+        samurai::times::expert_timers.stop("mpi:update_tag_subdomains:wait_all");
+        samurai::times::expert_timers.stop("mpi:update_ghost_subdomains:wait_all");
 #endif
     }
 
     template <class Field, class... Fields>
     void update_ghost_subdomains(std::size_t level, Field& field, Fields&... other_fields)
     {
+        times::expert_timers.start("algorithm:update:update_ghost_subdomains");
         update_ghost_subdomains(level, field);
         update_ghost_subdomains(level, other_fields...);
+        times::expert_timers.stop("algorithm:update:update_ghost_subdomains");
     }
 
     template <class Field>
@@ -1053,14 +1089,18 @@ namespace samurai
                             const auto& field_data = field(level, i + shift_interval, index + shift_index);
                             std::copy(field_data.begin(), field_data.end(), std::back_inserter(field_data_out[neighbor_id]));
                         });
+                    samurai::times::timers.start("mpi:update_ghost_periodic:isend");
                     req.push_back(world.isend(mpi_neighbor.rank, mpi_neighbor.rank, field_data_out[neighbor_id]));
+                    samurai::times::timers.stop("mpi:update_ghost_periodic:isend");
                     ++neighbor_id;
                 }
                 for (const auto& mpi_neighbor : mesh.mpi_neighbourhood())
                 {
                     const auto& neighbor_mesh_ref = mpi_neighbor.mesh[mesh_id_t::reference];
 
+                    samurai::times::timers.start("mpi:update_ghost_periodic:recv");
                     world.recv(mpi_neighbor.rank, world.rank(), field_data_in);
+                    samurai::times::timers.stop("mpi:update_ghost_periodic:recv");
                     auto it       = field_data_in.cbegin();
                     auto set1_mpi = intersection(translate(intersection(neighbor_mesh_ref[level], lca_min_p), shift),
                                                  intersection(mesh_ref[level], lca_max_p));
@@ -1079,7 +1119,9 @@ namespace samurai
                             it += std::ssize(field(level, i, index));
                         });
                 }
+                samurai::times::timers.start("mpi:update_ghost_periodic:wait_all");
                 mpi::wait_all(req.begin(), req.end());
+                samurai::times::timers.stop("mpi:update_ghost_periodic:wait_all");
 #endif // SAMURAI_WITH_MPI
                 /* reset variables for next iterations. */
                 shift[d]      = 0;
@@ -1092,8 +1134,10 @@ namespace samurai
     template <class Field, class... Fields>
     void update_ghost_periodic(std::size_t level, Field& field, Fields&... other_fields)
     {
+        times::expert_timers.start("algorithm:update:update_ghost_periodic");
         update_ghost_periodic(level, field);
         update_ghost_periodic(level, other_fields...);
+        times::expert_timers.stop("algorithm:update:update_ghost_periodic");
     }
 
     template <class Field>

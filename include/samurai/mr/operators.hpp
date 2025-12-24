@@ -277,6 +277,7 @@ namespace samurai
             }
             else
             {
+                times::expert_timers.start("mr:operators:compute_detail_2d");
                 auto qs_i  = Qs_i<order>(field, level, i, j);
                 auto qs_j  = Qs_j<order>(field, level, i, j);
                 auto qs_ij = Qs_ij<order>(field, level, i, j);
@@ -308,6 +309,7 @@ namespace samurai
                 detail(level + 1, 2 * i + 1, 2 * j) = field(level + 1, 2 * i + 1, 2 * j) - (field(level, i, j) - qs_i + qs_j + qs_ij);
                 detail(level + 1, 2 * i, 2 * j + 1) = field(level + 1, 2 * i, 2 * j + 1) - (field(level, i, j) + qs_i - qs_j + qs_ij);
                 detail(level + 1, 2 * i + 1, 2 * j + 1) = field(level + 1, 2 * i + 1, 2 * j + 1) - (field(level, i, j) - qs_i - qs_j - qs_ij);
+                times::expert_timers.stop("mr:operators:compute_detail_2d");
             }
         }
 
@@ -328,6 +330,7 @@ namespace samurai
             }
             else
             {
+                times::expert_timers.start("mr:operators:compute_detail_3d");
                 auto qs_i   = Qs_i<order>(field, level, i, j, k);
                 auto qs_j   = Qs_j<order>(field, level, i, j, k);
                 auto qs_k   = Qs_k<order>(field, level, i, j, k);
@@ -353,6 +356,7 @@ namespace samurai
                 detail(level + 1, 2 * i + 1, 2 * j + 1, 2 * k + 1) = field(level + 1, 2 * i + 1, 2 * j + 1, 2 * k + 1)
                                                                    - (field(level, i, j, k) - qs_i - qs_j - qs_k - qs_ij - qs_ik - qs_jk
                                                                       - qs_ijk);
+                times::expert_timers.stop("mr:operators:compute_detail_3d");
             }
         }
     };

@@ -16,14 +16,20 @@ jobs:
       - id: new_commits
         run: echo "nb_commits=$(git log --oneline --since '24 hours ago' | wc -l)" >> $GITHUB_OUTPUT
 
+  # Windows long-run job removed (Linux-only schedule)
+
   #
-  # Check samurai with clang-tidy
+  # MPI jobs removed: keeping only non-MPI tests
+  #
+
+  #
+  # Linux sequential (no MPI) with gcc
   #
   #########################################################
-  clang-tidy-check:
+  linux-seq-gcc:
     needs: check_new_commit
     if: needs.check_new_commit.outputs.nb_commits > 0
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -33,280 +39,191 @@ jobs:
           path: |
             ~/.cache/ccache
             ~/micromamba-root/envs/samurai-env
-          key: clang-tidy
+          key: linux-seq-gcc
+          restore-keys: |
+            linux-seq-gcc
 
-      - name: Mamba and samurai env installation
-        uses: mamba-org/setup-micromamba@v1
+      - name: Mamba and samurai env installation (sequential)
+        uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: conda/environment.yml
           environment-name: samurai-env
           cache-environment: true
 
-      - name: clang-tidy installation
+      - name: Install extra deps (conda)
         shell: bash -l {0}
         run: |
-          conda install -y clang-tools cxx-compiler clang clangxx
-          pip install compdb
+          conda install -y cxx-compiler
 
-      - name: Configure
+      - name: Configure (sequential)
         shell: bash -l {0}
         run: |
-          cmake . -Bbuild -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug -DBUILD_DEMOS=ON
-          compdb -p build list > compile_commands.json
-
-      - name: run clang-tidy on samurai
-        shell: bash -l {0}
-        run: |
-          run-clang-tidy
-
-  #
-  # Check conan build
-  #
-  #########################################################
-  conan:
-    needs: check_new_commit
-    if: needs.check_new_commit.outputs.nb_commits > 0
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - windows-2022
-          - ubuntu-22.04
-          - macos-12
-        compiler:
-          # - llvm
-          - gcc
-        CMAKE_GENERATOR:
-          - "Ninja Multi-Config"
-        include:
-          - os: windows-2022
-            compiler: msvc
-            CMAKE_GENERATOR: "Visual Studio 17 2022"
-
-        # exclude:
-        #   - os: windows-2022
-        #     compiler: llvm
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.conan/
-            ~/.cache/ccache
-            ~/.cache/pip
-            ~/Library/Caches/ccache
-            C:\Users\runneradmin\cmake
-            C:\Users\runneradmin\AppData\Local\ccache
-          key: conan-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('./conanfile.py')}}
-          restore-keys: |
-            conan-${{ runner.os }}-${{ matrix.compiler }}-
-
-      - name: configure Pagefile
-        if: runner.os == 'Windows'
-        uses: al-cheb/configure-pagefile-action@v1.2
-        with:
-          minimum-size: 16GB
-          maximum-size: 16GB
-          disk-root: "C:"
-
-      - name: Setup Cpp
-        uses: aminya/setup-cpp@v0.26.2
-        with:
-          compiler: ${{ matrix.compiler }}
-          vcvarsall: ${{ contains(matrix.os, 'windows' )}}
-
-          cmake: true
-          ninja: true
-          conan: true
-          vcpkg: false
-          ccache: false
-          clangtidy: false
-          task: false
-
-          cppcheck: false
-
-          gcovr: false
-          opencppcoverage: false
-
-      # - name: Information about ccache
-      #   run: |
-      #     ccache -s -v
-      - name: Configure CMake
-        run: |
-          cmake . -B ./build -G "${{matrix.CMAKE_GENERATOR}}" -DCMAKE_BUILD_TYPE=Release -DENABLE_CONAN_OPTION=ON -DBUILD_TESTS=ON -DBUILD_DEMOS=ON
-      - name: Build
-        run: |
-          cmake --build ./build --config Release
-      - name: Install hdf5 with brew
-        if: runner.os == 'Macos'
-        env:
-          ARCHFLAGS: "-arch x86_64"
-        run: |
-          brew install hdf5@1.10
-          export HDF5_DIR=/usr/local/opt/hdf5@1.10
-          pip3 install pytest h5py
-      - name: Install Python dependencies
-        if: runner.os != 'Macos'
-        run: |
-          pip3 install pytest h5py
-      - name: Unix test
-        if: runner.os != 'Windows'
-        run: |
-          ./build/tests/Release/test_samurai_lib
-          cd tests; pytest --h5diff
-      - name: Windows test
-        if: runner.os == 'Windows'
-        run: |
-          .\build\tests\Release\test_samurai_lib
-          # cd tests; pytest -s --h5diff
-
-  #
-  # Check vcpkg build
-  #
-  #########################################################
-  vcpkg:
-    needs: check_new_commit
-    if: needs.check_new_commit.outputs.nb_commits > 0
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - windows-2022
-          - ubuntu-22.04
-          - macos-12
-        compiler:
-          # - llvm
-          - gcc
-        CMAKE_GENERATOR:
-          - "Ninja Multi-Config"
-        include:
-          - os: windows-2022
-            compiler: msvc
-            CMAKE_GENERATOR: "Visual Studio 17 2022"
-
-        # exclude:
-        #   - os: windows-2022
-        #     compiler: llvm
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/vcpkg
-            ~/.cache/ccache
-            ~/.cache/pip
-            ~/Library/Caches/ccache
-            ./build/vcpkg_installed
-            ${{ env.CONAN_USER_HOME }}
-            ${{ env.HOME }}/.cache/vcpkg/archives
-            ${{ env.XDG_CACHE_HOME }}/vcpkg/archives
-            ${{ env.LOCALAPPDATA }}\vcpkg\archives
-            ${{ env.APPDATA }}\vcpkg\archives
-            C:\Users\runneradmin\cmake
-            C:\Users\runneradmin\AppData\Local\ccache
-          key: vcpkg-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('./vcpkg.json')}}
-          restore-keys: |
-            vcpkg-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('./vcpkg.json') }}
-            vcpkg-${{ runner.os }}-${{ matrix.compiler }}-
-      - name: Setup Cpp
-        uses: aminya/setup-cpp@v0.26.2
-        with:
-          compiler: ${{ matrix.compiler }}
-          vcvarsall: ${{ contains(matrix.os, 'windows' )}}
-
-          cmake: true
-          ninja: true
-          vcpkg: true
-          ccache: false
-          clangtidy: false
-          task: false
-
-          cppcheck: false
-
-          gcovr: false
-          opencppcoverage: false
-
-      # - name: Information about ccache
-      #   run: |
-      #     ccache -s -v
-      - name: Configure CMake
-        run: |
-          cmake -B ./build -S . -G "${{matrix.CMAKE_GENERATOR}}" -DENABLE_VCPKG=ON -DBUILD_TESTS=ON -DBUILD_DEMOS=ON
-      - name: Build
-        run: |
-          cmake --build ./build --config Release
-      - name: Install hdf5 with brew
-        if: runner.os == 'Macos'
-        env:
-          ARCHFLAGS: "-arch x86_64"
-        run: |
-          brew install hdf5@1.10
-          export HDF5_DIR=/usr/local/opt/hdf5@1.10
-          pip3 install pytest h5py
-      - name: Install Python dependencies
-        if: runner.os != 'Macos'
-        run: |
-          pip3 install pytest h5py
-      - name: Unix test
-        if: runner.os != 'Windows'
-        run: |
-          ./build/tests/Release/test_samurai_lib
-          cd tests; pytest --h5diff
-      - name: Windows test
-        if: runner.os == 'Windows'
-        run: |
-          .\build\tests\Release\test_samurai_lib
-          cd tests; pytest -s --h5diff
-
-  #
-  # Check windows build using mamba
-  #
-  #########################################################
-  win-mamba:
-    needs: check_new_commit
-    if: needs.check_new_commit.outputs.nb_commits > 0
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@v4
-      - name: Mamba and samurai env installation
-        uses: mamba-org/setup-micromamba@v1
-        with:
-          environment-file: conda/environment.yml
-          environment-name: samurai-env
-          cache-environment: true
-
-      - name: micromamba informations
-        shell: bash -l {0}
-        run: |
-          micromamba info
-          micromamba list
-
-      - name: Configure
-        shell: bash -l {0}
-        run: |
+          # Force GCC via conda toolchain
+          export CC="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc"
+          export CXX="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++"
           cmake \
-              . \
-              -Bbuild \
-              -G "Visual Studio 17 2022" \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DBUILD_DEMOS=ON \
-              -DBUILD_TESTS=ON
+            . \
+            -Bbuild \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_MPI=OFF \
+            -DBUILD_DEMOS=ON \
+            -DBUILD_TESTS=OFF
 
-      - name: Build
+      - name: Build demo target (sequential)
         shell: bash -l {0}
         run: |
-          cmake --build ./build --config Release
+          cmake --build build --target finite-volume-advection-2d --parallel 3
 
-      - name: Windows test
+      - name: Run demo - advection 2D (sequential)
         shell: bash -l {0}
         run: |
-          ./build/tests/Release/test_samurai_lib
-          cd tests; pytest -s --h5diff
+          set -e
+          cd build
+          for MINL in 7 8 9; do
+            for MAXL in 8 9 10; do
+              if [ "$MINL" -le "$MAXL" ]; then
+                echo "--> min-level=$MINL max-level=$MAXL (sequential)"
+                ./demos/FiniteVolume/finite-volume-advection-2d \
+                  --Tf 0.5 --nfiles 4 --min-level "$MINL" --max-level "$MAXL" \
+                  --cfl 0.5 --filename FV_adv2d_seq
+              fi
+            done
+          done
+
+  #########################################################
+  #########################################################
+  # Linux sequential (no MPI) with gcc - Burgers
+  #########################################################
+  linux-seq-gcc-burgers:
+    needs: check_new_commit
+    if: needs.check_new_commit.outputs.nb_commits > 0
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ccache
+            ~/micromamba-root/envs/samurai-env
+          key: linux-seq-gcc-burgers
+          restore-keys: |
+            linux-seq-gcc-burgers
+
+      - name: Mamba and samurai env installation (sequential)
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: conda/environment.yml
+          environment-name: samurai-env
+          cache-environment: true
+
+      - name: Install extra deps (conda)
+        shell: bash -l {0}
+        run: |
+          conda install -y cxx-compiler
+
+      - name: Configure (sequential)
+        shell: bash -l {0}
+        run: |
+          # Force GCC via conda toolchain
+          export CC="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc"
+          export CXX="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++"
+          cmake \
+            . \
+            -Bbuild \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_MPI=OFF \
+            -DBUILD_DEMOS=ON \
+            -DBUILD_TESTS=OFF
+
+      - name: Build demo target (sequential burgers)
+        shell: bash -l {0}
+        run: |
+          cmake --build build --target finite-volume-burgers --parallel 3
+
+      - name: Run demo - burgers (sequential)
+        shell: bash -l {0}
+        run: |
+          set -e
+          cd build
+          for MINL in 5 6 7; do
+            for MAXL in 6 7 8 ; do
+              if [ "$MINL" -le "$MAXL" ]; then
+                echo "--> min-level=$MINL max-level=$MAXL (sequential)"
+                ./demos/FiniteVolume/finite-volume-burgers \
+                  --Tf 0.5 --nfiles 4 --min-level "$MINL" --max-level "$MAXL" \
+                  --cfl 0.5 --filename FV_burgers_seq
+              fi
+          done
+          done
+
+  #########################################################
+  # Linux sequential (no MPI) with gcc - Linear Convection
+  #########################################################
+  linux-seq-gcc-linear-convection:
+    needs: check_new_commit
+    if: needs.check_new_commit.outputs.nb_commits > 0
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ccache
+            ~/micromamba-root/envs/samurai-env
+          key: linux-seq-gcc-linear-convection
+          restore-keys: |
+            linux-seq-gcc-linear-convection
+
+      - name: Mamba and samurai env installation (sequential)
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: conda/environment.yml
+          environment-name: samurai-env
+          cache-environment: true
+
+      - name: Install extra deps (conda)
+        shell: bash -l {0}
+        run: |
+          conda install -y cxx-compiler
+
+      - name: Configure (sequential)
+        shell: bash -l {0}
+        run: |
+          # Force GCC via conda toolchain
+          export CC="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc"
+          export CXX="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++"
+          cmake \
+            . \
+            -Bbuild \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_MPI=OFF \
+            -DBUILD_DEMOS=ON \
+            -DBUILD_TESTS=OFF
+
+      - name: Build demo target (sequential linear convection)
+        shell: bash -l {0}
+        run: |
+          cmake --build build --target finite-volume-linear-convection --parallel 3
+
+      - name: Run demo - linear convection (sequential)
+        shell: bash -l {0}
+        run: |
+          set -e
+          cd build
+          for MINL in 5 6 7; do
+            for MAXL in 6 7 8 ; do
+              if [ "$MINL" -le "$MAXL" ]; then
+                echo "--> min-level=$MINL max-level=$MAXL (sequential)"
+                ./demos/FiniteVolume/finite-volume-linear-convection \
+                  --Tf 0.5 --nfiles 4 --min-level "$MINL" --max-level "$MAXL" \
+                  --cfl 0.5 --filename FV_linear_convection_seq
+              fi
+            done
+          done

@@ -24,16 +24,27 @@ else()
     message(STATUS "pybind11 found: ${pybind11_VERSION}")
 endif()
 
-# Create the Python module
+# Create the Python modules
 pybind11_add_module(samurai_core
     box_bindings.cpp
 )
 
+pybind11_add_module(samurai_fields
+    cell_bindings.cpp
+    field_bindings.cpp
+)
+
 # Set C++ standard
 target_compile_features(samurai_core PRIVATE cxx_std_20)
+target_compile_features(samurai_fields PRIVATE cxx_std_20)
 
 # Include Samurai headers
 target_include_directories(samurai_core
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+target_include_directories(samurai_fields
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include
 )
@@ -44,9 +55,18 @@ target_link_libraries(samurai_core
         samurai
 )
 
+target_link_libraries(samurai_fields
+    PRIVATE
+        samurai
+)
+
 # Optimization for release builds
 if(CMAKE_BUILD_TYPE MATCHES Release)
     target_compile_options(samurai_core PRIVATE
+        -O3
+        -march=native
+    )
+    target_compile_options(samurai_fields PRIVATE
         -O3
         -march=native
     )
@@ -54,6 +74,10 @@ endif()
 
 # Set output directory to be importable by Python
 set_target_properties(samurai_core PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python
+)
+
+set_target_properties(samurai_fields PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python
 )
 

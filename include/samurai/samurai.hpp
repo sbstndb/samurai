@@ -69,11 +69,19 @@ namespace samurai
         MPI_Init(&argc, &argv);
         // redirect stdout to /dev/null for all ranks except rank 0
         mpi::communicator world;
+
+        if (world.rank() == 0)
+        {
+            std::cout << "[SAMURAI] MPI: ON (" << world.size() << " ranks)" << std::endl;
+        }
+
         if (!args::dont_redirect_output && world.rank() != 0) // cppcheck-suppress knownConditionTrueFalse
         {
             static std::ofstream null_stream("/dev/null");
             std::cout.rdbuf(null_stream.rdbuf());
         }
+#else
+        std::cout << "[SAMURAI] MPI: OFF" << std::endl;
 #endif
         times::timers.start("total runtime");
 
@@ -92,6 +100,14 @@ namespace samurai
     {
 #ifdef SAMURAI_WITH_MPI
         MPI_Init(nullptr, nullptr);
+
+        mpi::communicator world;
+        if (world.rank() == 0)
+        {
+            std::cout << "[SAMURAI] MPI: ON (" << world.size() << " ranks)" << std::endl;
+        }
+#else
+        std::cout << "[SAMURAI] MPI: OFF" << std::endl;
 #endif
     }
 

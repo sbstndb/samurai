@@ -450,7 +450,7 @@ namespace samurai
 
         bool empty() const
         {
-            return !m_lca.empty();
+            return m_lca.empty();
         }
 
         const lca_t& m_lca;

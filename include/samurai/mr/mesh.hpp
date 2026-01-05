@@ -421,8 +421,12 @@ namespace samurai
             {
                 for (std::size_t level = 0; level <= this->max_level(); ++level)
                 {
-                    auto expr = intersection(nestedExpand(self(this->subdomain()).on(level), config::ghost_width),
-                                             neighbour.mesh[mesh_id_t::reference][level]);
+                    // Avoid lifetime issues by binding Self to a named variable
+                    auto subdomain_self = self(this->subdomain());
+                    subdomain_self.on(level);
+                    auto expanded_subdomain = nestedExpand(subdomain_self, config::ghost_width);
+
+                    auto expr = intersection(expanded_subdomain, neighbour.mesh[mesh_id_t::reference][level]);
                     expr(
                         [&](const auto& interval, const auto& index_yz)
                         {
@@ -434,7 +438,8 @@ namespace samurai
                         if (this->is_periodic(d))
                         {
                             auto domain_shift = get_periodic_shift(this->domain(), level, d);
-                            auto expr_left    = intersection(nestedExpand(self(this->subdomain()).on(level), config::ghost_width),
+
+                            auto expr_left = intersection(expanded_subdomain,
                                                           translate(neighbour.mesh[mesh_id_t::reference][level], -domain_shift));
                             expr_left(
                                 [&](const auto& interval, const auto& index_yz)
@@ -443,7 +448,7 @@ namespace samurai
                                     lcl[index_yz].add_interval(interval);
                                 });
 
-                            auto expr_right = intersection(nestedExpand(self(this->subdomain()).on(level), config::ghost_width),
+                            auto expr_right = intersection(expanded_subdomain,
                                                            translate(neighbour.mesh[mesh_id_t::reference][level], domain_shift));
                             expr_right(
                                 [&](const auto& interval, const auto& index_yz)
@@ -490,8 +495,8 @@ namespace samurai
             {
                 out[iout++] = true;
             }
-            return out;
         }
+        return out;
     }
 } // namespace samurai
 

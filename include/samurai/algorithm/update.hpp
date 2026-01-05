@@ -690,8 +690,9 @@ namespace samurai
                 std::ptrdiff_t count = 0;
 
                 world.recv(neighbour.rank, world.rank(), to_recv);
-                auto in_interface = intersection(neighbour.mesh[mesh_id_t::reference][level],
-                                                 mesh[mesh_id_t::reference][level],
+                // Ensure intervals align with local mesh partitioning by placing local reference first
+                auto in_interface = intersection(mesh[mesh_id_t::reference][level],
+                                                 neighbour.mesh[mesh_id_t::reference][level],
                                                  neighbour.mesh.subdomain())
                                         .on(level);
                 in_interface(
@@ -779,6 +780,7 @@ namespace samurai
 
                 world.recv(neighbour.rank, world.rank(), to_recv);
 
+                // Ensure intervals align with local mesh partitioning by placing local reference first
                 auto in_interface = intersection(mesh[mesh_id_t::reference][level],
                                                  neighbour.mesh[mesh_id_t::reference][level],
                                                  neighbour.mesh.subdomain())

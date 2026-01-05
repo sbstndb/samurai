@@ -23,7 +23,7 @@ namespace samurai
         EXPECT_EQ(mesh.min_level(), 5);
         EXPECT_EQ(mesh.max_level(), 5);
         EXPECT_GT(mesh.nb_cells(), 0);
-        EXPECT_EQ(mesh.nb_cells(), 32 * 32);  // 2^5 x 2^5 = 1024
+        EXPECT_EQ(mesh.nb_cells(), 32 * 32); // 2^5 x 2^5 = 1024
     }
 
     TEST(UniformMesh, CreateFromBox1D)
@@ -36,7 +36,7 @@ namespace samurai
 
         EXPECT_EQ(mesh.min_level(), 4);
         EXPECT_EQ(mesh.max_level(), 4);
-        EXPECT_EQ(mesh.nb_cells(), 16);  // 2^4 = 16
+        EXPECT_EQ(mesh.nb_cells(), 16); // 2^4 = 16
     }
 
     TEST(UniformMesh, CreateFromBox3D)
@@ -49,7 +49,7 @@ namespace samurai
 
         EXPECT_EQ(mesh.min_level(), 3);
         EXPECT_EQ(mesh.max_level(), 3);
-        EXPECT_EQ(mesh.nb_cells(), 8 * 8 * 8);  // 2^3 x 2^3 x 2^3 = 512
+        EXPECT_EQ(mesh.nb_cells(), 8 * 8 * 8); // 2^3 x 2^3 x 2^3 = 512
     }
 
     //==========================================================================
@@ -67,10 +67,7 @@ namespace samurai
 
     TEST(MeshConfig, LevelChaining)
     {
-        auto config = mesh_config<2>()
-                          .level(5)
-                          .max_stencil_size(4)
-                          .periodic(true);
+        auto config = mesh_config<2>().level(5).max_stencil_size(4).periodic(true);
 
         EXPECT_EQ(config.min_level(), 5);
         EXPECT_EQ(config.max_level(), 5);
@@ -158,9 +155,7 @@ namespace samurai
         constexpr std::size_t dim = 2;
         Box<double, dim> box({0., 0.}, {1., 1.});
 
-        auto config = mesh_config<dim>()
-                          .level(4)
-                          .periodic(true);
+        auto config = mesh_config<dim>().level(4).periodic(true);
 
         auto mesh = uniform::make_mesh(box, config);
 
@@ -175,15 +170,13 @@ namespace samurai
         Box<double, dim> box({0., 0.}, {1., 1.});
 
         std::array<bool, dim> periodicity = {true, false};
-        auto config                       = mesh_config<dim>()
-                          .level(4)
-                          .periodic(periodicity);
+        auto config                       = mesh_config<dim>().level(4).periodic(periodicity);
 
         auto mesh = uniform::make_mesh(box, config);
 
         EXPECT_TRUE(mesh.is_periodic(0));
         EXPECT_FALSE(mesh.is_periodic(1));
-        EXPECT_TRUE(mesh.is_periodic());  // At least one direction is periodic
+        EXPECT_TRUE(mesh.is_periodic()); // At least one direction is periodic
     }
 
     //==========================================================================
@@ -230,4 +223,4 @@ namespace samurai
         EXPECT_NEAR(origin[1], 0.5, 1e-10);
     }
 
-}  // namespace samurai
+} // namespace samurai

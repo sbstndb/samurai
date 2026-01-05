@@ -33,9 +33,9 @@ namespace samurai
     {
       public:
 
-        using base_type   = Mesh_base<UniformMesh<Config>, Config>;
-        using self_type   = UniformMesh<Config>;
-        using config      = typename base_type::config;
+        using base_type = Mesh_base<UniformMesh<Config>, Config>;
+        using self_type = UniformMesh<Config>;
+        using config    = typename base_type::config;
 
         static constexpr std::size_t dim = config::dim;
 
@@ -125,8 +125,7 @@ namespace samurai
                                   [&](auto stencil)
                                   {
                                       auto index = xt::eval(index_yz + stencil);
-                                      lcl[index].add_interval({interval.start - max_stencil_radius(),
-                                                               interval.end + max_stencil_radius()});
+                                      lcl[index].add_interval({interval.start - max_stencil_radius(), interval.end + max_stencil_radius()});
                                   });
                           });
 

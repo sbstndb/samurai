@@ -611,7 +611,7 @@ namespace samurai
     void update_outer_ghosts_uniform(std::size_t level, Field& field)
     {
         constexpr std::size_t dim = Field::dim;
-        auto& mesh = field.mesh();
+        auto& mesh                = field.mesh();
 
         // Apply corner extrapolation (no projection to lower levels)
         if constexpr (dim > 1)
@@ -673,7 +673,7 @@ namespace samurai
         times::timers.start("ghost update");
 
         auto& mesh = field.mesh();
-        auto level = mesh.min_level();  // = max_level for uniform mesh
+        auto level = mesh.min_level(); // = max_level for uniform mesh
 
         // Use optimized version that skips multi-level operations
         update_outer_ghosts_uniform(level, field, other_fields...);

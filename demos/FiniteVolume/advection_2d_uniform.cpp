@@ -61,10 +61,10 @@ int main(int argc, char* argv[])
     std::array<double, dim> a{
         {1, 1}
     };
-    double Tf           = .1;
-    double cfl          = 0.5;
-    double t            = 0.;
-    std::size_t level   = 7;
+    double Tf         = .1;
+    double cfl        = 0.5;
+    double t          = 0.;
+    std::size_t level = 7;
 
     // Output parameters
     fs::path path        = fs::current_path();
@@ -87,9 +87,7 @@ int main(int argc, char* argv[])
     const samurai::Box<double, dim> box(min_corner, max_corner);
 
     // Create uniform mesh using the new API
-    auto config = samurai::mesh_config<dim>()
-                      .level(level)
-                      .max_stencil_size(2);
+    auto config = samurai::mesh_config<dim>().level(level).max_stencil_size(2);
 
     auto mesh = samurai::uniform::make_mesh(box, config);
 

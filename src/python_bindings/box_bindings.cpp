@@ -222,19 +222,6 @@ py::object box_factory_impl(int dim, py::array_t<double> min_arr, py::array_t<do
     }
 }
 
-// Factory with explicit dtype and dim
-py::object box_factory_explicit(const std::string& dtype, int dim,
-                                py::array_t<double> min_arr,
-                                py::array_t<double> max_arr) {
-    if (dtype == "double" || dtype == "float64") {
-        return box_factory_impl<double>(dim, min_arr, max_arr);
-    } else if (dtype == "float" || dtype == "float32") {
-        return box_factory_impl<float>(dim, min_arr, max_arr);
-    } else {
-        throw std::runtime_error("Unsupported dtype: " + dtype + " (use 'double' or 'float')");
-    }
-}
-
 // Factory with auto-detected dimension and default dtype
 py::object box_factory_auto(py::array_t<double> min_arr,
                            py::array_t<double> max_arr,
@@ -252,7 +239,14 @@ py::object box_factory_auto(py::array_t<double> min_arr,
         throw std::runtime_error("Auto-detected dimension must be 1, 2, or 3, got: " + std::to_string(dim));
     }
 
-    return box_factory_explicit(dtype, static_cast<int>(dim), min_arr, max_arr);
+    // Dispatch to appropriate type
+    if (dtype == "double" || dtype == "float64") {
+        return box_factory_impl<double>(static_cast<int>(dim), min_arr, max_arr);
+    } else if (dtype == "float" || dtype == "float32") {
+        return box_factory_impl<float>(static_cast<int>(dim), min_arr, max_arr);
+    } else {
+        throw std::runtime_error("Unsupported dtype: " + dtype + " (use 'double' or 'float')");
+    }
 }
 
 // ============================================================================
@@ -314,32 +308,6 @@ PYBIND11_MODULE(samurai_core, m) {
           py::arg("min_corner"),
           py::arg("max_corner"),
           py::arg("dtype") = "double");
-
-    // 2. Advanced factory with explicit dtype and dim
-    m.def("Box_ex", &box_factory_explicit,
-          R"(
-          Create a Box with explicit dtype and dimension (advanced usage).
-
-          Parameters
-          ----------
-          dtype : str
-              Data type ('double', 'float64', 'float', or 'float32')
-          dim : int
-              Spatial dimension (1, 2, or 3)
-          min_corner : array-like
-              Minimum corner coordinates
-          max_corner : array-like
-              Maximum corner coordinates
-
-          Note
-          ----
-          In most cases, use Box() with auto-detection instead:
-              Box(min, max)  # auto-detects dimension, default dtype='double'
-          )",
-          py::arg("dtype"),
-          py::arg("dim"),
-          py::arg("min_corner"),
-          py::arg("max_corner"));
 
     // ============================================================================
     // SIMPLE ALIASES - Short names for common cases

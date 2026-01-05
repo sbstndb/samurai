@@ -21,29 +21,34 @@ except ImportError as e:
 
 
 def test_factory_function():
-    """Test Box factory function."""
-    print("--- Test 1: Factory Function ---")
+    """Test Box factory function with auto-detection."""
+    print("--- Test 1: Factory Function (Auto-Detection) ---")
 
-    # 2D double precision
-    box2d = samurai_core.Box('double', 2, np.array([0., 0.]), np.array([1., 1.]))
+    # 2D double precision (default)
+    box2d = samurai_core.Box(np.array([0., 0.]), np.array([1., 1.]))
     print(f"2D double: {box2d}")
     assert np.allclose(box2d.min, [0., 0.])
+    assert type(box2d).__name__ == "Box2D_double"
 
-    # 3D double precision
-    box3d = samurai_core.Box('double', 3, np.array([0., 0., 0.]), np.array([1., 1., 1.]))
+    # 3D double precision (auto-detected)
+    box3d = samurai_core.Box(np.array([0., 0., 0.]), np.array([1., 1., 1.]))
     print(f"3D double: {box3d}")
     assert np.allclose(box3d.min, [0., 0., 0.])
     assert box3d.length().shape[0] == 3
+    assert type(box3d).__name__ == "Box3D_double"
 
-    # 2D float precision
-    box2d_float = samurai_core.Box('float', 2, np.array([0., 0.]), np.array([1., 1.]))
+    # 2D float precision (with dtype)
+    box2d_float = samurai_core.Box(np.array([0., 0.]), np.array([1., 1.]), dtype='float')
     print(f"2D float: {box2d_float}")
+    assert type(box2d_float).__name__ == "Box2D_float"
 
-    # Using aliases
-    box_f64 = samurai_core.Box('float64', 2, np.array([0., 0.]), np.array([1., 1.]))
-    box_f32 = samurai_core.Box('float32', 2, np.array([0., 0.]), np.array([1., 1.]))
+    # Using dtype aliases
+    box_f64 = samurai_core.Box(np.array([0., 0.]), np.array([1., 1.]), dtype='float64')
+    box_f32 = samurai_core.Box(np.array([0., 0.]), np.array([1., 1.]), dtype='float32')
     print(f"float64 alias: {box_f64}")
     print(f"float32 alias: {box_f32}")
+    assert type(box_f64).__name__ == "Box2D_double"
+    assert type(box_f32).__name__ == "Box2D_float"
 
     print("  PASSED")
 
@@ -90,11 +95,9 @@ def test_3d_operations():
     """Test 3D box operations."""
     print("\n--- Test 4: 3D Operations ---")
 
-    box1 = samurai_core.Box('double', 3,
-                            np.array([0., 0., 0.]),
+    box1 = samurai_core.Box(np.array([0., 0., 0.]),
                             np.array([2., 2., 2.]))
-    box2 = samurai_core.Box('double', 3,
-                            np.array([1., 1., 1.]),
+    box2 = samurai_core.Box(np.array([1., 1., 1.]),
                             np.array([3., 3., 3.]))
 
     print(f"box1: {box1}")

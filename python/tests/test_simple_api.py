@@ -102,9 +102,6 @@ With explicit aliases:
 
 For float precision:
   box = samurai_core.Box(np.array([0., 0.]), np.array([1., 1.]), dtype='float')
-
-Advanced (rarely needed):
-  box = samurai_core.Box_ex('double', 2, np.array([0., 0.]), np.array([1., 1.]))
 """)
 
 print("=" * 50)

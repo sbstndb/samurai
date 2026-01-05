@@ -43,12 +43,15 @@ namespace samurai
                     double neighbour_load         = loads[neighbour_rank];
                     double diff_load = neighbour_load - my_load_new;
 
-                    // If transferLoad < 0 -> need to send data, if transferLoad > 0 need to receive data
-                    // TODO : Use diffusion factor 1/(deg+1) for stability
-                    double transfertLoad = 0.5* diff_load;
+                    // Use diffusion factor 1/(deg+1) for stability to prevent oscillations
+                    double transfertLoad = diff_load / (n_neighbours + 1);
 
-                    // Accumulate total flux on current edge
-                    fluxes[neighbour_idx] += transfertLoad;
+                    // Only accumulate positive transfers (outgoing flux)
+                    // This ensures unidirectional flux calculation
+                    if (transfertLoad > 0)
+                    {
+                        fluxes[neighbour_idx] += transfertLoad;
+                    }
 
                     // Mark if a non-zero transfer was performed
                     if (transfertLoad != 0)
@@ -134,7 +137,8 @@ namespace samurai
                 double flux = fluxes[i];
                 auto neighbour_rank = neighbourhood[i].rank;
 
-                if (flux < 0) // We must send cells
+                // Only send if we have a negative flux (net outflow)
+                if (flux < 0) 
                 {
                     double weight_to_send = -flux;
                     double accumulated_weight = 0;

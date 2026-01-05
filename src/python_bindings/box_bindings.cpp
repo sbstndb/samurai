@@ -37,11 +37,13 @@ auto array_to_point(py::array_t<double> arr) {
 template <typename value_t, std::size_t dim>
 void bind_box_typed(py::module_& m, const std::string& type_name) {
     using Box = samurai::Box<value_t, dim>;
-    using point_t = typename Box::point_t;
 
     // Create class name: Box2D_double, Box3D_float, etc.
     std::string dim_str = (dim == 1) ? "1D" : (dim == 2) ? "2D" : "3D";
     std::string class_name = "Box" + dim_str + "_" + type_name;
+
+    // Store dimension as runtime value for lambda captures
+    constexpr std::size_t dim_value = dim;
 
     py::class_<Box>(m, class_name.c_str())
         // Constructor from two corners
@@ -61,9 +63,9 @@ void bind_box_typed(py::module_& m, const std::string& type_name) {
         .def_property_readonly("min",
              [](const Box& box) -> py::array_t<double> {
                  const auto& min_corner = box.min_corner();
-                 py::array_t<double> result(dim);
+                 py::array_t<double> result(dim_value);
                  auto buf = result.mutable_unchecked<1>();
-                 for (std::size_t i = 0; i < dim; ++i) {
+                 for (std::size_t i = 0; i < dim_value; ++i) {
                      buf(i) = static_cast<double>(min_corner[i]);
                  }
                  return result;
@@ -73,9 +75,9 @@ void bind_box_typed(py::module_& m, const std::string& type_name) {
         .def_property_readonly("max",
              [](const Box& box) -> py::array_t<double> {
                  const auto& max_corner = box.max_corner();
-                 py::array_t<double> result(dim);
+                 py::array_t<double> result(dim_value);
                  auto buf = result.mutable_unchecked<1>();
-                 for (std::size_t i = 0; i < dim; ++i) {
+                 for (std::size_t i = 0; i < dim_value; ++i) {
                      buf(i) = static_cast<double>(max_corner[i]);
                  }
                  return result;
@@ -93,9 +95,9 @@ void bind_box_typed(py::module_& m, const std::string& type_name) {
         // Utility methods - wrap xtensor expressions
         .def("length", [](const Box& box) -> py::array_t<double> {
             auto len = box.length();
-            py::array_t<double> result(dim);
+            py::array_t<double> result(dim_value);
             auto buf = result.mutable_unchecked<1>();
-            for (std::size_t i = 0; i < dim; ++i) {
+            for (std::size_t i = 0; i < dim_value; ++i) {
                 buf(i) = static_cast<double>(len[i]);
             }
             return result;
@@ -156,18 +158,18 @@ void bind_box_typed(py::module_& m, const std::string& type_name) {
         }, py::arg("factor"),
            "Scale box by factor (reverse, for factor * box)")
 
-        // String representation - capture by value since dim is compile-time
-        .def("__repr__", [class_name](const Box& box) {
+        // String representation
+        .def("__repr__", [class_name, dim_value](const Box& box) {
             std::ostringstream oss;
             const auto& min = box.min_corner();
             const auto& max = box.max_corner();
             oss << class_name << "(min=[";
-            for (std::size_t i = 0; i < dim; ++i) {
+            for (std::size_t i = 0; i < dim_value; ++i) {
                 if (i > 0) oss << ", ";
                 oss << min[i];
             }
             oss << "], max=[";
-            for (std::size_t i = 0; i < dim; ++i) {
+            for (std::size_t i = 0; i < dim_value; ++i) {
                 if (i > 0) oss << ", ";
                 oss << max[i];
             }
@@ -175,17 +177,17 @@ void bind_box_typed(py::module_& m, const std::string& type_name) {
             return oss.str();
         })
 
-        .def("__str__", [class_name](const Box& box) {
+        .def("__str__", [dim_value](const Box& box) {
             std::ostringstream oss;
             const auto& min = box.min_corner();
             const auto& max = box.max_corner();
-            oss << "Box" << dim << "D([";
-            for (std::size_t i = 0; i < dim; ++i) {
+            oss << "Box" << dim_value << "D([";
+            for (std::size_t i = 0; i < dim_value; ++i) {
                 if (i > 0) oss << ", ";
                 oss << min[i];
             }
             oss << "] -> [";
-            for (std::size_t i = 0; i < dim; ++i) {
+            for (std::size_t i = 0; i < dim_value; ++i) {
                 if (i > 0) oss << ", ";
                 oss << max[i];
             }
@@ -195,7 +197,7 @@ void bind_box_typed(py::module_& m, const std::string& type_name) {
 }
 
 // ============================================================================
-// Factory function for unified Box creation
+// Factory function implementations
 // ============================================================================
 template <typename value_t>
 py::object box_factory_impl(int dim, py::array_t<double> min_arr, py::array_t<double> max_arr) {
@@ -220,9 +222,10 @@ py::object box_factory_impl(int dim, py::array_t<double> min_arr, py::array_t<do
     }
 }
 
-py::object box_factory(const std::string& dtype, int dim,
-                       py::array_t<double> min_arr,
-                       py::array_t<double> max_arr) {
+// Factory with explicit dtype and dim
+py::object box_factory_explicit(const std::string& dtype, int dim,
+                                py::array_t<double> min_arr,
+                                py::array_t<double> max_arr) {
     if (dtype == "double" || dtype == "float64") {
         return box_factory_impl<double>(dim, min_arr, max_arr);
     } else if (dtype == "float" || dtype == "float32") {
@@ -232,6 +235,26 @@ py::object box_factory(const std::string& dtype, int dim,
     }
 }
 
+// Factory with auto-detected dimension and default dtype
+py::object box_factory_auto(py::array_t<double> min_arr,
+                           py::array_t<double> max_arr,
+                           const std::string& dtype) {
+    // Auto-detect dimension from array size
+    auto buf_min = min_arr.request();
+    auto buf_max = max_arr.request();
+
+    if (buf_min.size != buf_max.size) {
+        throw std::runtime_error("min_corner and max_corner must have the same size");
+    }
+
+    std::size_t dim = buf_min.size;
+    if (dim < 1 || dim > 3) {
+        throw std::runtime_error("Auto-detected dimension must be 1, 2, or 3, got: " + std::to_string(dim));
+    }
+
+    return box_factory_explicit(dtype, static_cast<int>(dim), min_arr, max_arr);
+}
+
 // ============================================================================
 // Module definition
 // ============================================================================
@@ -239,7 +262,7 @@ PYBIND11_MODULE(samurai_core, m) {
     m.doc() = "Samurai V2 Python Bindings - Generic Box Implementation";
 
     // Version info
-    m.attr("__version__") = "0.2.0-dev";
+    m.attr("__version__") = "0.3.0-dev";
 
     // ============================================================================
     // EXPLICIT TEMPLATE INSTANTIATIONS
@@ -255,11 +278,47 @@ PYBIND11_MODULE(samurai_core, m) {
     bind_box_typed<float, 3>(m, "float");
 
     // ============================================================================
-    // FACTORY FUNCTION - Unified API
+    // FACTORY FUNCTIONS
     // ============================================================================
-    m.def("Box", &box_factory,
+
+    // 1. Simple factory with auto-detection (DEFAULT)
+    m.def("Box", &box_factory_auto,
           R"(
-          Create a Box with specified dtype and dimension.
+          Create a Box with auto-detected dimension.
+
+          Parameters
+          ----------
+          min_corner : array-like
+              Minimum corner coordinates (dimension auto-detected from size)
+          max_corner : array-like
+              Maximum corner coordinates (must have same size as min_corner)
+          dtype : str, optional
+              Data type ('double', 'float64', 'float', or 'float32'). Default is 'double'.
+
+          Returns
+          -------
+          Box
+              A Box object of the appropriate type (Box1D_double, Box2D_double, or Box3D_double)
+
+          Examples
+          --------
+          >>> import samurai_core
+          >>> import numpy as np
+          >>> # Auto-detect 2D
+          >>> box = samurai_core.Box(np.array([0., 0.]), np.array([1., 1.]))
+          >>> # Auto-detect 3D
+          >>> box3d = samurai_core.Box(np.array([0., 0., 0.]), np.array([1., 1., 1.]))
+          >>> # With explicit dtype
+          >>> box_f = samurai_core.Box(np.array([0., 0.]), np.array([1., 1.]), dtype='float')
+          )",
+          py::arg("min_corner"),
+          py::arg("max_corner"),
+          py::arg("dtype") = "double");
+
+    // 2. Advanced factory with explicit dtype and dim
+    m.def("Box_ex", &box_factory_explicit,
+          R"(
+          Create a Box with explicit dtype and dimension (advanced usage).
 
           Parameters
           ----------
@@ -272,25 +331,10 @@ PYBIND11_MODULE(samurai_core, m) {
           max_corner : array-like
               Maximum corner coordinates
 
-          Returns
-          -------
-          Box
-              A Box object of the appropriate type
-
-          Examples
-          --------
-          >>> import samurai_core
-          >>> import numpy as np
-          >>> # Create 2D double precision box
-          >>> box = samurai_core.Box('double', 2, np.array([0., 0.]), np.array([1., 1.]))
-          >>> # Create 3D float precision box
-          >>> box3d = samurai_core.Box('float', 3, np.array([0., 0., 0.]), np.array([1., 1., 1.]))
-
           Note
           ----
-          For better type safety and IDE support, you can also use the specific classes:
-              - samurai_core.Box1D_double, Box2D_double, Box3D_double
-              - samurai_core.Box1D_float, Box2D_float, Box3D_float
+          In most cases, use Box() with auto-detection instead:
+              Box(min, max)  # auto-detects dimension, default dtype='double'
           )",
           py::arg("dtype"),
           py::arg("dim"),
@@ -298,7 +342,9 @@ PYBIND11_MODULE(samurai_core, m) {
           py::arg("max_corner"));
 
     // ============================================================================
-    // BACKWARDS COMPATIBILITY - Keep Box2D as alias to Box2D_double
+    // SIMPLE ALIASES - Short names for common cases
     // ============================================================================
+    m.attr("Box1D") = m.attr("Box1D_double");
     m.attr("Box2D") = m.attr("Box2D_double");
+    m.attr("Box3D") = m.attr("Box3D_double");
 }

@@ -19,9 +19,12 @@ namespace samurai
 
     TEST(common_utils, make_list)
     {
-        auto list = make_list<int, int>({{0, 5}, {10, 15}});
+        auto list = make_list<int, int>({
+            {0,  5 },
+            {10, 15}
+        });
         xt::xarray<Interval<int, int>> expected{
-            {0, 5},
+            {0,  5 },
             {10, 15}
         };
         EXPECT_EQ(list, expected);
@@ -29,7 +32,10 @@ namespace samurai
 
     TEST(common_utils, make_xarray)
     {
-        auto array = make_xarray<int, int>({{0, 5}, {10, 15}});
+        auto array = make_xarray<int, int>({
+            {0,  5 },
+            {10, 15}
+        });
         EXPECT_EQ(array.size(), 2);
         EXPECT_EQ(array[0].start, 0);
         EXPECT_EQ(array[0].end, 5);

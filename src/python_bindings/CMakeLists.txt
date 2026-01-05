@@ -34,9 +34,14 @@ pybind11_add_module(samurai_fields
     field_bindings.cpp
 )
 
+pybind11_add_module(samurai_vector_fields
+    vector_field_bindings.cpp
+)
+
 # Set C++ standard
 target_compile_features(samurai_core PRIVATE cxx_std_20)
 target_compile_features(samurai_fields PRIVATE cxx_std_20)
+target_compile_features(samurai_vector_fields PRIVATE cxx_std_20)
 
 # Include Samurai headers
 target_include_directories(samurai_core
@@ -45,6 +50,11 @@ target_include_directories(samurai_core
 )
 
 target_include_directories(samurai_fields
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+target_include_directories(samurai_vector_fields
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include
 )
@@ -60,6 +70,11 @@ target_link_libraries(samurai_fields
         samurai
 )
 
+target_link_libraries(samurai_vector_fields
+    PRIVATE
+        samurai
+)
+
 # Optimization for release builds
 if(CMAKE_BUILD_TYPE MATCHES Release)
     target_compile_options(samurai_core PRIVATE
@@ -67,6 +82,10 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
         -march=native
     )
     target_compile_options(samurai_fields PRIVATE
+        -O3
+        -march=native
+    )
+    target_compile_options(samurai_vector_fields PRIVATE
         -O3
         -march=native
     )
@@ -78,6 +97,10 @@ set_target_properties(samurai_core PROPERTIES
 )
 
 set_target_properties(samurai_fields PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python
+)
+
+set_target_properties(samurai_vector_fields PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python
 )
 

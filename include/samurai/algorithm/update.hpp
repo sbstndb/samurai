@@ -594,6 +594,135 @@ namespace samurai
         update_ghost_mr(fields.elements());
     }
 
+    //==========================================================================
+    //                    update_ghost_uniform
+    //==========================================================================
+
+    /**
+     * @brief Optimized outer ghost update for uniform mesh (single level)
+     *
+     * This version skips all multi-level operations:
+     * - No project_corner_below (no level-1/level-2)
+     * - No project_bc (no finer level to project from)
+     * - No predict_bc (no coarser level to predict to)
+     * - Just apply BC and polynomial extrapolation if needed
+     */
+    template <class Field>
+    void update_outer_ghosts_uniform(std::size_t level, Field& field)
+    {
+        constexpr std::size_t dim = Field::dim;
+        auto& mesh                = field.mesh();
+
+        // Apply corner extrapolation (no projection to lower levels)
+        if constexpr (dim > 1)
+        {
+            for_each_diagonal_direction<dim>(
+                [&](auto& direction)
+                {
+                    auto d = find_direction_index(direction);
+                    if (!mesh.is_periodic(d))
+                    {
+                        update_outer_corners_by_polynomial_extrapolation(level, direction, field);
+                        // Skip project_corner_below - no lower levels for uniform mesh
+                    }
+                });
+        }
+
+        // Apply BC at the single level (no projection/prediction)
+        for_each_cartesian_direction<dim>(
+            [&](auto direction_index, const auto& direction)
+            {
+                if (!mesh.is_periodic(direction_index))
+                {
+                    // Skip project_bc - no finer level (level == max_level always)
+                    apply_field_bc(level, direction, field);
+                    // Skip predict_bc - no coarser level (level == min_level always)
+                }
+            });
+
+        // Fill remaining ghost layers with polynomial extrapolation if needed
+        for_each_cartesian_direction<dim>(
+            [&](auto direction_index, const auto& direction)
+            {
+                if (!mesh.is_periodic(direction_index))
+                {
+                    update_further_ghosts_by_polynomial_extrapolation(level, direction, field);
+                }
+            });
+    }
+
+    template <class Field, class... Fields>
+    void update_outer_ghosts_uniform(std::size_t level, Field& field, Fields&... other_fields)
+    {
+        update_outer_ghosts_uniform(level, field);
+        update_outer_ghosts_uniform(level, other_fields...);
+    }
+
+    /**
+     * @brief Update ghosts for uniform mesh (single level, no prediction/projection)
+     *
+     * For uniform meshes, ghost update is much simpler:
+     * - Only one level exists
+     * - No projection from finer levels
+     * - No prediction from coarser levels
+     * - Just apply boundary conditions and periodic ghosts
+     */
+    template <class Field, class... Fields>
+    void update_ghost_uniform(Field& field, Fields&... other_fields)
+    {
+        times::timers.start("ghost update");
+
+        auto& mesh = field.mesh();
+        auto level = mesh.min_level(); // = max_level for uniform mesh
+
+        // Use optimized version that skips multi-level operations
+        update_outer_ghosts_uniform(level, field, other_fields...);
+        update_ghost_periodic(level, field, other_fields...);
+        update_ghost_subdomains(level, field, other_fields...);
+
+        field.ghosts_updated() = true;
+        ((other_fields.ghosts_updated() = true), ...);
+
+        times::timers.stop("ghost update");
+    }
+
+    inline void update_ghost_uniform()
+    {
+    }
+
+    template <class... T>
+    inline void update_ghost_uniform(std::tuple<T...>& fields)
+    {
+        std::apply(
+            [](T&... tupleArgs)
+            {
+                update_ghost_uniform(tupleArgs...);
+            },
+            fields);
+    }
+
+    template <class... T>
+    inline void update_ghost_uniform(Field_tuple<T...>& fields)
+    {
+        update_ghost_uniform(fields.elements());
+    }
+
+    template <class Field>
+    void update_ghost_uniform_if_needed(Field& field)
+    {
+        if (!field.ghosts_updated())
+        {
+            update_ghost_uniform(field);
+        }
+    }
+
+    template <class Field, class... Fields>
+    void update_ghost_uniform_if_needed(Field& field, Fields&... other_fields)
+    {
+        update_ghost_uniform_if_needed(field);
+        update_ghost_uniform_if_needed(other_fields...);
+    }
+
     template <bool to_send, class Field>
     auto outer_subdomain_corner(std::size_t level, Field& field, const typename Field::mesh_t::mpi_subdomain_t& neighbour)
     {

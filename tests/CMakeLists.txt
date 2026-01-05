@@ -34,6 +34,7 @@ set(SAMURAI_TESTS
     test_scaling.cpp
     test_stencil.cpp
     test_subset.cpp
+    test_uniform_mesh.cpp
     test_utils.cpp
 )
 

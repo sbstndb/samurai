@@ -215,6 +215,25 @@ namespace samurai
             return m_start_level;
         }
 
+        // m_level (convenience for uniform mesh) ---------
+
+        /**
+         * @brief set level for uniform mesh (sets min=max=start=n)
+         *
+         * This is a convenience method primarily for uniform meshes where
+         * all levels are the same.
+         *
+         * @param n the level value
+         * @return auto& returns this object for chaining
+         */
+        auto& level(std::size_t n)
+        {
+            m_min_level   = n;
+            m_max_level   = n;
+            m_start_level = n;
+            return *this;
+        }
+
         // m_approx_box_tol -------------------------------
 
         /**

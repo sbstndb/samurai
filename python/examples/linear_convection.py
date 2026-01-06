@@ -64,8 +64,8 @@ def main():
     cfl = 0.95        # CFL condition
 
     # Mesh parameters
-    min_level = 1
-    max_level = 4
+    min_level = 5
+    max_level = 9
     max_stencil_size = 6  # Required for WENO5
 
     # Multiresolution parameters
@@ -73,7 +73,7 @@ def main():
     regularity = 1.0    # Gradation parameter
 
     # Output parameters
-    output_path = Path("./results")
+    output_path = Path("/home/sbstndbs/sbstndbs/samurai/linear_convection_python")
     filename = "linear_convection_2d_python"
     nfiles = 10  # Number of output files
 

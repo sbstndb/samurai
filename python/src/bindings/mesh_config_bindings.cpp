@@ -256,8 +256,110 @@ void bind_mesh_config(py::module_& m, const std::string& name)
             Ghost width, computed from stencil
     )pbdoc");
 
-    // Constructor
+    // Default constructor
     cls.def(py::init<>(), "Create default mesh configuration");
+
+    // Constructor with keyword arguments (Pythonic API)
+    cls.def(py::init(
+            [](std::size_t min_level, std::size_t max_level,
+               std::size_t start_level, std::size_t graduation_width,
+               int max_stencil_radius, double scaling_factor,
+               double approx_box_tol, bool periodic,
+               py::object periodic_per_direction,
+               bool disable_minimal_ghost) -> Config
+            {
+                Config cfg;
+
+                // Only set if provided (use sentinel values)
+                if (min_level != std::numeric_limits<std::size_t>::max()) {
+                    cfg.min_level(min_level);
+                }
+                if (max_level != std::numeric_limits<std::size_t>::max()) {
+                    cfg.max_level(max_level);
+                }
+                if (start_level != std::numeric_limits<std::size_t>::max()) {
+                    cfg.start_level(start_level);
+                }
+                if (graduation_width != std::numeric_limits<std::size_t>::max()) {
+                    cfg.graduation_width(graduation_width);
+                }
+                if (max_stencil_radius >= 0) {
+                    cfg.max_stencil_radius(max_stencil_radius);
+                }
+                if (scaling_factor >= 0.0) {
+                    cfg.scaling_factor(scaling_factor);
+                }
+                if (approx_box_tol >= 0.0) {
+                    cfg.approx_box_tol(approx_box_tol);
+                }
+
+                // Handle periodicity
+                if (!periodic_per_direction.is_none()) {
+                    if constexpr (dim == 1) {
+                        cfg.periodic(periodic);
+                    } else {
+                        auto per = periodic_per_direction.cast<std::array<bool, dim>>();
+                        cfg.periodic(per);
+                    }
+                } else if (periodic) {
+                    cfg.periodic(periodic);
+                }
+
+                // Handle ghost width
+                if (disable_minimal_ghost) {
+                    cfg.disable_minimal_ghost_width();
+                }
+
+                return cfg;
+            }),
+        py::arg("min_level") = std::numeric_limits<std::size_t>::max(),
+        py::arg("max_level") = 6,
+        py::arg("start_level") = std::numeric_limits<std::size_t>::max(),
+        py::arg("graduation_width") = std::numeric_limits<std::size_t>::max(),
+        py::arg("max_stencil_radius") = -1,
+        py::arg("scaling_factor") = -1.0,
+        py::arg("approx_box_tol") = -1.0,
+        py::arg("periodic") = false,
+        py::arg("periodic_per_direction") = py::none(),
+        py::arg("disable_minimal_ghost_width") = false,
+        R"pbdoc(
+        Create mesh configuration with optional parameters.
+
+        Parameters
+        ----------
+        min_level : int, optional
+            Minimum refinement level
+        max_level : int, optional
+            Maximum refinement level (default: 6)
+        start_level : int, optional
+            Starting refinement level
+        graduation_width : int, optional
+            AMR graduation width
+        max_stencil_radius : int, optional
+            Maximum stencil radius
+        scaling_factor : float, optional
+            Coordinate scaling factor
+        approx_box_tol : float, optional
+            Approximation tolerance for box
+        periodic : bool, optional
+            Set periodicity in all directions (default: False)
+        periodic_per_direction : list[bool], optional
+            Set periodicity per direction (overrides periodic)
+        disable_minimal_ghost_width : bool, optional
+            Disable minimal ghost width (default: False)
+
+        Examples
+        --------
+        >>> config = sam.MeshConfig2D(min_level=4, max_level=10)
+        >>> config = sam.MeshConfig2D(min_level=2, max_level=8, periodic=True)
+        >>> config = sam.MeshConfig2D(min_level=0, max_level=5,
+        ...                            periodic_per_direction=[True, False])
+
+        Notes
+        -----
+        Method chaining is still supported:
+        >>> config = sam.MeshConfig2D().min_level(4).max_level(10)
+        )pbdoc");
 
     // Bind all common methods
     bind_mesh_config_common_methods<dim>(cls);

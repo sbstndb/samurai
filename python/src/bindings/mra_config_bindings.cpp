@@ -126,6 +126,47 @@ void bind_mra_config(py::module_& m, const std::string& name)
             "Create MRA configuration with default values\n"
             "(epsilon=1e-4, regularity=1.0, relative_detail=False)");
 
+    // Constructor with keyword arguments (Pythonic API)
+    cls.def(py::init(
+            [](double epsilon, double regularity, bool relative_detail)
+            {
+                mra_config cfg;
+                cfg.epsilon(epsilon);
+                cfg.regularity(regularity);
+                cfg.relative_detail(relative_detail);
+                return cfg;
+            }),
+        py::arg("epsilon") = 1e-4,
+        py::arg("regularity") = 1.0,
+        py::arg("relative_detail") = false,
+        R"pbdoc(
+        Create MRA configuration with optional parameters.
+
+        Parameters
+        ----------
+        epsilon : float, optional
+            Tolerance for mesh adaptation (default: 1e-4).
+            Cells with detail coefficients below this threshold may be coarsened.
+            Typical values range from 1e-5 (very fine) to 1e-1 (coarse).
+        regularity : float, optional
+            Regularity parameter for mesh gradation (default: 1.0).
+            Higher values enforce smoother transitions between refinement levels.
+            Typical values range from 0.0 (minimal gradation) to 3.0 (very smooth).
+        relative_detail : bool, optional
+            Use relative detail criterion (default: False).
+            When True, detail is normalized by maximum field values.
+
+        Examples
+        --------
+        >>> config = sam.MRAConfig(epsilon=2e-4, regularity=2.0)
+        >>> config = sam.MRAConfig().epsilon(1e-5).relative_detail(True)
+
+        Notes
+        -----
+        Method chaining is still supported:
+        >>> config = sam.MRAConfig().epsilon(2e-4).regularity(2.0)
+        )pbdoc");
+
     // Bind properties
     bind_mra_config_properties(cls);
 

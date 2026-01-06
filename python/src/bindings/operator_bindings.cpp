@@ -2,31 +2,31 @@
 //
 // Bindings for finite volume operators like upwind
 
-#include <samurai/stencil_field.hpp>
-#include <samurai/mr/mesh.hpp>
-#include <samurai/mesh_config.hpp>
-#include <samurai/field.hpp>
-#include <samurai/algorithm.hpp>
+#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/numpy.h>
+#include <samurai/algorithm.hpp>
+#include <samurai/field.hpp>
+#include <samurai/mesh_config.hpp>
+#include <samurai/mr/mesh.hpp>
+#include <samurai/stencil_field.hpp>
 
 namespace py = pybind11;
 
 // Type aliases matching mesh_bindings.cpp
 using default_interval = samurai::Interval<int, long long int>;
 
-using Config1D = samurai::mesh_config<1>;
+using Config1D         = samurai::mesh_config<1>;
 using CompleteConfig1D = samurai::complete_mesh_config<Config1D, samurai::MRMeshId>;
-using Mesh1D = samurai::MRMesh<CompleteConfig1D>;
+using Mesh1D           = samurai::MRMesh<CompleteConfig1D>;
 
-using Config2D = samurai::mesh_config<2>;
+using Config2D         = samurai::mesh_config<2>;
 using CompleteConfig2D = samurai::complete_mesh_config<Config2D, samurai::MRMeshId>;
-using Mesh2D = samurai::MRMesh<CompleteConfig2D>;
+using Mesh2D           = samurai::MRMesh<CompleteConfig2D>;
 
-using Config3D = samurai::mesh_config<3>;
+using Config3D         = samurai::mesh_config<3>;
 using CompleteConfig3D = samurai::complete_mesh_config<Config3D, samurai::MRMeshId>;
-using Mesh3D = samurai::MRMesh<CompleteConfig3D>;
+using Mesh3D           = samurai::MRMesh<CompleteConfig3D>;
 
 // Field type aliases
 template <std::size_t dim>
@@ -45,11 +45,10 @@ py::object upwind_1d(double velocity, ScalarField<1>& field)
 
     // Evaluate the expression immediately using for_each_interval
     samurai::for_each_interval(mesh,
-        [&result, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
-        {
-            result(level, interval, index) = upwind_expr(level, interval, index);
-        }
-    );
+                               [&result, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               {
+                                   result(level, interval, index) = upwind_expr(level, interval, index);
+                               });
 
     return py::cast(result);
 }
@@ -67,11 +66,10 @@ py::object upwind_2d(const std::array<double, 2>& velocity, ScalarField<2>& fiel
 
     // Evaluate the expression immediately using for_each_interval
     samurai::for_each_interval(mesh,
-        [&result, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
-        {
-            result(level, interval, index) = upwind_expr(level, interval, index);
-        }
-    );
+                               [&result, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               {
+                                   result(level, interval, index) = upwind_expr(level, interval, index);
+                               });
 
     return py::cast(result);
 }
@@ -89,11 +87,10 @@ py::object upwind_3d(const std::array<double, 3>& velocity, ScalarField<3>& fiel
 
     // Evaluate the expression immediately using for_each_interval
     samurai::for_each_interval(mesh,
-        [&result, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
-        {
-            result(level, interval, index) = upwind_expr(level, interval, index);
-        }
-    );
+                               [&result, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               {
+                                   result(level, interval, index) = upwind_expr(level, interval, index);
+                               });
 
     return py::cast(result);
 }
@@ -134,10 +131,10 @@ void init_operator_bindings(py::module_& m)
 {
     // Bind 1D upwind operator
     m.def("upwind",
-        &upwind_1d,
-        py::arg("velocity"),
-        py::arg("field"),
-        R"pbdoc(
+          &upwind_1d,
+          py::arg("velocity"),
+          py::arg("field"),
+          R"pbdoc(
         Upwind operator for 1D advection.
 
         Computes the upwind flux for a scalar field in 1D.
@@ -161,15 +158,14 @@ void init_operator_bindings(py::module_& m)
         >>> u = sam.ScalarField1D("u", mesh)
         >>> flux = sam.upwind(1.0, u)
         >>> # Use in time step: unp1 = u - dt * flux
-        )pbdoc"
-    );
+        )pbdoc");
 
     // Bind 2D upwind operator - std::array version
     m.def("upwind",
-        &upwind_2d,
-        py::arg("velocity"),
-        py::arg("field"),
-        R"pbdoc(
+          &upwind_2d,
+          py::arg("velocity"),
+          py::arg("field"),
+          R"pbdoc(
         Upwind operator for 2D advection (std::array version).
 
         Parameters
@@ -183,15 +179,14 @@ void init_operator_bindings(py::module_& m)
         -------
         ScalarField2D
             New field containing upwind flux values
-        )pbdoc"
-    );
+        )pbdoc");
 
     // Bind 2D upwind operator - Python sequence version (more convenient)
     m.def("upwind",
-        &upwind_2d_py,
-        py::arg("velocity"),
-        py::arg("field"),
-        R"pbdoc(
+          &upwind_2d_py,
+          py::arg("velocity"),
+          py::arg("field"),
+          R"pbdoc(
         Upwind operator for 2D advection.
 
         Computes the upwind flux for a scalar field in 2D.
@@ -216,15 +211,14 @@ void init_operator_bindings(py::module_& m)
         >>> velocity = [1.0, 1.0]  # [vx, vy]
         >>> flux = sam.upwind(velocity, u)
         >>> # Use in time step: unp1 = u - dt * flux
-        )pbdoc"
-    );
+        )pbdoc");
 
     // Bind 3D upwind operator - std::array version
     m.def("upwind",
-        &upwind_3d,
-        py::arg("velocity"),
-        py::arg("field"),
-        R"pbdoc(
+          &upwind_3d,
+          py::arg("velocity"),
+          py::arg("field"),
+          R"pbdoc(
         Upwind operator for 3D advection (std::array version).
 
         Parameters
@@ -238,15 +232,14 @@ void init_operator_bindings(py::module_& m)
         -------
         ScalarField3D
             New field containing upwind flux values
-        )pbdoc"
-    );
+        )pbdoc");
 
     // Bind 3D upwind operator - Python sequence version (more convenient)
     m.def("upwind",
-        &upwind_3d_py,
-        py::arg("velocity"),
-        py::arg("field"),
-        R"pbdoc(
+          &upwind_3d_py,
+          py::arg("velocity"),
+          py::arg("field"),
+          R"pbdoc(
         Upwind operator for 3D advection.
 
         Computes the upwind flux for a scalar field in 3D.
@@ -271,6 +264,5 @@ void init_operator_bindings(py::module_& m)
         >>> velocity = [1.0, 1.0, 0.0]  # [vx, vy, vz]
         >>> flux = sam.upwind(velocity, u)
         >>> # Use in time step: unp1 = u - dt * flux
-        )pbdoc"
-    );
+        )pbdoc");
 }

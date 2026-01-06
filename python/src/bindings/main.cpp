@@ -10,24 +10,25 @@
 #include <pybind11/pybind11.h>
 
 // Binding initialization headers
+#include "adapt_bindings.hpp"
+#include "algorithm_bindings.hpp"
+#include "bc_bindings.hpp"
 #include "box_bindings.hpp"
-#include "mesh_config_bindings.hpp"
-#include "mesh_bindings.hpp"
 #include "field_bindings.hpp"
 #include "interval_bindings.hpp"
-#include "algorithm_bindings.hpp"
-#include "operator_bindings.hpp"
-#include "bc_bindings.hpp"
-#include "mra_config_bindings.hpp"
-#include "adapt_bindings.hpp"
 #include "io_bindings.hpp"
+#include "mesh_bindings.hpp"
+#include "mesh_config_bindings.hpp"
+#include "mra_config_bindings.hpp"
+#include "operator_bindings.hpp"
 
 namespace py = pybind11;
 
 // Version information (will be read from version.txt in production)
 #define SAMURAI_PYTHON_VERSION "0.28.0-dev"
 
-PYBIND11_MODULE(samurai_python, m) {
+PYBIND11_MODULE(samurai_python, m)
+{
     // Module documentation
     m.doc() = R"pbdoc(
         Samurai Python Bindings
@@ -90,19 +91,23 @@ PYBIND11_MODULE(samurai_python, m) {
     // init_lbm_bindings(m); // Lattice Boltzmann methods
 
     // Placeholder: Basic test function
-    m.def("test_function", []() {
-        return "Samurai Python bindings are working!";
-    }, R"pbdoc(
+    m.def(
+        "test_function",
+        []()
+        {
+            return "Samurai Python bindings are working!";
+        },
+        R"pbdoc(
         Test function to verify bindings are loaded correctly.
 
         Returns:
             str: Success message
     )pbdoc");
 
-    // Python module metadata
-    #ifdef VERSION_INFO
+// Python module metadata
+#ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
-    #else
+#else
     m.attr("__version__") = SAMURAI_PYTHON_VERSION;
-    #endif
+#endif
 }

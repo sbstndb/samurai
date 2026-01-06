@@ -2,13 +2,13 @@
 //
 // Bindings for make_MRAdapt and update_ghost_mr functions
 
+#include <memory>
+#include <pybind11/pybind11.h>
+#include <samurai/algorithm/update.hpp>
+#include <samurai/field.hpp>
+#include <samurai/mesh_config.hpp>
 #include <samurai/mr/adapt.hpp>
 #include <samurai/mr/mesh.hpp>
-#include <samurai/mesh_config.hpp>
-#include <samurai/field.hpp>
-#include <samurai/algorithm/update.hpp>
-#include <pybind11/pybind11.h>
-#include <memory>
 
 namespace py = pybind11;
 
@@ -29,38 +29,53 @@ using ScalarField = samurai::ScalarField<MRMesh<dim>, double>;
 // ============================================================
 
 // Base class for type erasure
-class PyAdaptBase {
-public:
-    virtual ~PyAdaptBase() = default;
+class PyAdaptBase
+{
+  public:
+
+    virtual ~PyAdaptBase()                         = default;
     virtual void call(samurai::mra_config& config) = 0;
 };
 
 // Template derived class for specific dimension
 template <class AdaptType>
-class PyAdaptImpl : public PyAdaptBase {
-public:
-    explicit PyAdaptImpl(AdaptType&& adapt) : m_adapt(std::move(adapt)) {}
+class PyAdaptImpl : public PyAdaptBase
+{
+  public:
 
-    void call(samurai::mra_config& config) override {
+    explicit PyAdaptImpl(AdaptType&& adapt)
+        : m_adapt(std::move(adapt))
+    {
+    }
+
+    void call(samurai::mra_config& config) override
+    {
         m_adapt(config);
     }
 
-private:
+  private:
+
     AdaptType m_adapt;
 };
 
 // Python-exposed wrapper class
-class PyAdapt {
-public:
+class PyAdapt
+{
+  public:
+
     template <class AdaptType>
     explicit PyAdapt(AdaptType&& adapt)
-        : m_impl(std::make_unique<PyAdaptImpl<AdaptType>>(std::move(adapt))) {}
+        : m_impl(std::make_unique<PyAdaptImpl<AdaptType>>(std::move(adapt)))
+    {
+    }
 
-    void operator()(samurai::mra_config& config) {
+    void operator()(samurai::mra_config& config)
+    {
         m_impl->call(config);
     }
 
-private:
+  private:
+
     std::unique_ptr<PyAdaptBase> m_impl;
 };
 
@@ -135,51 +150,28 @@ void init_adapt_bindings(py::module_& m)
         Create the adaptation object once and reuse it throughout your simulation.
         The same configuration can also be reused across multiple adaptation calls.
     )pbdoc")
-        .def("__call__",
-            [](PyAdapt& self, samurai::mra_config& config) {
+        .def(
+            "__call__",
+            [](PyAdapt& self, samurai::mra_config& config)
+            {
                 self(config);
             },
             py::arg("config"),
-            "Perform mesh adaptation with the given configuration."
-        );
+            "Perform mesh adaptation with the given configuration.");
 
     // Bind update_ghost_mr for all dimensions
     // Following pattern from operator_bindings.cpp where multiple functions
     // are bound with the same Python name
-    m.def("update_ghost_mr",
-        &update_ghost_mr_1d,
-        py::arg("field"),
-        "Update ghost cells for multiresolution analysis (1D)"
-    );
+    m.def("update_ghost_mr", &update_ghost_mr_1d, py::arg("field"), "Update ghost cells for multiresolution analysis (1D)");
 
-    m.def("update_ghost_mr",
-        &update_ghost_mr_2d,
-        py::arg("field"),
-        "Update ghost cells for multiresolution analysis (2D)"
-    );
+    m.def("update_ghost_mr", &update_ghost_mr_2d, py::arg("field"), "Update ghost cells for multiresolution analysis (2D)");
 
-    m.def("update_ghost_mr",
-        &update_ghost_mr_3d,
-        py::arg("field"),
-        "Update ghost cells for multiresolution analysis (3D)"
-    );
+    m.def("update_ghost_mr", &update_ghost_mr_3d, py::arg("field"), "Update ghost cells for multiresolution analysis (3D)");
 
     // Bind make_MRAdapt for all dimensions
-    m.def("make_MRAdapt",
-        &make_mr_adapt_1d,
-        py::arg("field"),
-        "Create multiresolution adaptation object (1D)"
-    );
+    m.def("make_MRAdapt", &make_mr_adapt_1d, py::arg("field"), "Create multiresolution adaptation object (1D)");
 
-    m.def("make_MRAdapt",
-        &make_mr_adapt_2d,
-        py::arg("field"),
-        "Create multiresolution adaptation object (2D)"
-    );
+    m.def("make_MRAdapt", &make_mr_adapt_2d, py::arg("field"), "Create multiresolution adaptation object (2D)");
 
-    m.def("make_MRAdapt",
-        &make_mr_adapt_3d,
-        py::arg("field"),
-        "Create multiresolution adaptation object (3D)"
-    );
+    m.def("make_MRAdapt", &make_mr_adapt_3d, py::arg("field"), "Create multiresolution adaptation object (3D)");
 }

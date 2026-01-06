@@ -30,8 +30,8 @@ using namespace samurai::neuromesh;
 TEST(feature_extractor_basic)
 {
     constexpr std::size_t dim = 2;
-    using Mesh = MRMesh<dim>;
-    using Field = ScalarField<Mesh, double>;
+    using Mesh                = MRMesh<dim>;
+    using Field               = ScalarField<Mesh, double>;
 
     // Create simple mesh
     samurai::Box<double, dim> box({0, 0}, {1, 1});
@@ -43,32 +43,34 @@ TEST(feature_extractor_basic)
     Field u = make_scalar_field<double>("u", mesh);
 
     // Initialize field with simple function
-    for_each_cell(mesh, [&](auto& cell)
-    {
-        auto x = cell.center();
-        u[cell] = x[0] + 2 * x[1];
-    });
+    for_each_cell(mesh,
+                  [&](auto& cell)
+                  {
+                      auto x  = cell.center();
+                      u[cell] = x[0] + 2 * x[1];
+                  });
 
     // Test feature extractor
     NeuroMeshConfig config_feat;
     FeatureExtractor<dim, Field> extractor(config_feat);
 
     std::size_t cell_count = 0;
-    for_each_cell(mesh, [&](const auto& cell)
-    {
-        auto features = extractor.extract_features(u, cell);
+    for_each_cell(mesh,
+                  [&](const auto& cell)
+                  {
+                      auto features = extractor.extract_features(u, cell);
 
-        // Features should have correct size
-        ASSERT_TRUE(features.size() >= 2);
+                      // Features should have correct size
+                      ASSERT_TRUE(features.size() >= 2);
 
-        // Feature 0 is field value
-        ASSERT_NEAR(features(0), static_cast<double>(u[cell]), 1e-10);
+                      // Feature 0 is field value
+                      ASSERT_NEAR(features(0), static_cast<double>(u[cell]), 1e-10);
 
-        // Feature 1 is mesh level
-        ASSERT_NEAR(features(1), static_cast<double>(cell.level), 1e-10);
+                      // Feature 1 is mesh level
+                      ASSERT_NEAR(features(1), static_cast<double>(cell.level), 1e-10);
 
-        cell_count++;
-    });
+                      cell_count++;
+                  });
 
     ASSERT_TRUE(cell_count > 0);
 
@@ -82,8 +84,8 @@ TEST(feature_extractor_basic)
 TEST(reward_engine_basic)
 {
     constexpr std::size_t dim = 1;
-    using Mesh = MRMesh<dim>;
-    using Field = ScalarField<Mesh, double>;
+    using Mesh                = MRMesh<dim>;
+    using Field               = ScalarField<Mesh, double>;
 
     samurai::Box<double, dim> box({0}, {1});
     samurai::mesh_config<dim> config;
@@ -101,10 +103,10 @@ TEST(reward_engine_basic)
 
     // Test reward computation
     double reward1 = reward_engine.compute_reward(u, 0.8, 800);
-    ASSERT_TRUE(reward1 > 0);  // Should be positive (improvement)
+    ASSERT_TRUE(reward1 > 0); // Should be positive (improvement)
 
     double reward2 = reward_engine.compute_reward(u, 1.2, 1200);
-    ASSERT_TRUE(reward2 < 0);  // Should be negative (worsening)
+    ASSERT_TRUE(reward2 < 0); // Should be negative (worsening)
 
     std::cout << "✓ test_reward_engine_basic passed\n";
 }
@@ -116,11 +118,11 @@ TEST(reward_engine_basic)
 TEST(rl_agent_basic)
 {
     constexpr std::size_t dim = 2;
-    using Mesh = MRMesh<dim>;
-    using Field = ScalarField<Mesh, double>;
+    using Mesh                = MRMesh<dim>;
+    using Field               = ScalarField<Mesh, double>;
 
     NeuroMeshConfig config_agent;
-    RLAgent<dim, Field> agent(config_agent, 5);  // 5 features
+    RLAgent<dim, Field> agent(config_agent, 5); // 5 features
 
     // Test action selection
     xt::xarray<double> state = {0.5, 0.3, 2.0, 1.5, 0.8};
@@ -130,16 +132,14 @@ TEST(rl_agent_basic)
         CellAction action = agent.select_action(state);
 
         // Action should be valid
-        ASSERT_TRUE(action == CellAction::Keep ||
-                   action == CellAction::Refine ||
-                   action == CellAction::Coarsen);
+        ASSERT_TRUE(action == CellAction::Keep || action == CellAction::Refine || action == CellAction::Coarsen);
     }
 
     // Test experience storage
     xt::xarray<double> next_state = {0.6, 0.4, 2.1, 1.6, 0.9};
     agent.store_experience(state, CellAction::Refine, 1.0, next_state, false);
 
-    ASSERT_TRUE(agent.m_training_step == 0);  // No training yet
+    ASSERT_TRUE(agent.m_training_step == 0); // No training yet
 
     std::cout << "✓ test_rl_agent_basic passed\n";
 }
@@ -151,8 +151,8 @@ TEST(rl_agent_basic)
 TEST(adaptation_controller_basic)
 {
     constexpr std::size_t dim = 2;
-    using Mesh = MRMesh<dim>;
-    using Field = ScalarField<Mesh, double>;
+    using Mesh                = MRMesh<dim>;
+    using Field               = ScalarField<Mesh, double>;
 
     samurai::Box<double, dim> box({0, 0}, {1, 1});
     samurai::mesh_config<dim> config;
@@ -163,15 +163,16 @@ TEST(adaptation_controller_basic)
     Field u = make_scalar_field<double>("u", mesh);
 
     // Initialize field
-    for_each_cell(mesh, [&](auto& cell)
-    {
-        u[cell] = 1.0;
-    });
+    for_each_cell(mesh,
+                  [&](auto& cell)
+                  {
+                      u[cell] = 1.0;
+                  });
 
     // Create controller
     NeuroMeshConfig config_ctrl;
-    config_ctrl.adapt_interval = 1;
-    config_ctrl.online_learning = false;  // Disable learning for test
+    config_ctrl.adapt_interval  = 1;
+    config_ctrl.online_learning = false; // Disable learning for test
 
     AdaptationController<dim, Field> controller(config_ctrl);
 
@@ -190,8 +191,8 @@ TEST(adaptation_controller_basic)
 TEST(integration_advection_1d)
 {
     constexpr std::size_t dim = 1;
-    using Mesh = MRMesh<dim>;
-    using Field = ScalarField<Mesh, double>;
+    using Mesh                = MRMesh<dim>;
+    using Field               = ScalarField<Mesh, double>;
 
     // Setup
     samurai::Box<double, dim> box({0}, {1});
@@ -200,28 +201,29 @@ TEST(integration_advection_1d)
     config.max_level = 6;
 
     Mesh mesh(box, config);
-    Field u = make_scalar_field<double>("u", mesh);
+    Field u    = make_scalar_field<double>("u", mesh);
     Field unp1 = make_scalar_field<double>("unp1", mesh);
 
     // Initial condition: Gaussian pulse
-    for_each_cell(mesh, [&](auto& cell)
-    {
-        double x = cell.center()[0];
-        double sigma = 0.1;
-        u[cell] = std::exp(-std::pow(x - 0.5, 2) / (2 * sigma * sigma));
-    });
+    for_each_cell(mesh,
+                  [&](auto& cell)
+                  {
+                      double x     = cell.center()[0];
+                      double sigma = 0.1;
+                      u[cell]      = std::exp(-std::pow(x - 0.5, 2) / (2 * sigma * sigma));
+                  });
 
     // Create RL controller
     NeuroMeshConfig config_rl;
-    config_rl.adapt_interval = 5;
+    config_rl.adapt_interval  = 5;
     config_rl.online_learning = false;
 
     AdaptationController<dim, Field> controller(config_rl);
 
     // Time stepping
-    double a = 1.0;  // Advection velocity
-    double cfl = 0.5;
-    double dt = cfl * std::pow(2.0, -static_cast<double>(config.max_level));
+    double a     = 1.0; // Advection velocity
+    double cfl   = 0.5;
+    double dt    = cfl * std::pow(2.0, -static_cast<double>(config.max_level));
     double t_end = 0.1;
 
     std::size_t nsteps = static_cast<std::size_t>(t_end / dt);
@@ -235,12 +237,13 @@ TEST(integration_advection_1d)
         }
 
         // Simple upwind
-        for_each_cell(mesh, [&](auto& cell)
-        {
-            double h = std::pow(2.0, -static_cast<double>(cell.level));
-            double flux = (a > 0) ? static_cast<double>(u[cell]) : 0.0;
-            unp1[cell] = u[cell] - (dt / h) * flux;
-        });
+        for_each_cell(mesh,
+                      [&](auto& cell)
+                      {
+                          double h    = std::pow(2.0, -static_cast<double>(cell.level));
+                          double flux = (a > 0) ? static_cast<double>(u[cell]) : 0.0;
+                          unp1[cell]  = u[cell] - (dt / h) * flux;
+                      });
 
         std::swap(u.array(), unp1.array());
     }
@@ -271,16 +274,16 @@ TEST(action_to_string)
 TEST(pretrained_models)
 {
     constexpr std::size_t dim = 2;
-    using Mesh = MRMesh<dim>;
-    using Field = ScalarField<Mesh, double>;
+    using Mesh                = MRMesh<dim>;
+    using Field               = ScalarField<Mesh, double>;
 
     // Test loading pre-trained models for different PDE types
     auto agent_advection = pretrained::load_model_for_pde<dim, Field>("advection");
     auto agent_diffusion = pretrained::load_model_for_pde<dim, Field>("diffusion");
-    auto agent_ns = pretrained::load_model_for_pde<dim, Field>("navier_stokes");
+    auto agent_ns        = pretrained::load_model_for_pde<dim, Field>("navier_stokes");
 
     // Agents should be created successfully
-    ASSERT_TRUE(agent_advection.m_epsilon_current < 0.1);  // Pre-trained should have low epsilon
+    ASSERT_TRUE(agent_advection.m_epsilon_current < 0.1); // Pre-trained should have low epsilon
     ASSERT_TRUE(agent_diffusion.m_epsilon_current < 0.1);
     ASSERT_TRUE(agent_ns.m_epsilon_current < 0.1);
 

@@ -31,7 +31,11 @@ using namespace samurai::neuromesh;
 class Timer
 {
   public:
-    Timer() : m_start(std::chrono::high_resolution_clock::now()) {}
+
+    Timer()
+        : m_start(std::chrono::high_resolution_clock::now())
+    {
+    }
 
     double elapsed() const
     {
@@ -45,6 +49,7 @@ class Timer
     }
 
   private:
+
     std::chrono::high_resolution_clock::time_point m_start;
 };
 
@@ -55,26 +60,27 @@ class Timer
 template <class Field>
 void initialize_gaussian_pulse(Field& u)
 {
-    using mesh_t = typename Field::mesh_t;
+    using mesh_t              = typename Field::mesh_t;
     constexpr std::size_t dim = mesh_t::dim;
 
     auto& mesh = u.mesh();
 
     // Gaussian pulse parameters
     xt::xtensor_fixed<double, xt::xshape<dim>> center = 0.5;
-    double sigma = 0.1;
+    double sigma                                      = 0.1;
 
     // Initialize field with Gaussian pulse
-    for_each_cell(mesh, [&](auto& cell)
-    {
-        auto x = cell.center();
-        double r2 = 0.0;
-        for (std::size_t d = 0; d < dim; ++d)
-        {
-            r2 += (x[d] - center[d]) * (x[d] - center[d]);
-        }
-        u[cell] = std::exp(-r2 / (2 * sigma * sigma));
-    });
+    for_each_cell(mesh,
+                  [&](auto& cell)
+                  {
+                      auto x    = cell.center();
+                      double r2 = 0.0;
+                      for (std::size_t d = 0; d < dim; ++d)
+                      {
+                          r2 += (x[d] - center[d]) * (x[d] - center[d]);
+                      }
+                      u[cell] = std::exp(-r2 / (2 * sigma * sigma));
+                  });
 
     // Apply boundary conditions
     samurai::make_bc<samurai::Dirichlet<1>>(u, 0.0);
@@ -87,7 +93,7 @@ void initialize_gaussian_pulse(Field& u)
 template <class Field>
 void upwind_scheme(Field& u, Field& unp1, double dt, const xt::xtensor_fixed<double, xt::xshape<2>>& a)
 {
-    using mesh_t = typename Field::mesh_t;
+    using mesh_t              = typename Field::mesh_t;
     constexpr std::size_t dim = mesh_t::dim;
 
     auto& mesh = u.mesh();
@@ -95,38 +101,39 @@ void upwind_scheme(Field& u, Field& unp1, double dt, const xt::xtensor_fixed<dou
     // Upwind scheme: ∂u/∂t + a·∇u = 0
     // unp1 = u - dt * (a·∇u)
 
-    for_each_cell(mesh, [&](auto& cell)
-    {
-        double flux = 0.0;
+    for_each_cell(mesh,
+                  [&](auto& cell)
+                  {
+                      double flux = 0.0;
 
-        for (std::size_t d = 0; d < dim; ++d)
-        {
-            if (a[d] > 0)
-            {
-                // Backward difference
-                double h = std::pow(2.0, -static_cast<double>(cell.level));
-                double grad = 0.0;
+                      for (std::size_t d = 0; d < dim; ++d)
+                      {
+                          if (a[d] > 0)
+                          {
+                              // Backward difference
+                              double h    = std::pow(2.0, -static_cast<double>(cell.level));
+                              double grad = 0.0;
 
-                // Compute gradient using neighboring cells
-                // (Simplified - would use proper stencil)
-                grad = static_cast<double>(u[cell]);
+                              // Compute gradient using neighboring cells
+                              // (Simplified - would use proper stencil)
+                              grad = static_cast<double>(u[cell]);
 
-                flux += a[d] * grad;
-            }
-            else
-            {
-                // Forward difference
-                double h = std::pow(2.0, -static_cast<double>(cell.level));
-                double grad = 0.0;
+                              flux += a[d] * grad;
+                          }
+                          else
+                          {
+                              // Forward difference
+                              double h    = std::pow(2.0, -static_cast<double>(cell.level));
+                              double grad = 0.0;
 
-                grad = static_cast<double>(u[cell]);
+                              grad = static_cast<double>(u[cell]);
 
-                flux += a[d] * grad;
-            }
-        }
+                              flux += a[d] * grad;
+                          }
+                      }
 
-        unp1[cell] = u[cell] - dt * flux;
-    });
+                      unp1[cell] = u[cell] - dt * flux;
+                  });
 }
 
 // ==================================================================================
@@ -144,18 +151,18 @@ int main(int argc, char* argv[])
     // Mesh configuration
     samurai::Box<double, dim> box({0, 0}, {1, 1});
     samurai::mesh_config<dim> config;
-    config.min_level = 2;
-    config.max_level = 8;
+    config.min_level   = 2;
+    config.max_level   = 8;
     config.ghost_width = 2;
 
     // Create mesh
     using Mesh = samurai::MRMesh<dim>;
-    auto mesh = Mesh(box, config);
+    auto mesh  = Mesh(box, config);
 
     // Create field
     using Field = samurai::ScalarField<Mesh, double>;
-    auto u = samurai::make_scalar_field<double>("u", mesh);
-    auto unp1 = samurai::make_scalar_field<double>("unp1", mesh);
+    auto u      = samurai::make_scalar_field<double>("u", mesh);
+    auto unp1   = samurai::make_scalar_field<double>("unp1", mesh);
 
     // ==================================================================================
     // NEUROMESH CONTROLLER SETUP
@@ -165,12 +172,12 @@ int main(int argc, char* argv[])
 
     // Configure NeuroMesh
     NeuroMeshConfig neuromesh_config;
-    neuromesh_config.adapt_interval = 5;          // Adapt every 5 timesteps
-    neuromesh_config.learning_rate = 0.01;
-    neuromesh_config.reward_accuracy = 0.7;       // Prioritize accuracy
-    neuromesh_config.reward_efficiency = 0.3;     // Also care about efficiency
+    neuromesh_config.adapt_interval       = 5; // Adapt every 5 timesteps
+    neuromesh_config.learning_rate        = 0.01;
+    neuromesh_config.reward_accuracy      = 0.7;  // Prioritize accuracy
+    neuromesh_config.reward_efficiency    = 0.3;  // Also care about efficiency
     neuromesh_config.use_spatial_features = true; // Use gradients, curvature
-    neuromesh_config.online_learning = true;      // Learn during simulation
+    neuromesh_config.online_learning      = true; // Learn during simulation
 
     // Create RL-based adaptation controller
     auto rl_controller = make_neuromesh_controller<dim, Field>(neuromesh_config);
@@ -186,7 +193,7 @@ int main(int argc, char* argv[])
     // TRADITIONAL MR ADAPTATION (for comparison)
     // ==================================================================================
 
-    auto MRadapt = samurai::make_MRAdapt(u);
+    auto MRadapt       = samurai::make_MRAdapt(u);
     double epsilon_mra = 1e-4;
 
     // ==================================================================================
@@ -205,8 +212,8 @@ int main(int argc, char* argv[])
     xt::xtensor_fixed<double, xt::xshape<2>> a = {1.0, 0.5};
 
     // CFL condition
-    double cfl = 0.5;
-    double dt = cfl * std::pow(2.0, -static_cast<double>(config.max_level));
+    double cfl   = 0.5;
+    double dt    = cfl * std::pow(2.0, -static_cast<double>(config.max_level));
     double t_end = 0.5;
 
     std::cout << "\nSimulation parameters:\n";
@@ -224,7 +231,7 @@ int main(int argc, char* argv[])
     Timer adapt_timer;
     Timer scheme_timer;
 
-    std::size_t nsteps = static_cast<std::size_t>(t_end / dt);
+    std::size_t nsteps      = static_cast<std::size_t>(t_end / dt);
     std::size_t adapt_count = 0;
 
     std::cout << "Starting time integration...\n\n";
@@ -246,8 +253,7 @@ int main(int argc, char* argv[])
             double adapt_time = adapt_timer.elapsed();
             adapt_count++;
 
-            std::cout << "Step " << n << ": Adaptation #" << adapt_count
-                      << " (error=" << rl_controller.get_current_error()
+            std::cout << "Step " << n << ": Adaptation #" << adapt_count << " (error=" << rl_controller.get_current_error()
                       << ", time=" << adapt_time << " ms)\n";
         }
 
@@ -272,8 +278,7 @@ int main(int argc, char* argv[])
         // ----------------------------------------------------------------------
         if (n % 50 == 0)
         {
-            std::cout << "Step " << n << "/" << nsteps
-                      << " (t=" << t << ", scheme=" << scheme_time << " ms)\n";
+            std::cout << "Step " << n << "/" << nsteps << " (t=" << t << ", scheme=" << scheme_time << " ms)\n";
         }
     }
 
@@ -291,7 +296,11 @@ int main(int argc, char* argv[])
 
     // Count final cells
     std::size_t final_cells = 0;
-    for_each_cell(mesh, [&](const auto&) { final_cells++; });
+    for_each_cell(mesh,
+                  [&](const auto&)
+                  {
+                      final_cells++;
+                  });
     std::cout << "Final cell count: " << final_cells << "\n";
 
     // ==================================================================================

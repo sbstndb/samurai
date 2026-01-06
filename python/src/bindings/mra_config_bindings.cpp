@@ -2,11 +2,11 @@
 //
 // Bindings for mra_config class used in mesh adaptation
 
+#include <iomanip>
+#include <pybind11/pybind11.h>
 #include <samurai/arguments.hpp>
 #include <samurai/mr/config.hpp>
-#include <pybind11/pybind11.h>
 #include <sstream>
-#include <iomanip>
 
 namespace py = pybind11;
 
@@ -20,46 +20,52 @@ void bind_mra_config_properties(py::class_<samurai::mra_config>& cls)
     using namespace samurai;
 
     // Epsilon property - tolerance for mesh adaptation
-    cls.def_property("epsilon",
-        [](const mra_config& cfg) {
+    cls.def_property(
+        "epsilon",
+        [](const mra_config& cfg)
+        {
             return cfg.epsilon();
         },
-        [](mra_config& cfg, double eps) {
+        [](mra_config& cfg, double eps)
+        {
             cfg.epsilon(eps);
             return cfg;
         },
         "Tolerance for multiresolution adaptation (read/write, returns config for chaining).\n\n"
         "Cells with detail coefficients below this threshold may be coarsened.\n"
-        "Default: 1e-4"
-    );
+        "Default: 1e-4");
 
     // Regularity property - mesh gradation parameter
-    cls.def_property("regularity",
-        [](const mra_config& cfg) {
+    cls.def_property(
+        "regularity",
+        [](const mra_config& cfg)
+        {
             return cfg.regularity();
         },
-        [](mra_config& cfg, double reg) {
+        [](mra_config& cfg, double reg)
+        {
             cfg.regularity(reg);
             return cfg;
         },
         "Regularity parameter controlling mesh gradation (read/write, returns config for chaining).\n\n"
         "Higher values enforce smoother transitions between refinement levels.\n"
-        "Default: 1.0"
-    );
+        "Default: 1.0");
 
     // Relative detail property - use relative vs absolute detail
-    cls.def_property("relative_detail",
-        [](const mra_config& cfg) {
+    cls.def_property(
+        "relative_detail",
+        [](const mra_config& cfg)
+        {
             return cfg.relative_detail();
         },
-        [](mra_config& cfg, bool rel) {
+        [](mra_config& cfg, bool rel)
+        {
             cfg.relative_detail(rel);
             return cfg;
         },
         "Use relative detail criterion instead of absolute (read/write, returns config for chaining).\n\n"
         "When True, detail is normalized by maximum field values.\n"
-        "Default: False"
-    );
+        "Default: False");
 }
 
 // Bind MRAConfig class to Python
@@ -117,16 +123,17 @@ void bind_mra_config(py::module_& m, const std::string& name)
 
     // Default constructor
     cls.def(py::init<>(),
-        "Create MRA configuration with default values\n"
-        "(epsilon=1e-4, regularity=1.0, relative_detail=False)"
-    );
+            "Create MRA configuration with default values\n"
+            "(epsilon=1e-4, regularity=1.0, relative_detail=False)");
 
     // Bind properties
     bind_mra_config_properties(cls);
 
     // String representations
-    cls.def("__repr__",
-        [](const mra_config& cfg) {
+    cls.def(
+        "__repr__",
+        [](const mra_config& cfg)
+        {
             std::ostringstream oss;
             oss << std::scientific << std::setprecision(4);
             oss << "MRAConfig(";
@@ -136,11 +143,12 @@ void bind_mra_config(py::module_& m, const std::string& name)
             oss << ")";
             return oss.str();
         },
-        "Detailed string representation"
-    );
+        "Detailed string representation");
 
-    cls.def("__str__",
-        [](const mra_config& cfg) {
+    cls.def(
+        "__str__",
+        [](const mra_config& cfg)
+        {
             std::ostringstream oss;
             oss << std::scientific << std::setprecision(4);
             oss << "MRAConfig";
@@ -150,18 +158,17 @@ void bind_mra_config(py::module_& m, const std::string& name)
             oss << "]";
             return oss.str();
         },
-        "Concise string representation"
-    );
+        "Concise string representation");
 
     // Equality operator (useful for testing)
-    cls.def("__eq__",
-        [](const mra_config& self, const mra_config& other) {
-            return self.epsilon() == other.epsilon() &&
-                   self.regularity() == other.regularity() &&
-                   self.relative_detail() == other.relative_detail();
+    cls.def(
+        "__eq__",
+        [](const mra_config& self, const mra_config& other)
+        {
+            return self.epsilon() == other.epsilon() && self.regularity() == other.regularity()
+                && self.relative_detail() == other.relative_detail();
         },
-        "Equality comparison"
-    );
+        "Equality comparison");
 }
 
 // Module initialization function for MRA configuration bindings

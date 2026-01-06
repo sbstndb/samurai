@@ -24,6 +24,13 @@ using MRMesh = samurai::MRMesh<samurai::complete_mesh_config<samurai::mesh_confi
 template <std::size_t dim>
 using ScalarField = samurai::ScalarField<MRMesh<dim>, double>;
 
+template <std::size_t dim, std::size_t n_comp, bool SOA = false>
+using VectorField = samurai::VectorField<MRMesh<dim>, double, n_comp, SOA>;
+
+// Specific VectorField types for Burgers equation (n_comp == dim)
+using VectorField2D_2 = VectorField<2, 2, false>;
+using VectorField3D_3 = VectorField<3, 3, false>;
+
 // ============================================================
 // Python-callable wrapper for Adapt objects
 // ============================================================
@@ -124,6 +131,40 @@ PyAdapt make_mr_adapt_3d(ScalarField<3>& field)
 }
 
 // ============================================================
+// VectorField wrappers for make_MRAdapt
+// ============================================================
+
+// 2D VectorField (VectorField2D_2) make_MRAdapt wrapper
+PyAdapt make_mr_adapt_vector_2d_2(VectorField2D_2& field)
+{
+    auto adapt_obj = samurai::make_MRAdapt(field);
+    return PyAdapt(std::move(adapt_obj));
+}
+
+// 3D VectorField (VectorField3D_3) make_MRAdapt wrapper
+PyAdapt make_mr_adapt_vector_3d_3(VectorField3D_3& field)
+{
+    auto adapt_obj = samurai::make_MRAdapt(field);
+    return PyAdapt(std::move(adapt_obj));
+}
+
+// ============================================================
+// VectorField wrappers for update_ghost_mr
+// ============================================================
+
+// 2D VectorField (VectorField2D_2) update_ghost_mr wrapper
+void update_ghost_mr_vector_2d_2(VectorField2D_2& field)
+{
+    samurai::update_ghost_mr(field);
+}
+
+// 3D VectorField (VectorField3D_3) update_ghost_mr wrapper
+void update_ghost_mr_vector_3d_3(VectorField3D_3& field)
+{
+    samurai::update_ghost_mr(field);
+}
+
+// ============================================================
 // Module initialization
 // ============================================================
 
@@ -168,10 +209,20 @@ void init_adapt_bindings(py::module_& m)
 
     m.def("update_ghost_mr", &update_ghost_mr_3d, py::arg("field"), "Update ghost cells for multiresolution analysis (3D)");
 
+    // Bind update_ghost_mr for VectorField types
+    m.def("update_ghost_mr", &update_ghost_mr_vector_2d_2, py::arg("field"), "Update ghost cells for 2D vector field (2 components)");
+
+    m.def("update_ghost_mr", &update_ghost_mr_vector_3d_3, py::arg("field"), "Update ghost cells for 3D vector field (3 components)");
+
     // Bind make_MRAdapt for all dimensions
     m.def("make_MRAdapt", &make_mr_adapt_1d, py::arg("field"), "Create multiresolution adaptation object (1D)");
 
     m.def("make_MRAdapt", &make_mr_adapt_2d, py::arg("field"), "Create multiresolution adaptation object (2D)");
 
     m.def("make_MRAdapt", &make_mr_adapt_3d, py::arg("field"), "Create multiresolution adaptation object (3D)");
+
+    // Bind make_MRAdapt for VectorField types
+    m.def("make_MRAdapt", &make_mr_adapt_vector_2d_2, py::arg("field"), "Create multiresolution adaptation object for 2D vector field (2 components)");
+
+    m.def("make_MRAdapt", &make_mr_adapt_vector_3d_3, py::arg("field"), "Create multiresolution adaptation object for 3D vector field (3 components)");
 }

@@ -27,6 +27,13 @@ using MRMesh = samurai::MRMesh<samurai::complete_mesh_config<samurai::mesh_confi
 template <std::size_t dim>
 using ScalarField = samurai::ScalarField<MRMesh<dim>, double>;
 
+template <std::size_t dim, std::size_t n_comp, bool SOA = false>
+using VectorField = samurai::VectorField<MRMesh<dim>, double, n_comp, SOA>;
+
+// Specific VectorField types for Burgers equation (n_comp == dim)
+using VectorField2D_2 = VectorField<2, 2, false>;
+using VectorField3D_3 = VectorField<3, 3, false>;
+
 // ============================================================
 // Helper to convert Python path/string to fs::path
 // ============================================================
@@ -180,6 +187,32 @@ void save_3d_file_fields3(const std::string& filename, const ScalarField<3>& fie
 }
 
 // ============================================================
+// save() function wrappers - VectorField (2D and 3D)
+// ============================================================
+
+void save_2d_path_field_vector(const py::object& path_obj, const std::string& filename, const VectorField2D_2& field)
+{
+    auto path = to_fs_path(path_obj);
+    samurai::save(path, filename, field.mesh(), field);
+}
+
+void save_2d_file_field_vector(const std::string& filename, const VectorField2D_2& field)
+{
+    samurai::save(filename, field.mesh(), field);
+}
+
+void save_3d_path_field_vector(const py::object& path_obj, const std::string& filename, const VectorField3D_3& field)
+{
+    auto path = to_fs_path(path_obj);
+    samurai::save(path, filename, field.mesh(), field);
+}
+
+void save_3d_file_field_vector(const std::string& filename, const VectorField3D_3& field)
+{
+    samurai::save(filename, field.mesh(), field);
+}
+
+// ============================================================
 // dump() function wrappers - 1D
 // ============================================================
 
@@ -220,6 +253,32 @@ void dump_3d_path_field(const py::object& path_obj, const std::string& filename,
 }
 
 void dump_3d_file_field(const std::string& filename, const ScalarField<3>& field)
+{
+    samurai::dump(filename, field.mesh(), field);
+}
+
+// ============================================================
+// dump() function wrappers - VectorField (2D and 3D)
+// ============================================================
+
+void dump_2d_path_field_vector(const py::object& path_obj, const std::string& filename, const VectorField2D_2& field)
+{
+    auto path = to_fs_path(path_obj);
+    samurai::dump(path, filename, field.mesh(), field);
+}
+
+void dump_2d_file_field_vector(const std::string& filename, const VectorField2D_2& field)
+{
+    samurai::dump(filename, field.mesh(), field);
+}
+
+void dump_3d_path_field_vector(const py::object& path_obj, const std::string& filename, const VectorField3D_3& field)
+{
+    auto path = to_fs_path(path_obj);
+    samurai::dump(path, filename, field.mesh(), field);
+}
+
+void dump_3d_file_field_vector(const std::string& filename, const VectorField3D_3& field)
 {
     samurai::dump(filename, field.mesh(), field);
 }
@@ -482,6 +541,50 @@ void init_io_bindings(py::module_& m)
           "Dump 3D field mesh and data to HDF5 for checkpoint/restart");
 
     m.def("dump", &dump_3d_file_field, py::arg("filename"), py::arg("field"), "Dump 3D field to HDF5 restart file (current directory)");
+
+    // ============================================================
+    // VectorField save() bindings
+    // ============================================================
+
+    m.def("save",
+          &save_2d_path_field_vector,
+          py::arg("path"),
+          py::arg("filename"),
+          py::arg("field"),
+          "Save 2D vector field (2 components) mesh and data to HDF5 + XDMF");
+
+    m.def("save", &save_2d_file_field_vector, py::arg("filename"), py::arg("field"), "Save 2D vector field to HDF5 + XDMF (current directory)");
+
+    m.def("save",
+          &save_3d_path_field_vector,
+          py::arg("path"),
+          py::arg("filename"),
+          py::arg("field"),
+          "Save 3D vector field (3 components) mesh and data to HDF5 + XDMF");
+
+    m.def("save", &save_3d_file_field_vector, py::arg("filename"), py::arg("field"), "Save 3D vector field to HDF5 + XDMF (current directory)");
+
+    // ============================================================
+    // VectorField dump() bindings
+    // ============================================================
+
+    m.def("dump",
+          &dump_2d_path_field_vector,
+          py::arg("path"),
+          py::arg("filename"),
+          py::arg("field"),
+          "Dump 2D vector field (2 components) mesh and data to HDF5 for checkpoint/restart");
+
+    m.def("dump", &dump_2d_file_field_vector, py::arg("filename"), py::arg("field"), "Dump 2D vector field to HDF5 restart file (current directory)");
+
+    m.def("dump",
+          &dump_3d_path_field_vector,
+          py::arg("path"),
+          py::arg("filename"),
+          py::arg("field"),
+          "Dump 3D vector field (3 components) mesh and data to HDF5 for checkpoint/restart");
+
+    m.def("dump", &dump_3d_file_field_vector, py::arg("filename"), py::arg("field"), "Dump 3D vector field to HDF5 restart file (current directory)");
 
     // ============================================================
     // load() function bindings (checkpoint/restart)

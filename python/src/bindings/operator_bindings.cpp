@@ -126,9 +126,205 @@ py::object upwind_3d_py(py::sequence velocity_seq, ScalarField<3>& field)
     return upwind_3d(velocity, field);
 }
 
+// -------------------------------------------------------------------------
+// In-place upwind operators (no allocation, for efficient time stepping)
+// -------------------------------------------------------------------------
+
+// 1D upwind operator - in-place version (no allocation)
+void apply_upwind_1d(ScalarField<1>& output, double velocity, const ScalarField<1>& input)
+{
+    // Get the upwind expression (lazy)
+    auto upwind_expr = samurai::upwind(velocity, input);
+
+    // Evaluate directly into output field (single pass, no allocation)
+    samurai::for_each_interval(output.mesh(),
+                               [&output, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               {
+                                   output(level, interval, index) = upwind_expr(level, interval, index);
+                               });
+}
+
+// 2D upwind operator - in-place version (no allocation)
+void apply_upwind_2d(ScalarField<2>& output, const std::array<double, 2>& velocity, const ScalarField<2>& input)
+{
+    // Get the upwind expression (lazy)
+    auto upwind_expr = samurai::upwind(velocity, input);
+
+    // Evaluate directly into output field (single pass, no allocation)
+    samurai::for_each_interval(output.mesh(),
+                               [&output, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               {
+                                   output(level, interval, index) = upwind_expr(level, interval, index);
+                               });
+}
+
+// 3D upwind operator - in-place version (no allocation)
+void apply_upwind_3d(ScalarField<3>& output, const std::array<double, 3>& velocity, const ScalarField<3>& input)
+{
+    // Get the upwind expression (lazy)
+    auto upwind_expr = samurai::upwind(velocity, input);
+
+    // Evaluate directly into output field (single pass, no allocation)
+    samurai::for_each_interval(output.mesh(),
+                               [&output, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               {
+                                   output(level, interval, index) = upwind_expr(level, interval, index);
+                               });
+}
+
+// Convenience wrapper accepting Python list/tuple for velocity (2D) - in-place version
+void apply_upwind_2d_py(ScalarField<2>& output, py::sequence velocity_seq, const ScalarField<2>& input)
+{
+    if (len(velocity_seq) != 2)
+    {
+        throw std::runtime_error("Velocity must have exactly 2 elements for 2D");
+    }
+
+    std::array<double, 2> velocity;
+    velocity[0] = velocity_seq[0].cast<double>();
+    velocity[1] = velocity_seq[1].cast<double>();
+
+    apply_upwind_2d(output, velocity, input);
+}
+
+// Convenience wrapper accepting Python list/tuple for velocity (3D) - in-place version
+void apply_upwind_3d_py(ScalarField<3>& output, py::sequence velocity_seq, const ScalarField<3>& input)
+{
+    if (len(velocity_seq) != 3)
+    {
+        throw std::runtime_error("Velocity must have exactly 3 elements for 3D");
+    }
+
+    std::array<double, 3> velocity;
+    velocity[0] = velocity_seq[0].cast<double>();
+    velocity[1] = velocity_seq[1].cast<double>();
+    velocity[2] = velocity_seq[2].cast<double>();
+
+    apply_upwind_3d(output, velocity, input);
+}
+
 // Module initialization function for operator bindings
 void init_operator_bindings(py::module_& m)
 {
+    // ============================================================
+    // In-place upwind operators (efficient, no allocation)
+    // ============================================================
+
+    // Bind 1D in-place upwind operator
+    m.def("apply_upwind_1d",
+          &apply_upwind_1d,
+          py::arg("output"),
+          py::arg("velocity"),
+          py::arg("input"),
+          R"pbdoc(
+        Apply upwind operator in-place (efficient, no allocation).
+
+        Computes upwind flux and stores directly in output field.
+
+        Parameters
+        ----------
+        output : ScalarField1D
+            Output field (must be pre-allocated)
+        velocity : float
+            Advection velocity
+        input : ScalarField1D
+            Input scalar field
+
+        Examples
+        --------
+        >>> import samurai as sam
+        >>> flux = sam.ScalarField1D("flux", mesh, 0.0)
+        >>> sam.apply_upwind_1d(flux, 1.0, u)
+        >>> # Use in time step
+        >>> sam.euler_update_1d(unp1, u, dt, flux)
+        )pbdoc");
+
+    // Bind 2D in-place upwind operator - std::array version
+    m.def("apply_upwind_2d",
+          &apply_upwind_2d,
+          py::arg("output"),
+          py::arg("velocity"),
+          py::arg("input"),
+          R"pbdoc(
+        Apply upwind operator in-place (2D, efficient, no allocation).
+
+        Parameters
+        ----------
+        output : ScalarField2D
+            Output field (must be pre-allocated)
+        velocity : std::array<double, 2>
+            2D velocity vector [vx, vy]
+        input : ScalarField2D
+            Input scalar field
+
+        Examples
+        --------
+        >>> flux = sam.ScalarField2D("flux", mesh, 0.0)
+        >>> sam.apply_upwind_2d(flux, [1.0, 1.0], u)
+        >>> sam.euler_update_2d(unp1, u, dt, flux)
+        )pbdoc");
+
+    // Bind 2D in-place upwind operator - Python sequence version
+    m.def("apply_upwind_2d",
+          &apply_upwind_2d_py,
+          py::arg("output"),
+          py::arg("velocity"),
+          py::arg("input"),
+          R"pbdoc(
+        Apply upwind operator in-place (2D, Python sequence version).
+
+        Parameters
+        ----------
+        output : ScalarField2D
+            Output field (must be pre-allocated)
+        velocity : sequence of float
+            2D velocity vector [vx, vy] (list or tuple)
+        input : ScalarField2D
+            Input scalar field
+        )pbdoc");
+
+    // Bind 3D in-place upwind operator - std::array version
+    m.def("apply_upwind_3d",
+          &apply_upwind_3d,
+          py::arg("output"),
+          py::arg("velocity"),
+          py::arg("input"),
+          R"pbdoc(
+        Apply upwind operator in-place (3D, efficient, no allocation).
+
+        Parameters
+        ----------
+        output : ScalarField3D
+            Output field (must be pre-allocated)
+        velocity : std::array<double, 3>
+            3D velocity vector [vx, vy, vz]
+        input : ScalarField3D
+            Input scalar field
+        )pbdoc");
+
+    // Bind 3D in-place upwind operator - Python sequence version
+    m.def("apply_upwind_3d",
+          &apply_upwind_3d_py,
+          py::arg("output"),
+          py::arg("velocity"),
+          py::arg("input"),
+          R"pbdoc(
+        Apply upwind operator in-place (3D, Python sequence version).
+
+        Parameters
+        ----------
+        output : ScalarField3D
+            Output field (must be pre-allocated)
+        velocity : sequence of float
+            3D velocity vector [vx, vy, vz] (list or tuple)
+        input : ScalarField3D
+            Input scalar field
+        )pbdoc");
+
+    // ============================================================
+    // Original upwind operators (return new fields)
+    // ============================================================
+
     // Bind 1D upwind operator
     m.def("upwind",
           &upwind_1d,

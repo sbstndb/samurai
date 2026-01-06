@@ -181,6 +181,22 @@ void bind_field_common_methods(py::class_<Field, Options...>& cls)
             return f.ghosts_updated();
         },
         "Ghost cells update flag");
+
+    // Resize field to match current mesh size
+    cls.def("resize",
+            [](Field& f)
+            {
+                f.resize();
+            },
+            "Resize field storage to match current mesh size.\n\n"
+            "Notes:\n"
+            "    Must be called after mesh adaptation (MRadaptation) to ensure\n"
+            "    field storage is synchronized with the new mesh structure.\n"
+            "    Automatically resets ghosts_updated flag to False.\n\n"
+            "Example:\n"
+            "    >>> MRadaptation(mra_config)\n"
+            "    >>> unp1.resize()  # Resize next time step field\n"
+            "    >>> u.resize()     # Resize current field if needed");
 }
 
 // Template function to bind ScalarField for a specific dimension
@@ -493,6 +509,175 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         },
         py::arg("component"),
         "Extract a single component as a new ScalarField");
+
+    // Integer-based indexing for VectorField
+    // __getitem__ returns a list of component values
+    cls.def(
+        "__getitem__",
+        [](Field& f, std::size_t index) -> py::list
+        {
+            py::list result;
+            auto& xt = f.array();
+
+            if constexpr (Field::is_soa)
+            {
+                // SOA: shape is (n_components, n_cells)
+                for (std::size_t comp = 0; comp < n_comp; ++comp)
+                {
+                    result.append(xt(comp, index));
+                }
+            }
+            else
+            {
+                // AOS: shape is (n_cells, n_components)
+                for (std::size_t comp = 0; comp < n_comp; ++comp)
+                {
+                    result.append(xt(index, comp));
+                }
+            }
+            return result;
+        },
+        py::arg("index"),
+        "Get all components of a cell by flat index");
+
+    // __setitem__ accepts a list of component values
+    cls.def(
+        "__setitem__",
+        [](Field& f, std::size_t index, py::list values)
+        {
+            if (values.size() != n_comp)
+            {
+                throw std::runtime_error("Expected " + std::to_string(n_comp) + " values, got " + std::to_string(values.size()));
+            }
+
+            std::vector<value_t> vals;
+            for (std::size_t i = 0; i < n_comp; ++i)
+            {
+                vals.push_back(values[i].cast<value_t>());
+            }
+
+            auto& xt = f.array();
+            if constexpr (Field::is_soa)
+            {
+                // SOA: shape is (n_components, n_cells)
+                for (std::size_t comp = 0; comp < n_comp; ++comp)
+                {
+                    xt(comp, index) = vals[comp];
+                }
+            }
+            else
+            {
+                // AOS: shape is (n_cells, n_components)
+                for (std::size_t comp = 0; comp < n_comp; ++comp)
+                {
+                    xt(index, comp) = vals[comp];
+                }
+            }
+        },
+        py::arg("index"),
+        py::arg("values"),
+        "Set all components of a cell by flat index");
+
+    // Arithmetic operators: field +/-/* scalar
+    cls.def("__sub__",
+        [](Field& f, double scalar)
+        {
+            auto& mesh = const_cast<Mesh&>(f.mesh());
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_sub", mesh);
+            result = f - scalar;
+            return result;
+        },
+        py::arg("scalar"),
+        "Subtract scalar from field (returns new field)");
+
+    cls.def("__rsub__",
+        [](Field& f, double scalar)
+        {
+            auto& mesh = const_cast<Mesh&>(f.mesh());
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>("scalar_sub", mesh);
+            result = scalar - f;
+            return result;
+        },
+        py::arg("scalar"),
+        "Subtract field from scalar (returns new field)");
+
+    cls.def("__add__",
+        [](Field& f, double scalar)
+        {
+            auto& mesh = const_cast<Mesh&>(f.mesh());
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_add", mesh);
+            result = f + scalar;
+            return result;
+        },
+        py::arg("scalar"),
+        "Add scalar to field (returns new field)");
+
+    cls.def("__radd__",
+        [](Field& f, double scalar)
+        {
+            auto& mesh = const_cast<Mesh&>(f.mesh());
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_add", mesh);
+            result = f + scalar;
+            return result;
+        },
+        py::arg("scalar"),
+        "Add scalar to field (right-hand version)");
+
+    cls.def("__mul__",
+        [](Field& f, double scalar)
+        {
+            auto& mesh = const_cast<Mesh&>(f.mesh());
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_mul", mesh);
+            result = f * scalar;
+            return result;
+        },
+        py::arg("scalar"),
+        "Multiply field by scalar (returns new field)");
+
+    cls.def("__rmul__",
+        [](Field& f, double scalar)
+        {
+            auto& mesh = const_cast<Mesh&>(f.mesh());
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_mul", mesh);
+            result = f * scalar;
+            return result;
+        },
+        py::arg("scalar"),
+        "Multiply field by scalar (right-hand version)");
+
+    cls.def("__truediv__",
+        [](Field& f, double scalar)
+        {
+            auto& mesh = const_cast<Mesh&>(f.mesh());
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_div", mesh);
+            result = f / scalar;
+            return result;
+        },
+        py::arg("scalar"),
+        "Divide field by scalar (returns new field)");
+
+    // Arithmetic operators: field +/- field
+    cls.def("__add__",
+        [](Field& f, const Field& other)
+        {
+            auto& mesh = const_cast<Mesh&>(f.mesh());
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_add", mesh);
+            result = f + other;
+            return result;
+        },
+        py::arg("other"),
+        "Add two fields (returns new field)");
+
+    cls.def("__sub__",
+        [](Field& f, const Field& other)
+        {
+            auto& mesh = const_cast<Mesh&>(f.mesh());
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_sub", mesh);
+            result = f - other;
+            return result;
+        },
+        py::arg("other"),
+        "Subtract two fields (returns new field)");
 }
 
 // Template function to bind VectorField for a specific dimension and component count

@@ -65,6 +65,8 @@ PYBIND11_MODULE(samurai_python, m)
            make_MRAdapt
            update_ghost_mr
            upwind
+           make_dirichlet_bc
+           make_neumann_bc
            save
            dump
            load

@@ -424,6 +424,48 @@ py::object convection_weno5_nonlin_vector_3d(VectorField3D_3& field)
     return py::cast(result);
 }
 
+// ============================================================
+// Linear WENO5 with VectorField velocity: f(u) = velocity(x) * u
+// For convection with spatially varying velocity fields
+// ============================================================
+
+// 2D ScalarField with VectorField2D_2 velocity
+py::object convection_weno5_vectorfield_2d(VectorField2D_2& velocity, ScalarField<2>& field)
+{
+    auto& mesh = field.mesh();
+
+    // Create output field with same mesh
+    auto result = samurai::make_scalar_field<double>(field.name() + "_conv", mesh);
+
+    // Create WENO5 convection operator with VectorField velocity
+    // Uses template deduction to select the correct overload
+    auto conv = samurai::make_convection_weno5<std::decay_t<decltype(field)>>(velocity);
+
+    // Get the expression and evaluate it
+    auto conv_expr = conv(field);
+    result = conv_expr;
+
+    return py::cast(result);
+}
+
+// 3D ScalarField with VectorField3D_3 velocity
+py::object convection_weno5_vectorfield_3d(VectorField3D_3& velocity, ScalarField<3>& field)
+{
+    auto& mesh = field.mesh();
+
+    // Create output field with same mesh
+    auto result = samurai::make_scalar_field<double>(field.name() + "_conv", mesh);
+
+    // Create WENO5 convection operator with VectorField velocity
+    auto conv = samurai::make_convection_weno5<std::decay_t<decltype(field)>>(velocity);
+
+    // Get the expression and evaluate it
+    auto conv_expr = conv(field);
+    result = conv_expr;
+
+    return py::cast(result);
+}
+
 // Module initialization function for operator bindings
 void init_operator_bindings(py::module_& m)
 {
@@ -997,5 +1039,78 @@ void init_operator_bindings(py::module_& m)
         >>> u1 = u - dt * flux
         >>> u2 = 3./4 * u + 1./4 * (u1 - dt * sam.make_convection_weno5(u1))
         >>> unp1 = 1./3 * u + 2./3 * (u2 - dt * sam.make_convection_weno5(u2))
+        )pbdoc");
+
+    // ============================================================
+    // Linear WENO5 with VectorField velocity: f(u) = velocity(x) * u
+    // ============================================================
+
+    // 2D ScalarField with VectorField2D_2 velocity
+    m.def("make_convection_weno5",
+          &convection_weno5_vectorfield_2d,
+          py::arg("velocity"),
+          py::arg("field"),
+          R"pbdoc(
+        WENO5 convection operator for 2D linear advection with VectorField velocity.
+
+        5th order Weighted Essentially Non-Oscillatory scheme for linear convection
+        with spatially varying velocity field.
+        Flux: f(u) = velocity(x) · u
+
+        Parameters
+        ----------
+        velocity : VectorField2D_2
+            Velocity field [u, v] (can vary in space)
+        field : ScalarField2D
+            Input scalar field
+
+        Returns
+        -------
+        ScalarField2D
+            New field containing convection flux values
+
+        Examples
+        --------
+        >>> import samurai as sam
+        >>> mesh = sam.MRMesh2D(domain, config)
+        >>> velocity = sam.VectorField2D_2("vel", mesh, 0.0)
+        >>> # Initialize velocity field (constant or space-dependent)
+        >>> velocity = sam.make_vector_field(mesh, "velocity",
+        ...     lambda center: [1.0, -1.0], 2)
+        >>> u = sam.ScalarField2D("u", mesh, 0.0)
+        >>> flux = sam.make_convection_weno5(velocity, u)
+        >>> # Use in time step: unp1 = u - dt * flux
+
+        Notes
+        -----
+        This overload is useful for:
+        - Obstacle problems where velocity varies near boundaries
+        - Complex flow fields with spatial variation
+        - Consistent velocity treatment across mesh adaptation
+        )pbdoc");
+
+    // 3D ScalarField with VectorField3D_3 velocity
+    m.def("make_convection_weno5",
+          &convection_weno5_vectorfield_3d,
+          py::arg("velocity"),
+          py::arg("field"),
+          R"pbdoc(
+        WENO5 convection operator for 3D linear advection with VectorField velocity.
+
+        Similar to 2D version but for 3D meshes with VectorField3D_3 velocity.
+
+        Flux: f(u) = velocity(x) · u
+
+        Parameters
+        ----------
+        velocity : VectorField3D_3
+            Velocity field [u, v, w] (can vary in space)
+        field : ScalarField3D
+            Input scalar field
+
+        Returns
+        -------
+        ScalarField3D
+            New field containing convection flux values
         )pbdoc");
 }

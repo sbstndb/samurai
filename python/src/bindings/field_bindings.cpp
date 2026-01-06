@@ -785,6 +785,64 @@ void bind_vector_field(py::module_& m, const std::string& name)
     bind_vectorfield_methods<Field, Mesh>(cls);
 }
 
+// ============================================================
+// Helper function to call Python callable and convert result to components
+// Template to handle any cell type (must be at namespace scope, not inside a function)
+// ============================================================
+namespace
+{
+    template <typename CellType>
+    void call_python_lambda_for_vectorfield(py::function& py_func, const CellType& cell, double* output, std::size_t n_comp)
+    {
+        constexpr std::size_t dim = CellType::dim;
+
+        // Get cell center as numpy array
+        auto center = cell.center();
+        py::array_t<double> center_arr(dim);
+        auto buf = center_arr.request();
+        auto* ptr = static_cast<double*>(buf.ptr);
+        for (std::size_t i = 0; i < dim; ++i)
+        {
+            ptr[i] = center[i];
+        }
+
+        // Call Python function
+        py::object result = py_func(center_arr);
+
+        // Convert result to components
+        if (py::isinstance<py::list>(result) || py::isinstance<py::tuple>(result))
+        {
+            auto seq = result.cast<py::sequence>();
+            if (seq.size() != n_comp)
+            {
+                throw std::runtime_error("Expected " + std::to_string(n_comp) + " components, got " + std::to_string(seq.size()));
+            }
+            for (std::size_t i = 0; i < n_comp; ++i)
+            {
+                output[i] = seq[i].cast<double>();
+            }
+        }
+        else if (py::isinstance<py::array_t<double>>(result))
+        {
+            auto arr = result.cast<py::array_t<double>>();
+            if (arr.size() != n_comp)
+            {
+                throw std::runtime_error("Expected " + std::to_string(n_comp) + " components, got " + std::to_string(arr.size()));
+            }
+            auto buf = arr.request();
+            auto* arr_ptr = static_cast<double*>(buf.ptr);
+            for (std::size_t i = 0; i < n_comp; ++i)
+            {
+                output[i] = arr_ptr[i];
+            }
+        }
+        else
+        {
+            throw std::runtime_error("Python callable must return list, tuple, or numpy array");
+        }
+    }
+}
+
 // Module initialization function for Field bindings
 void init_field_bindings(py::module_& m)
 {
@@ -893,6 +951,93 @@ void init_field_bindings(py::module_& m)
         py::arg("n_components"),
         py::arg("init_value") = 0.0,
         "Create a 2D vector field with specified number of components");
+
+    // ============================================================
+    // VectorField factory with Python callable (lambda) initialization
+    // 2D VectorField factory with Python callable
+    m.def(
+        "make_vector_field",
+        [](MRMesh<2>& mesh, const std::string& field_name, py::function py_func, std::size_t n_components) -> py::object
+        {
+            if (n_components == 2)
+            {
+                using VectorField_t = VectorField<2, 2, false>;
+                auto field = samurai::make_vector_field<double, 2, false>(field_name, mesh, 0.0);
+
+                // Initialize using Python callable
+                samurai::for_each_cell(mesh,
+                                       [&](const auto& cell)
+                                       {
+                                           double values[2];
+                                           call_python_lambda_for_vectorfield(py_func, cell, values, 2);
+                                           field[cell][0] = values[0];
+                                           field[cell][1] = values[1];
+                                       });
+
+                return py::cast(std::move(field));
+            }
+            else if (n_components == 3)
+            {
+                using VectorField_t = VectorField<2, 3, false>;
+                auto field = samurai::make_vector_field<double, 3, false>(field_name, mesh, 0.0);
+
+                // Initialize using Python callable
+                samurai::for_each_cell(mesh,
+                                       [&](const auto& cell)
+                                       {
+                                           double values[3];
+                                           call_python_lambda_for_vectorfield(py_func, cell, values, 3);
+                                           field[cell][0] = values[0];
+                                           field[cell][1] = values[1];
+                                           field[cell][2] = values[2];
+                                       });
+
+                return py::cast(std::move(field));
+            }
+            else
+            {
+                throw std::runtime_error("Unsupported n_components for 2D: " + std::to_string(n_components));
+            }
+        },
+        py::arg("mesh"),
+        py::arg("name"),
+        py::arg("func"),
+        py::arg("n_components"),
+        R"pbdoc(
+        Create a 2D vector field initialized with a Python callable (lambda).
+
+        The callable receives the cell center coordinates as a numpy array
+        and should return a list/tuple/array of component values.
+
+        Parameters
+        ----------
+        mesh : MRMesh2D
+            Mesh to define the field on
+        name : str
+            Field identifier
+        func : callable
+            Python function that takes center coordinates (array-like)
+            and returns list of component values [u, v] or [u, v, w]
+        n_components : int
+            Number of components (2 or 3)
+
+        Returns
+        -------
+        VectorField2D_2 or VectorField2D_3
+            Initialized vector field
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> # Constant velocity
+        >>> constant_vel = [1.0, -1.0]
+        >>> velocity = sam.make_vector_field(mesh, "velocity",
+        ...     lambda center: constant_vel, 2)
+
+        >>> # Space-dependent velocity
+        >>> velocity = sam.make_vector_field(mesh, "velocity",
+        ...     lambda center: [center[0] * 2, center[1] * 2], 2)
+    )pbdoc");
 
     // 3D VectorField factory function
     m.def(

@@ -14,6 +14,7 @@
 #include "algorithm_bindings.hpp"
 #include "bc_bindings.hpp"
 #include "box_bindings.hpp"
+#include "domain_builder_bindings.hpp"
 #include "field_bindings.hpp"
 #include "interval_bindings.hpp"
 #include "io_bindings.hpp"
@@ -77,6 +78,7 @@ PYBIND11_MODULE(samurai_python, m)
 
     // Initialize bindings
     init_box_bindings(m);
+    init_domain_builder_bindings(m);
     init_mesh_config_bindings(m);
     init_mesh_bindings(m);
     init_field_bindings(m);

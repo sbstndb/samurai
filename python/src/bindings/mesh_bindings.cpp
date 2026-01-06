@@ -6,6 +6,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <samurai/box.hpp>
+#include <samurai/domain_builder.hpp>
 #include <samurai/mesh_config.hpp>
 #include <samurai/mr/mesh.hpp>
 
@@ -147,6 +148,12 @@ void bind_mr_mesh(py::module_& m, const std::string& name)
         >>> config.max_level = 1
         >>> mesh = sam.MRMesh1D(box, config)
 
+        Creating a mesh with obstacles:
+
+        >>> domain = sam.DomainBuilder2D([-1., -1.], [1., 1.])
+        >>> domain.remove([0.0, 0.0], [0.4, 0.4])  # Create obstacle
+        >>> mesh = sam.MRMesh2D(domain, config)
+
         Attributes
         ----------
         min_level : int
@@ -161,7 +168,7 @@ void bind_mr_mesh(py::module_& m, const std::string& name)
             Ghost width for stencil operations
     )pbdoc");
 
-    // Constructor using samurai::mra::make_mesh factory function
+    // Constructor using samurai::mra::make_mesh factory function with Box
     // This is the RECOMMENDED approach that handles config conversion properly
     cls.def(py::init(
                 [](const Box& box, const Config& user_config)
@@ -175,6 +182,19 @@ void bind_mr_mesh(py::module_& m, const std::string& name)
             py::arg("box"),
             py::arg("config"),
             "Create MRMesh from Box and MeshConfig (using mra::make_mesh factory)");
+
+    // Constructor using samurai::mra::make_mesh factory function with DomainBuilder
+    // Allows creating meshes with holes/obstacles
+    cls.def(py::init(
+                [](const samurai::DomainBuilder<dim>& domain_builder, const Config& user_config)
+                {
+                    // Use the official factory function with DomainBuilder
+                    // Note: Periodic BC and MPI are NOT supported with DomainBuilder
+                    return samurai::mra::make_mesh(domain_builder, user_config);
+                }),
+            py::arg("domain_builder"),
+            py::arg("config"),
+            "Create MRMesh from DomainBuilder with obstacles (using mra::make_mesh factory)");
 
     // Bind all common methods from Mesh_base
     bind_mesh_base_common_methods<Mesh>(cls);

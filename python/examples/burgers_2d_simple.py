@@ -32,8 +32,8 @@ def main():
     box = sam.Box2D([-1.0, -1.0], [1.0, 1.0])
 
     config = sam.MeshConfig2D()
-    config.min_level = 3  # Fixed level, no adaptation
-    config.max_level = 3
+    config.min_level = 6  # Fixed level, no adaptation
+    config.max_level = 6
     config.max_stencil_size = 6
 
     mesh = sam.MRMesh2D(box, config)
@@ -77,13 +77,13 @@ def main():
 
         # RK3
         flux1 = sam.make_convection_weno5(u)
-        u1 = u - dt * flux1
+        u1.assign(u - dt * flux1)
 
         flux2 = sam.make_convection_weno5(u1)
-        u2 = (3.0/4.0) * u + (1.0/4.0) * (u1 - dt * flux2)
+        u2.assign((3.0/4.0) * u + (1.0/4.0) * (u1 - dt * flux2))
 
         flux3 = sam.make_convection_weno5(u2)
-        u = (1.0/3.0) * u + (2.0/3.0) * (u2 - dt * flux3)
+        u.assign((1.0/3.0) * u + (2.0/3.0) * (u2 - dt * flux3))
 
         # Save every 10 iterations
         if nt % 10 == 0:

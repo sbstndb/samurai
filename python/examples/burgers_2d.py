@@ -100,11 +100,11 @@ def main():
     init_sol = "hat"
 
     # Multiresolution parameters
-    min_level = 0
-    max_level = 3
+    min_level = 5
+    max_level = 7
 
     # Output
-    output_path = Path("./results")
+    output_path = Path("/home/sbstndbs/sbstndbs/samurai/results_python_test2")
     filename = "burgers_2d_python"
 
     # ============================================================
@@ -209,15 +209,15 @@ def main():
         # ========================================================
         # Stage 1: u1 = u - dt * conv(u)
         flux1 = sam.make_convection_weno5(u)
-        u1 = u - dt * flux1
+        u1.assign(u - dt * flux1)  # In-place assignment to avoid stale mesh references
 
         # Stage 2: u2 = 3/4*u + 1/4*(u1 - dt*conv(u1))
         flux2 = sam.make_convection_weno5(u1)
-        u2 = (3.0 / 4.0) * u + (1.0 / 4.0) * (u1 - dt * flux2)
+        u2.assign((3.0 / 4.0) * u + (1.0 / 4.0) * (u1 - dt * flux2))
 
         # Stage 3: unp1 = 1/3*u + 2/3*(u2 - dt*conv(u2))
         flux3 = sam.make_convection_weno5(u2)
-        unp1 = (1.0 / 3.0) * u + (2.0 / 3.0) * (u2 - dt * flux3)
+        unp1.assign((1.0 / 3.0) * u + (2.0 / 3.0) * (u2 - dt * flux3))
 
         # Swap u and unp1 (u becomes the new solution)
         u, unp1 = unp1, u

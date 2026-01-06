@@ -197,6 +197,42 @@ void bind_field_common_methods(py::class_<Field, Options...>& cls)
             "    >>> MRadaptation(mra_config)\n"
             "    >>> unp1.resize()  # Resize next time step field\n"
             "    >>> u.resize()     # Resize current field if needed");
+
+    // In-place assignment from another field (reuses storage)
+    cls.def("assign",
+            [](Field& dest, const Field& src) -> Field&
+            {
+                std::string saved_name = dest.name();  // Save destination's original name
+                dest = src;                              // Uses C++ assignment operator, reuses dest's storage
+                dest.name() = saved_name;                // Restore original name (prevents "u_mul_add..." bug)
+                return dest;
+            },
+            py::arg("other"),
+            "In-place assignment from another field.\n\n"
+            "This method reuses this field's existing storage, avoiding allocation\n"
+            "and preventing stale mesh reference issues after mesh adaptation.\n\n"
+            "Unlike arithmetic operators (which create new fields with captured\n"
+            "mesh references), this uses the C++ assignment operator which works\n"
+            "correctly even after mesh structure changes.\n\n"
+            "Note: Preserves the destination field's name (e.g., 'u1' stays 'u1'\n"
+            "even when assigning from an expression like 'u - dt * flux').\n\n"
+            "Examples\n"
+            "--------\n"
+            "    >>> # WRONG: Creates new field with stale mesh reference\n"
+            "    >>> u1 = u - dt * flux  # u1 has captured mesh reference\n"
+            "    >>> MRadaptation(config)\n"
+            "    >>> u1.resize()  # SEGFAULT: stale reference\n"
+            "\n"
+            "    >>> # CORRECT: Reuses existing storage\n"
+            "    >>> u1.assign(u - dt * flux)\n"
+            "    >>> MRadaptation(config)\n"
+            "    >>> u1.resize()  # OK: u1 still references correct mesh\n\n"
+            "Returns\n"
+            "-------\n"
+            "    Field: Reference to self (for chaining)\n\n"
+            "See Also\n"
+            "---------\n"
+            "    resize : Resize field storage after mesh adaptation");
 }
 
 // Template function to bind ScalarField for a specific dimension

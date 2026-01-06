@@ -157,7 +157,7 @@ def main():
         upwind_result = sam.upwind(velocity, u)
 
         # 5. Euler time step: unp1 = u - dt * upwind(a, u)
-        unp1 = u - dt * upwind_result
+        unp1.assign(u - dt * upwind_result)  # In-place to avoid stale mesh references
 
         # 6. Swap arrays (efficient: no memory allocation)
         sam.swap_field_arrays_2d(u, unp1)

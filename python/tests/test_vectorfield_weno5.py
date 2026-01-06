@@ -127,6 +127,7 @@ try:
     u = sam.VectorField2D_2("u", mesh, 0.0)
     u1 = sam.VectorField2D_2("u1", mesh, 0.0)
     u2 = sam.VectorField2D_2("u2", mesh, 0.0)
+    unp1 = sam.VectorField2D_2("unp1", mesh, 0.0)
 
     # Initialize with a Gaussian pulse
     def init_gaussian(cell):
@@ -141,14 +142,15 @@ try:
     sam.make_dirichlet_bc(u, [0.0, 0.0], order=1)
     sam.make_dirichlet_bc(u1, [0.0, 0.0], order=1)
     sam.make_dirichlet_bc(u2, [0.0, 0.0], order=1)
+    sam.make_dirichlet_bc(unp1, [0.0, 0.0], order=1)
 
     # Time step
     dt = 0.001
 
-    # RK3 scheme
-    u1 = u - dt * sam.make_convection_weno5(u)
-    u2 = 3./4 * u + 1./4 * (u1 - dt * sam.make_convection_weno5(u1))
-    unp1 = 1./3 * u + 2./3 * (u2 - dt * sam.make_convection_weno5(u2))
+    # RK3 scheme (using assign for consistency with AMR examples)
+    u1.assign(u - dt * sam.make_convection_weno5(u))
+    u2.assign(3./4 * u + 1./4 * (u1 - dt * sam.make_convection_weno5(u1)))
+    unp1.assign(1./3 * u + 2./3 * (u2 - dt * sam.make_convection_weno5(u2)))
 
     print(f"  Successfully performed RK3 time step")
     print(f"  dt = {dt}")

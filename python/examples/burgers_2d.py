@@ -2,23 +2,15 @@
 
 import sys
 import os
-
-print("DEBUG: Starting script...")
-
 import math
 from pathlib import Path
 
-print("DEBUG: About to modify sys.path...")
-
 # Add build directory to path for development
 build_dir = os.path.join(os.path.dirname(__file__), "..", "..", "build", "python")
-print(f"DEBUG: build_dir = {build_dir}, exists = {os.path.exists(build_dir)}")
 if os.path.exists(build_dir):
     sys.path.insert(0, build_dir)
 
-print("DEBUG: About to import samurai_python...")
 import samurai_python as sam
-print("DEBUG: Import successful!")
 
 
 def init_hat(u):
@@ -104,7 +96,7 @@ def main():
     max_level = 7
 
     # Output
-    output_path = Path("/home/sbstndbs/sbstndbs/samurai/results_python_test2")
+    output_path = Path("/home/sbstndbs/sbstndbs/samurai/burgers_2d_python")
     filename = "burgers_2d_python"
 
     # ============================================================
@@ -167,9 +159,7 @@ def main():
 
     # Save initial condition
     save_filename = f"{filename}_init"
-    print(f"DEBUG: About to save to {output_path / save_filename}...")
     sam.save(str(output_path), save_filename, u)
-    print(f"DEBUG: Save complete!")
     print(f"Saved initial condition to {output_path / save_filename}")
 
     # ============================================================
@@ -221,6 +211,7 @@ def main():
 
         # Swap u and unp1 (u becomes the new solution)
         u, unp1 = unp1, u
+        u.name = "u"      # Rename to ensure consistent field names in output
 
         # ========================================================
         # Save output

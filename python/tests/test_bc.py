@@ -28,7 +28,7 @@ class TestMakeDirichletBC:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 
@@ -44,7 +44,7 @@ class TestMakeDirichletBC:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         # Test orders 1-4
         for order in [1, 2, 3, 4]:
@@ -59,7 +59,7 @@ class TestMakeDirichletBC:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 
@@ -73,7 +73,7 @@ class TestMakeDirichletBC:
         config = sam.config.make(2)
         config.min_level = 4
         config.max_level = 4
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 
@@ -89,7 +89,7 @@ class TestMakeDirichletBC:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 
@@ -104,7 +104,7 @@ class TestMakeDirichletBC:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         # Test orders 1-4
         for order in [1, 2, 3, 4]:
@@ -118,7 +118,7 @@ class TestMakeDirichletBC:
         config = sam.config.make(3)
         config.min_level = 1
         config.max_level = 1
-        mesh = sam.mesh.MRMesh3D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 
@@ -133,7 +133,7 @@ class TestMakeDirichletBC:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u1 = sam.field.scalar(mesh, "u1", init=0.0)
         u2 = sam.field.scalar(mesh, "u2", init=0.0)

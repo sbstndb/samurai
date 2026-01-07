@@ -30,7 +30,7 @@ class TestScalarField1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.scalar(mesh, "u")
 
         assert field.name == "u"
@@ -45,7 +45,7 @@ class TestScalarField1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.scalar(mesh, "u", init=3.14)
 
         # Check a few cells have the init value
@@ -59,7 +59,7 @@ class TestScalarField1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.scalar(mesh, "u")
 
         assert field.name == "u"
@@ -74,7 +74,7 @@ class TestScalarField1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.scalar(mesh, "u")
 
         assert field.mesh is mesh
@@ -86,7 +86,7 @@ class TestScalarField1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.scalar(mesh, "u")
         field.fill(2.5)
 
@@ -100,7 +100,7 @@ class TestScalarField1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.scalar(mesh, "u")
         field.fill(42.0)
 
@@ -122,7 +122,7 @@ class TestScalarField1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.ScalarField1D("u", mesh)
         field.fill(1.0)
 
@@ -145,7 +145,7 @@ class TestScalarField1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.ScalarField1D("u", mesh)
 
         field[0] = 123.0
@@ -161,7 +161,7 @@ class TestScalarField1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.ScalarField1D("u", mesh)
 
         # Initially False
@@ -178,7 +178,7 @@ class TestScalarField1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.ScalarField1D("u", mesh)
 
         repr_str = repr(field)
@@ -200,7 +200,7 @@ class TestScalarField2D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.ScalarField2D("u", mesh)
 
         assert field.name == "u"
@@ -215,7 +215,7 @@ class TestScalarField2D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.ScalarField2D("u", mesh)
         field.fill(3.14)
 
@@ -229,7 +229,7 @@ class TestScalarField2D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.ScalarField2D("u", mesh)
         field.fill(1.0)
 
@@ -252,7 +252,7 @@ class TestVectorField2D_2:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.VectorField2D_2("vel", mesh)
 
         assert field.name == "vel"
@@ -268,7 +268,7 @@ class TestVectorField2D_2:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.VectorField2D_2("vel", mesh)
         field.fill(5.0)
 
@@ -283,7 +283,7 @@ class TestVectorField2D_2:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.VectorField2D_2("vel", mesh)
         field.fill(0.0)
 
@@ -301,7 +301,7 @@ class TestVectorField2D_2:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.VectorField2D_2("vel", mesh)
         field.fill([1.0, 2.0])
 
@@ -323,7 +323,7 @@ class TestVectorField2D_2:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.VectorField2D_2("vel", mesh)
 
         repr_str = repr(field)
@@ -344,7 +344,7 @@ class TestVectorField2D_3:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.VectorField2D_3("f", mesh)
 
         assert field.n_components == 3
@@ -361,7 +361,7 @@ class TestFactoryFunctions:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.scalar(mesh, "u", 2.5)
 
         assert isinstance(field, sam.field.ScalarField1D)
@@ -376,7 +376,7 @@ class TestFactoryFunctions:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.scalar(mesh, "u")
 
         assert isinstance(field, sam.field.ScalarField2D)
@@ -388,7 +388,7 @@ class TestFactoryFunctions:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.vector(mesh, "vel", 2)
 
         assert isinstance(field, sam.field.VectorField2D_2)
@@ -401,7 +401,7 @@ class TestFactoryFunctions:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = sam.field.vector(mesh, "f", 3)
 
         assert isinstance(field, sam.field.VectorField2D_3)
@@ -435,7 +435,7 @@ class TestFieldSubmodule:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         field = ScalarField1D("u", mesh)
         assert field.name == "u"
 

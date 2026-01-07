@@ -38,7 +38,7 @@ def mesh_1d():
     config = sam.config.make(1)
     config.min_level = 4
     config.max_level = 4
-    return sam.mesh.MRMesh1D(box, config)
+    return sam.mesh.make(box, config)
 
 
 @pytest.fixture
@@ -48,7 +48,7 @@ def mesh_2d():
     config = sam.config.make(2)
     config.min_level = 4
     config.max_level = 4
-    return sam.mesh.MRMesh2D(box, config)
+    return sam.mesh.make(box, config)
 
 
 @pytest.fixture

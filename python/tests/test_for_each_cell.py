@@ -28,7 +28,7 @@ class TestForEachCell1D:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         # Collect cells
         cells = []
@@ -58,7 +58,7 @@ class TestForEachCell1D:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         cell_data_list = []
 
@@ -87,7 +87,7 @@ class TestForEachCell1D:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         # Create a field
         u = sam.field.scalar(mesh, "u", init=0.0)
@@ -111,7 +111,7 @@ class TestForEachCell1D:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         centers = []
 
@@ -135,7 +135,7 @@ class TestForEachCell2D:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 3
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         centers = []
 
@@ -157,7 +157,7 @@ class TestForEachCell2D:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         count = [0]
 
@@ -177,7 +177,7 @@ class TestForEachCell2D:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         centers = []
 
@@ -197,7 +197,7 @@ class TestForEachCell2D:
         config = sam.config.make(2)
         config.min_level = 4
         config.max_level = 4
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         # Create field
         u = sam.field.scalar(mesh, "u", init=0.0)
@@ -235,7 +235,7 @@ class TestForEachCell3D:
         config = sam.config.make(3)
         config.min_level = 1
         config.max_level = 1
-        mesh = sam.mesh.MRMesh3D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         centers = []
 
@@ -255,7 +255,7 @@ class TestForEachCell3D:
         config = sam.config.make(3)
         config.min_level = 1
         config.max_level = 1
-        mesh = sam.mesh.MRMesh3D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         corners = []
 
@@ -275,7 +275,7 @@ class TestForEachCell3D:
         config = sam.config.make(3)
         config.min_level = 1
         config.max_level = 1
-        mesh = sam.mesh.MRMesh3D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         count = [0]
 
@@ -297,7 +297,7 @@ class TestForEachCellIntegration:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         cell_types = set()
 
@@ -315,7 +315,7 @@ class TestForEachCellIntegration:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         reprs = []
 
@@ -335,7 +335,7 @@ class TestForEachCellIntegration:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 

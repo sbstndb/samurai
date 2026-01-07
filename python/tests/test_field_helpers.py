@@ -24,7 +24,7 @@ class TestFieldZeros:
         config = sam.config.make(1)
         config.min_level = 2
         box = sam.geometry.box([0.0], [1.0])
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.zeros(mesh, "u")
         assert np.allclose(u.numpy_view(), 0.0)
@@ -33,7 +33,7 @@ class TestFieldZeros:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.zeros(mesh, "u")
         assert np.allclose(u.numpy_view(), 0.0)
@@ -42,7 +42,7 @@ class TestFieldZeros:
         config = sam.config.make(3)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
-        mesh = sam.mesh.MRMesh3D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.zeros(mesh, "u")
         assert np.allclose(u.numpy_view(), 0.0)
@@ -53,7 +53,7 @@ class TestFieldOnes:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.ones(mesh, "u")
         assert np.allclose(u.numpy_view(), 1.0)
@@ -64,7 +64,7 @@ class TestFieldFull:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.full(mesh, 3.14, "pi")
         assert np.allclose(u.numpy_view(), 3.14)
@@ -75,7 +75,7 @@ class TestFieldLike:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.scalar(mesh, "u", init=5.0)
         v = sam.field.zeros_like(u, "v")
@@ -90,7 +90,7 @@ class TestFieldLike:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.scalar(mesh, "u", init=5.0)
         v = sam.field.ones_like(u, "v")
@@ -101,7 +101,7 @@ class TestFieldLike:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         u = sam.field.scalar(mesh, "u", init=5.0)
         v = sam.field.full_like(u, 2.71, "v")
@@ -114,7 +114,7 @@ class TestVectorFieldHelpers:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         vel = sam.field.zeros_vector(mesh, n_components=2)
         # Check it's a vector field
@@ -125,7 +125,7 @@ class TestVectorFieldHelpers:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         B = sam.field.zeros_vector(mesh, "B", n_components=3)
         assert B.name == "B"
@@ -134,7 +134,7 @@ class TestVectorFieldHelpers:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         vel = sam.field.ones_vector(mesh, "vel", n_components=2)
         assert vel.name == "vel"
@@ -143,7 +143,7 @@ class TestVectorFieldHelpers:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         vel = sam.field.full_vector(mesh, 2.5, "vel", n_components=2)
         assert vel.name == "vel"
@@ -152,7 +152,7 @@ class TestVectorFieldHelpers:
         config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         vel = sam.field.zeros_vector(mesh, "vel", n_components=2)
         vel2 = sam.field.zeros_like_vector(vel, "vel2")

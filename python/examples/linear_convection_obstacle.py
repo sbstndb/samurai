@@ -116,7 +116,7 @@ def main():
     # Note: Periodic BC is NOT supported with DomainBuilder
 
     # Create mesh from DomainBuilder
-    mesh = sam.mesh.MRMesh2D(domain, config)
+    mesh = sam.mesh.make(domain, config)
 
     # Create fields for TVD-RK3 time stepping
     u = sam.field.zeros(mesh, "u")      # Current solution

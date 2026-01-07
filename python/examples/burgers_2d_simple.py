@@ -36,7 +36,7 @@ def main():
     config.max_level = 6
     config.max_stencil_size = 6
 
-    mesh = sam.mesh.MRMesh2D(box, config)
+    mesh = sam.mesh.make(box, config)
 
     # Fields
     u = sam.field.zeros_vector(mesh, "u", n_components=2)

@@ -28,7 +28,7 @@ class TestForEachInterval1D:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         # Collect intervals
         intervals = []
@@ -53,7 +53,7 @@ class TestForEachInterval1D:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         interval_data = []
 
@@ -84,7 +84,7 @@ class TestForEachInterval1D:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         levels_seen = set()
 
@@ -103,7 +103,7 @@ class TestForEachInterval1D:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         contains_checks = []
 
@@ -132,7 +132,7 @@ class TestForEachInterval1D:
         config = sam.config.make(1)
         config.min_level = 4
         config.max_level = 4
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         level_intervals = {}
 
@@ -163,7 +163,7 @@ class TestForEachInterval2D:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 3
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         indices = []
 
@@ -183,7 +183,7 @@ class TestForEachInterval2D:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 3
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         y_values = []
 
@@ -203,7 +203,7 @@ class TestForEachInterval2D:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         count = [0]
 
@@ -221,7 +221,7 @@ class TestForEachInterval2D:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         index_types = set()
 
@@ -243,7 +243,7 @@ class TestForEachInterval3D:
         config = sam.config.make(3)
         config.min_level = 1
         config.max_level = 2
-        mesh = sam.mesh.MRMesh3D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         indices = []
 
@@ -263,7 +263,7 @@ class TestForEachInterval3D:
         config = sam.config.make(3)
         config.min_level = 1
         config.max_level = 1
-        mesh = sam.mesh.MRMesh3D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         yz_values = []
 
@@ -284,7 +284,7 @@ class TestForEachInterval3D:
         config = sam.config.make(3)
         config.min_level = 1
         config.max_level = 1
-        mesh = sam.mesh.MRMesh3D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         count = [0]
 
@@ -306,7 +306,7 @@ class TestForEachIntervalIntegration:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         interval_types = set()
 
@@ -324,7 +324,7 @@ class TestForEachIntervalIntegration:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         level_types = set()
 
@@ -342,7 +342,7 @@ class TestForEachIntervalIntegration:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         execution_count = [0]
 
@@ -360,7 +360,7 @@ class TestForEachIntervalIntegration:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         factory_intervals = []
         callback_intervals = []
@@ -382,7 +382,7 @@ class TestForEachIntervalIntegration:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 3
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         # Store original mesh properties
         original_min_level = mesh.min_level
@@ -409,7 +409,7 @@ class TestForEachIntervalEdgeCases:
         config = sam.config.make(1)
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         levels_seen = set()
 
@@ -427,7 +427,7 @@ class TestForEachIntervalEdgeCases:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         def callback(level, interval, index):
             pass
@@ -441,7 +441,7 @@ class TestForEachIntervalEdgeCases:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 3
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
 
         total_size = [0]
 

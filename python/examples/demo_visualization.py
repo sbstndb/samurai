@@ -64,7 +64,7 @@ def demo_static_scalar_field():
     config.max_level = 6
     config.max_stencil_size = 6
 
-    mesh = sam.mesh.MRMesh2D(box, config)
+    mesh = sam.mesh.make(box, config)
     u = sam.field.zeros(mesh, "u")
 
     # Initialize with circular pattern
@@ -118,7 +118,7 @@ def demo_vector_field():
     config.max_level = 5
     config.max_stencil_size = 6
 
-    mesh = sam.mesh.MRMesh2D(box, config)
+    mesh = sam.mesh.make(box, config)
 
     # Create vector field with rotational velocity
     vel = sam.field.zeros_vector(mesh, "velocity", n_components=2)
@@ -173,7 +173,7 @@ def demo_realtime_plotting():
     config.max_stencil_size = 6
     config.disable_minimal_ghost_width()
 
-    mesh = sam.mesh.MRMesh2D(box, config)
+    mesh = sam.mesh.make(box, config)
 
     # Create fields
     u = sam.field.zeros(mesh, "u")
@@ -270,7 +270,7 @@ def demo_multiple_initial_conditions():
     config.max_level = 6
     config.max_stencil_size = 6
 
-    mesh = sam.mesh.MRMesh2D(box, config)
+    mesh = sam.mesh.make(box, config)
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 12))
 

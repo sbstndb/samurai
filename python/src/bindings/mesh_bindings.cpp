@@ -135,7 +135,9 @@ void bind_mr_mesh(py::module_& m, const std::string& name)
     using Mesh           = samurai::MRMesh<CompleteConfig>;
 
     auto cls = py::class_<Mesh>(m, name.c_str(), R"pbdoc(
-        Multiresolution Mesh (MRMesh)
+        Multiresolution Mesh (MRMesh) - Internal Implementation
+
+        Note: This is an internal implementation detail. Users should use sam.mesh.make() factory function.
 
         Adaptive mesh refinement mesh with multiresolution analysis capabilities.
 
@@ -143,18 +145,16 @@ void bind_mr_mesh(py::module_& m, const std::string& name)
 
         Examples
         --------
-        >>> import samurai as sam
-        >>> box = sam.Box1D([0.], [1.])
-        >>> config = sam.MeshConfig1D()
-        >>> config.min_level = 0
-        >>> config.max_level = 1
-        >>> mesh = sam.MRMesh1D(box, config)
+        >>> import samurai_python as sam
+        >>> box = sam.geometry.box([0.], [1.])
+        >>> config = sam.config.make(1, min_level=0, max_level=1)
+        >>> mesh = sam.mesh.make(box, config)
 
         Creating a mesh with obstacles:
 
-        >>> domain = sam.DomainBuilder2D([-1., -1.], [1., 1.])
+        >>> domain = sam.geometry.domain_builder([-1., -1.], [1., 1.])
         >>> domain.remove([0.0, 0.0], [0.4, 0.4])  # Create obstacle
-        >>> mesh = sam.MRMesh2D(domain, config)
+        >>> mesh = sam.mesh.make(domain, config)
 
         Attributes
         ----------
@@ -215,9 +215,12 @@ void bind_mr_mesh(py::module_& m, const std::string& name)
 void init_mesh_bindings(py::module_& m)
 {
     // ============================================================
-    // BREAKING CHANGE: No longer bind MRMesh classes to main module
-    // Users must use sam.mesh.MRMesh1D, sam.mesh.MRMesh2D, etc.
-    // Or use the new factory: sam.mesh.make(box, config=None, min_level=None, ...)
+    // BREAKING CHANGE (v0.30.0): Explicit MRMesh classes removed from public API
+    // Users must use the factory: sam.mesh.make(box_or_domain, config=None, ...)
+    //
+    // NOTE: We still register the MRMesh types with pybind11 (as _MRMesh1D, etc.)
+    // because the factory function needs to return these types. The underscore prefix
+    // indicates they are internal implementation details, not public API.
     // ============================================================
 
     // ============================================================
@@ -227,22 +230,19 @@ void init_mesh_bindings(py::module_& m)
         "Mesh classes for Samurai AMR simulations\n\n"
         "Factory Functions:\n"
         "  make(box_or_domain, config=None, min_level=None, max_level=None, ...) - Create MRMesh\n\n"
-        "Classes:\n"
-        "  MRMesh1D, MRMesh2D, MRMesh3D - Dimension-specific MRMesh\n\n"
         "Examples:\n"
         "    >>> import samurai_python as sam\n"
         "    >>> # Factory function with inline config (recommended)\n"
+        "    >>> box = sam.geometry.box([0., 0.], [1., 1.])\n"
         "    >>> mesh = sam.mesh.make(box, min_level=4, max_level=8)\n"
         "    >>> # Factory function with explicit config\n"
         "    >>> config = sam.config.make(2, min_level=4, max_level=8)\n"
-        "    >>> mesh = sam.mesh.make(box, config)\n"
-        "    >>> # Direct class access\n"
-        "    >>> mesh = sam.mesh.MRMesh2D(box, config)\n");
+        "    >>> mesh = sam.mesh.make(box, config)\n");
 
-    // Bind MRMesh classes ONLY to mesh submodule (not to main module)
-    bind_mr_mesh<1>(mesh_module, "MRMesh1D");
-    bind_mr_mesh<2>(mesh_module, "MRMesh2D");
-    bind_mr_mesh<3>(mesh_module, "MRMesh3D");
+    // Register MRMesh types (internal, with _ prefix) for factory function return types
+    bind_mr_mesh<1>(mesh_module, "_MRMesh1D");
+    bind_mr_mesh<2>(mesh_module, "_MRMesh2D");
+    bind_mr_mesh<3>(mesh_module, "_MRMesh3D");
 
     // ============================================================
     // Helper template to create MRMesh with inline config parameters
@@ -590,7 +590,7 @@ void init_mesh_bindings(py::module_& m)
         Returns
         -------
         MRMesh
-            Dimension-specific MRMesh object (MRMesh1D, MRMesh2D, or MRMesh3D)
+            Dimension-specific MRMesh object (inferred from box_or_domain)
 
         Examples
         --------

@@ -94,7 +94,7 @@ def real_mesh_1d():
         config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 2
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         return mesh
     except Exception:
         pytest.skip("Could not create real mesh")
@@ -108,7 +108,7 @@ def real_mesh_2d():
         config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 2
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         return mesh
     except Exception:
         pytest.skip("Could not create real mesh")

@@ -29,7 +29,7 @@ class TestMRMesh1D:
         config.min_level = 0
         config.max_level = 1  # Keep small for testing
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert mesh.dim == 1
 
     def test_nb_cells(self):
@@ -39,7 +39,7 @@ class TestMRMesh1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         # Total cells (property)
         total = mesh.nb_cells
         assert total > 0
@@ -54,7 +54,7 @@ class TestMRMesh1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert mesh.min_level == 0
         assert mesh.max_level == 1
 
@@ -64,7 +64,7 @@ class TestMRMesh1D:
         config = sam.config.make(1)
         config.graduation_width = 2
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert mesh.graduation_width == 2
 
     def test_ghost_width(self):
@@ -73,7 +73,7 @@ class TestMRMesh1D:
         config = sam.config.make(1)
         config.max_stencil_radius = 2
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert mesh.ghost_width >= 1
 
     def test_max_stencil_radius(self):
@@ -82,7 +82,7 @@ class TestMRMesh1D:
         config = sam.config.make(1)
         config.max_stencil_radius = 3
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert mesh.max_stencil_radius == 3
 
     def test_cell_length(self):
@@ -92,7 +92,7 @@ class TestMRMesh1D:
         config.min_level = 0
         config.max_level = 2
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         # Level 0 cells are larger
         len_0 = mesh.cell_length(0)
         len_1 = mesh.cell_length(1)
@@ -108,7 +108,7 @@ class TestMRMesh1D:
         config.min_level = 0
         config.max_level = 2
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         min_len = mesh.min_cell_length
         assert min_len > 0
         assert min_len <= mesh.cell_length(0)
@@ -118,7 +118,7 @@ class TestMRMesh1D:
         box = sam.geometry.box([0.], [1.])
         config = sam.config.make(1)
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert not mesh.periodic
         assert not mesh.is_periodic(0)
         assert mesh.periodicity == [False]
@@ -129,7 +129,7 @@ class TestMRMesh1D:
         config = sam.config.make(1)
         config.set_periodic(True)
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert mesh.periodic
         assert mesh.is_periodic(0)
 
@@ -140,11 +140,11 @@ class TestMRMesh1D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         repr_str = repr(mesh)
         str_str = str(mesh)
 
-        assert "MRMesh1D" in repr_str
+        assert "MRMesh" in repr_str
         assert "min_level=" in repr_str
         assert "L0-1" in str_str
         assert "cells" in str_str
@@ -160,7 +160,7 @@ class TestMRMesh2D:
         config.min_level = 0
         config.max_level = 1  # Keep small for testing
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert mesh.dim == 2
 
     def test_nb_cells(self):
@@ -170,7 +170,7 @@ class TestMRMesh2D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         total = mesh.nb_cells
         assert total > 0
         cells_level_0 = mesh.nb_cells_at_level(0)
@@ -183,7 +183,7 @@ class TestMRMesh2D:
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         len_0 = mesh.cell_length(0)
         len_1 = mesh.cell_length(1)
         assert len_0 > len_1
@@ -195,7 +195,7 @@ class TestMRMesh2D:
         config = sam.config.make(2)
         config.set_periodic_per_direction([True, False])
 
-        mesh = sam.mesh.MRMesh2D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert mesh.is_periodic(0)
         assert not mesh.is_periodic(1)
         assert mesh.periodicity == [True, False]
@@ -211,7 +211,7 @@ class TestMRMesh3D:
         config.min_level = 0
         config.max_level = 1  # Keep small for testing
 
-        mesh = sam.mesh.MRMesh3D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert mesh.dim == 3
 
     def test_nb_cells(self):
@@ -221,7 +221,7 @@ class TestMRMesh3D:
         config.min_level = 0
         config.max_level = 0  # Single level only
 
-        mesh = sam.mesh.MRMesh3D(box, config)
+        mesh = sam.mesh.make(box, config)
         total = mesh.nb_cells
         assert total > 0
 
@@ -234,21 +234,21 @@ class TestMRMeshSubmodule:
         assert hasattr(sam, 'mesh')
 
     def test_mesh_classes_in_mesh(self):
-        """Test that MRMesh classes are in mesh submodule."""
+        """Test that MRMesh classes are in mesh submodule (as internal)."""
         ms = sam.mesh
-        assert hasattr(ms, 'MRMesh1D')
-        assert hasattr(ms, 'MRMesh2D')
-        assert hasattr(ms, 'MRMesh3D')
+        # Classes are now internal (prefixed with _)
+        assert hasattr(ms, '_MRMesh1D')
+        assert hasattr(ms, '_MRMesh2D')
+        assert hasattr(ms, '_MRMesh3D')
 
     def test_mesh_from_submodule(self):
-        """Test creating mesh from submodule."""
-        MRMesh1D = sam.mesh.MRMesh1D
+        """Test creating mesh using factory function from submodule."""
         box = sam.geometry.box([0.], [1.])
         config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
-        mesh = MRMesh1D(box, config)
+        mesh = sam.mesh.make(box, config)
         assert mesh.dim == 1
 
 

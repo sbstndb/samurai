@@ -35,7 +35,7 @@ try:
     config2d.max_level = 5
     config2d.max_stencil_size = 6  # Required for WENO5
 
-    mesh2d = sam.mesh.MRMesh2D(box, config2d)
+    mesh2d = sam.mesh.make(box, config2d)
 
     # Create VectorField2D_2 (velocity field u = [u, v])
     u_vec = sam.field.vector(mesh2d, "u", n_components=2, init=0.0)
@@ -69,7 +69,7 @@ try:
     config3d.max_level = 3
     config3d.max_stencil_size = 6  # Required for WENO5
 
-    mesh3d = sam.mesh.MRMesh3D(box, config3d)
+    mesh3d = sam.mesh.make(box, config3d)
 
     # Create VectorField3D_3 (velocity field u = [u, v, w])
     u_vec = sam.field.vector(mesh3d, "u", n_components=3, init=0.0)
@@ -103,7 +103,7 @@ try:
     config.max_level = 5
     config.max_stencil_size = 6
 
-    mesh = sam.mesh.MRMesh2D(box, config)
+    mesh = sam.mesh.make(box, config)
 
     # Create fields for RK3
     u = sam.field.vector(mesh, "u", n_components=2, init=0.0)

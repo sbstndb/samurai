@@ -145,7 +145,7 @@ def main():
     config.disable_minimal_ghost_width()  # Required for proper ghost cell handling
 
     # Create mesh and fields
-    mesh = sam.mesh.MRMesh2D(box, config)
+    mesh = sam.mesh.make(box, config)
     u = sam.field.zeros(mesh, "u")      # Current solution
     unp1 = sam.field.zeros(mesh, "unp1")  # Next time step
 

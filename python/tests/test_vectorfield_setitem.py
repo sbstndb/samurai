@@ -34,7 +34,7 @@ try:
     config.max_level = 5
     config.max_stencil_size = 6
 
-    mesh = sam.mesh.MRMesh2D(box, config)
+    mesh = sam.mesh.make(box, config)
 
     # Create VectorField2D_2
     u = sam.field.vector(mesh, "u", n_components=2, init=0.0)
@@ -77,7 +77,7 @@ try:
     config.max_level = 3
     config.max_stencil_size = 6
 
-    mesh = sam.mesh.MRMesh3D(box, config)
+    mesh = sam.mesh.make(box, config)
 
     # Create VectorField3D_3
     u = sam.field.vector(mesh, "u", n_components=3, init=0.0)

@@ -135,7 +135,7 @@ def main():
     config.max_level = max_level
     config.max_stencil_size = 6  # Required for WENO5
 
-    mesh = sam.mesh.MRMesh2D(box, config)
+    mesh = sam.mesh.make(box, config)
 
     # Create VectorFields for RK3 time stepping
     u = sam.field.zeros_vector(mesh, "u", n_components=2)

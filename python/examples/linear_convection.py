@@ -103,7 +103,7 @@ def main():
     config.set_periodic(True)  # Periodic boundary conditions
 
     # Create mesh and fields
-    mesh = sam.mesh.MRMesh2D(box, config)
+    mesh = sam.mesh.make(box, config)
 
     # Create fields for TVD-RK3 time stepping
     u = sam.field.zeros(mesh, "u")      # Current solution

@@ -32,7 +32,7 @@ if os.path.exists(viz_dir):
 import matplotlib.pyplot as plt
 import samurai_python as sam
 import samplotlib as svmpl  # matplotlib visualization
-from samurai.utils import progress
+from samurai_python.utils import progress
 
 
 def init_circular(u, center=(0.3, 0.3), radius=0.2):
@@ -64,7 +64,7 @@ def main():
     # ============================================================
 
     # Domain: [0, 1] x [0, 1]
-    box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+    box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
 
     # Velocity: a = (1, 1)
     velocity = [1.0, 1.0]
@@ -88,16 +88,11 @@ def main():
     print(f"==============================\n")
 
     # ============================================================
-    # Mesh configuration
+    # Mesh configuration and creation (using factory functions)
     # ============================================================
 
-    config = sam.config.MeshConfig2D()
-    config.min_level = 4      # Minimum refinement level
-    config.max_level = 10     # Maximum refinement level
-    config.disable_minimal_ghost_width()  # Required for proper ghost cell handling
-
-    # Create mesh and fields
-    mesh = sam.mesh.MRMesh2D(box, config)
+    # Create mesh directly with factory (auto-detects 2D from box)
+    mesh = sam.mesh.make(box, min_level=4, max_level=10)
     u = sam.field.zeros(mesh, "u")      # Current solution
     unp1 = sam.field.zeros(mesh, "unp1")  # Next time step
 

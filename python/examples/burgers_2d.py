@@ -18,7 +18,7 @@ if os.path.exists(viz_dir):
 import matplotlib.pyplot as plt
 import samurai_python as sam
 import samplotlib as svmpl
-from samurai.utils import progress
+from samurai_python.utils import progress
 
 
 def init_hat(u):

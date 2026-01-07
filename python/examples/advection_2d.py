@@ -24,7 +24,14 @@ build_dir = os.path.join(os.path.dirname(__file__), "..", "..", "build", "python
 if os.path.exists(build_dir):
     sys.path.insert(0, build_dir)
 
+# Add viz directory to path for matplotlib visualization
+viz_dir = os.path.join(os.path.dirname(__file__), "..", "viz")
+if os.path.exists(viz_dir):
+    sys.path.insert(0, viz_dir)
+
+import matplotlib.pyplot as plt
 import samurai_python as sam
+import samplotlib as svmpl  # matplotlib visualization
 
 
 def init_circular(u, center=(0.3, 0.3), radius=0.2):
@@ -48,6 +55,8 @@ def init_circular(u, center=(0.3, 0.3), radius=0.2):
 
 def main():
     """Main simulation function."""
+    # Visualization option
+    enable_realtime_viz = True  # Set to False to disable matplotlib visualization
 
     # ============================================================
     # Simulation parameters
@@ -73,6 +82,8 @@ def main():
     print(f"CFL: {cfl}")
     print(f"Final time: {Tf}")
     print(f"Output: {output_path}/{filename}_*.h5")
+    if enable_realtime_viz:
+        print(f"Real-time visualization: ENABLED")
     print(f"==============================\n")
 
     # ============================================================
@@ -138,6 +149,14 @@ def main():
     if save_interval < 1:
         save_interval = 1
 
+    # Setup real-time visualization if enabled
+    plotter = None
+    if enable_realtime_viz:
+        plt.ion()  # Interactive mode
+        fig, ax = plt.subplots(figsize=(8, 8))
+        plotter = svmpl.FieldPlotter(u, ax=ax, cmap='RdBu_r', vmin=0.0, vmax=1.0, show_mesh=True)
+        plt.pause(0.01)
+
     print(f"Starting time stepping...\n")
     print(f"{'Iter':>6} {'Time':>12} {'Cells':>10} {'Min Level':>10} {'Max Level':>10}")
     print("-" * 54)
@@ -146,20 +165,23 @@ def main():
         # 1. Adapt mesh FIRST (as in C++ version)
         MRadaptation(mra_config)
 
-        # 2. Update BCs and ghost cells BEFORE computing fluxes
+        # 2. Resize unp1 field after mesh adaptation (CRITICAL!)
+        unp1.resize()
+
+        # 3. Update BCs and ghost cells BEFORE computing fluxes
         sam.update_ghost_mr(u)
 
-        # 3. Update time
+        # 4. Update time
         t += dt
         nt += 1
 
-        # 4. Apply upwind operator with FRESH ghost values
+        # 5. Apply upwind operator with FRESH ghost values
         upwind_result = sam.operators.upwind(velocity, u)
 
-        # 5. Euler time step: unp1 = u - dt * upwind(a, u)
+        # 6. Euler time step: unp1 = u - dt * upwind(a, u)
         unp1.assign(u - dt * upwind_result)  # In-place to avoid stale mesh references
 
-        # 6. Swap arrays (efficient: no memory allocation)
+        # 7. Swap arrays (efficient: no memory allocation)
         sam.swap_field_arrays_2d(u, unp1)
 
         # Print progress and save
@@ -179,6 +201,11 @@ def main():
 
             print(f"{nt:6d} {t:12.6e} {n_cells:10d} {min_level:10d} {max_level:10d}")
 
+            # Update real-time visualization
+            if enable_realtime_viz and plotter is not None:
+                plotter.update(u, title=f"Advection 2D - t={t:.3f}, cells={n_cells}")
+                plt.pause(0.001)  # Small pause to allow GUI update
+
             # Save state
             sam.save(str(output_path), f"{filename}_{nt:05d}", u)
 
@@ -197,6 +224,13 @@ def main():
     print(f"\nTo visualize in Paraview:")
     print(f"  paraview {output_path}/{filename}_00000.xdmf")
     print(f"\nThis demo is equivalent to demos/FiniteVolume/advection_2d.cpp")
+
+    # Keep matplotlib figure open if visualization was enabled
+    if enable_realtime_viz and plotter is not None:
+        plt.ioff()  # Turn off interactive mode
+        print(f"\nReal-time visualization complete.")
+        print(f"Close the plot window to exit...")
+        plt.show()
 
 
 if __name__ == "__main__":

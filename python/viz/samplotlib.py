@@ -396,7 +396,7 @@ class FieldPlotter:
 
     Designed for monitoring simulations in-progress. The plot is updated
     efficiently by modifying the existing collection rather than recreating
-    the entire figure.
+    the entire figure. When mesh structure changes (AMR), patches are recreated.
 
     Args:
         field: Initial Samurai ScalarField to plot
@@ -437,37 +437,78 @@ class FieldPlotter:
         self.show_mesh = show_mesh
         self.title = title
 
-        # Initial plot
+        # Track mesh structure to detect changes
+        self._mesh_nb_cells = field.mesh.nb_cells
+        self._mesh_min_level = field.mesh.min_level
+        self._mesh_max_level = field.mesh.max_level
+
+        # Initial plot - create colorbar only once
         self.collection = plot_field(field, ax=self.ax, cmap=cmap,
                                      vmin=vmin, vmax=vmax,
-                                     show_mesh=show_mesh, title=title)
-        if title:
-            self.ax.set_title(title)
+                                     show_mesh=show_mesh, colorbar=True,
+                                     title=title)
+
+        # Store colorbar reference for later removal
+        if hasattr(self.fig, 'axes') and len(self.fig.axes) > 1:
+            # Colorbar creates a new axis, find it
+            for potential_cbar_ax in self.fig.axes:
+                if potential_cbar_ax != self.ax:
+                    self._cbar_ax = potential_cbar_ax
+                    break
+        else:
+            self._cbar_ax = None
 
         plt.tight_layout()
+
+    def _mesh_structure_changed(self, field) -> bool:
+        """Check if mesh structure has changed since last update."""
+        mesh = field.mesh
+        return (mesh.nb_cells != self._mesh_nb_cells or
+                mesh.min_level != self._mesh_min_level or
+                mesh.max_level != self._mesh_max_level)
+
+    def _rebuild_collection(self, field):
+        """Recreate the PatchCollection when mesh structure changes."""
+        # Remove all collections from the axes
+        for coll in list(self.ax.collections):
+            coll.remove()
+
+        # Create new plot with fresh mesh data - NO colorbar!
+        self.collection = plot_field(field, ax=self.ax, cmap=self.cmap,
+                                     vmin=self.vmin, vmax=self.vmax,
+                                     show_mesh=self.show_mesh,
+                                     colorbar=False,  # Don't create duplicate colorbar
+                                     title=None)
+
+        # Update mesh tracking
+        self._mesh_nb_cells = field.mesh.nb_cells
+        self._mesh_min_level = field.mesh.min_level
+        self._mesh_max_level = field.mesh.max_level
 
     def update(self, field, title: Optional[str] = None):
         """Update the plot with new field data.
 
-        Efficiently updates the visualization without recreating the
-        entire figure. The cell structure may change between updates
-        (due to mesh adaptation).
+        Efficiently updates the visualization. When mesh structure changes
+        (due to AMR), patches are recreated with new geometry.
 
         Args:
             field: New Samurai ScalarField to plot
             title: Optional new title
         """
-        # Extract new data
-        _, _, values, levels = _extract_cell_data(field)
+        # Check if mesh structure changed
+        if self._mesh_structure_changed(field):
+            # Full recreation needed
+            self._rebuild_collection(field)
+        else:
+            # Just update values
+            _, _, values, _ = _extract_cell_data(field)
+            self.collection.set_array(np.array(values))
 
-        # Update color values
-        self.collection.set_array(np.array(values))
-
-        # Update limits if needed
-        if self.vmin is None:
-            self.collection.set_clim(vmin=np.min(values))
-        if self.vmax is None:
-            self.collection.set_clim(vmax=np.max(values))
+            # Update limits if auto
+            if self.vmin is None:
+                self.collection.set_clim(vmin=np.min(values))
+            if self.vmax is None:
+                self.collection.set_clim(vmax=np.max(values))
 
         # Update title
         if title:

@@ -285,9 +285,13 @@ std::size_t detect_dimension_from_input(const py::object& obj)
 void init_box_bindings(py::module_& m)
 {
     // ============================================================
-    // BREAKING CHANGE: No longer bind Box classes to main module
-    // Users must use sam.geometry.Box1D, sam.geometry.Box2D, etc.
-    // Or use the new factory: sam.geometry.box(min_corner, max_corner)
+    // BREAKING CHANGE (v0.30.0): Explicit Box classes removed from public API
+    // Users must use the factory: sam.geometry.box(min_corner, max_corner)
+    // The factory auto-detects dimension from array length.
+    //
+    // NOTE: We still register the Box types with pybind11 (as _Box1D, _Box2D, _Box3D)
+    // because the factory function needs to return these types. The underscore prefix
+    // indicates they are internal implementation details, not public API.
     // ============================================================
 
     // ============================================================
@@ -297,19 +301,17 @@ void init_box_bindings(py::module_& m)
         "Geometric primitives for Samurai AMR simulations\n\n"
         "Factory Functions:\n"
         "  box(min_corner, max_corner) - Create Box with inferred dimension\n\n"
-        "Classes:\n"
-        "  Box1D, Box2D, Box3D - Dimension-specific Box classes\n\n"
         "Examples:\n"
         "    >>> import samurai_python as sam\n"
-        "    >>> # Factory function (recommended)\n"
+        "    >>> # Factory function (auto-detects dimension)\n"
         "    >>> box = sam.geometry.box([0., 0.], [1., 1.])\n"
-        "    >>> # Direct class access\n"
-        "    >>> box = sam.geometry.Box2D([0., 0.], [1., 1.])\n");
+        "    >>> box_1d = sam.geometry.box([0.0], [1.0])\n"
+        "    >>> box_3d = sam.geometry.box([0., 0., 0.], [1., 1., 1.])\n");
 
-    // Bind Box classes ONLY to geometry submodule (not to main module)
-    bind_box<1>(geometry, "Box1D");
-    bind_box<2>(geometry, "Box2D");
-    bind_box<3>(geometry, "Box3D");
+    // Register Box types (internal, with _ prefix) for factory function return types
+    bind_box<1>(geometry, "_Box1D");
+    bind_box<2>(geometry, "_Box2D");
+    bind_box<3>(geometry, "_Box3D");
 
     // ============================================================
     // Factory function: sam.geometry.box(min_corner, max_corner)
@@ -370,7 +372,7 @@ void init_box_bindings(py::module_& m)
         Returns
         -------
         Box
-            Dimension-specific Box object (Box1D, Box2D, or Box3D)
+            Box object (dimension inferred from input array length)
 
         Examples
         --------

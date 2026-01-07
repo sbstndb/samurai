@@ -284,12 +284,13 @@ class TestBoxGeometrySubmodule:
         """Test that geometry submodule exists."""
         assert hasattr(sam, 'geometry')
 
-    def test_box_classes_in_geometry(self):
-        """Test that Box classes are accessible from geometry submodule."""
+    def test_box_factory_in_geometry(self):
+        """Test that box factory function is accessible from geometry submodule."""
         geo = sam.geometry
-        assert hasattr(geo, 'Box1D')
-        assert hasattr(geo, 'Box2D')
-        assert hasattr(geo, 'Box3D')
+        assert hasattr(geo, 'box')
+        # Box1D, Box2D, Box3D are now internal (_Box1D, etc.)
+        # The factory function should be used instead
+        assert callable(geo.box)
 
     def test_box_from_geometry(self):
         """Test creating Box from geometry submodule."""

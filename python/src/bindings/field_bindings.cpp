@@ -452,8 +452,31 @@ void bind_field_common_methods(py::class_<Field, Options...>& cls)
         },
         "Total number of cells in the field");
 
-    // Fill with constant value
-    cls.def("fill", &Field::fill, py::arg("value"), "Fill all cells with a constant value");
+    // Fill with constant value (returns self for chaining)
+    cls.def("fill", [](Field& f, double value) -> Field&
+            {
+                f.fill(value);
+                return f;
+            },
+            py::arg("value"),
+            R"pbdoc(
+            Fill the field with a constant value.
+
+            Parameters
+            ----------
+            value : float
+                Value to fill all cells with
+
+            Returns
+            -------
+            Field
+                Returns self for method chaining
+
+            Examples
+            --------
+            >>> field.fill(0.0)  # Fill and return self
+            >>> field.fill(1.0).resize()  # Chain operations
+            )pbdoc");
 
     // Ghost cells flag
     cls.def_property(
@@ -471,19 +494,23 @@ void bind_field_common_methods(py::class_<Field, Options...>& cls)
 
     // Resize field to match current mesh size
     cls.def("resize",
-            [](Field& f)
+            [](Field& f) -> Field&
             {
                 f.resize();
+                return f;
             },
-            "Resize field storage to match current mesh size.\n\n"
-            "Notes:\n"
-            "    Must be called after mesh adaptation (MRadaptation) to ensure\n"
-            "    field storage is synchronized with the new mesh structure.\n"
-            "    Automatically resets ghosts_updated flag to False.\n\n"
-            "Example:\n"
-            "    >>> MRadaptation(mra_config)\n"
-            "    >>> unp1.resize()  # Resize next time step field\n"
-            "    >>> u.resize()     # Resize current field if needed");
+            R"pbdoc(
+            Resize the field after mesh adaptation.
+
+            Returns
+            -------
+            Field
+                Returns self for method chaining
+
+            Examples
+            --------
+            >>> field.resize().fill(0.0)
+            )pbdoc");
 
     // In-place assignment from another field (reuses storage)
     cls.def("assign",
@@ -543,7 +570,7 @@ void bind_scalar_field(py::module_& m, const std::string& name)
             Mesh to define the field on
         name : str
             Field identifier
-        init_value : float, optional
+        init : float, optional
             Initial value for all cells (default: 0.0)
 
         Examples
@@ -576,14 +603,14 @@ void bind_scalar_field(py::module_& m, const std::string& name)
 
     // Constructor using factory function
     cls.def(py::init(
-                [](Mesh& mesh, const std::string& field_name, value_t init_value)
+                [](Mesh& mesh, const std::string& field_name, value_t init)
                 {
-                    auto field = samurai::make_scalar_field<value_t>(field_name, mesh, init_value);
+                    auto field = samurai::make_scalar_field<value_t>(field_name, mesh, init);
                     return field;
                 }),
             py::arg("mesh"),
             py::arg("name"),
-            py::arg("init_value") = 0.0,
+            py::arg("init") = 0.0,
             py::keep_alive<1, 2>(), // Field keeps Mesh alive
             "Create scalar field");
 
@@ -854,13 +881,36 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         },
         "True if Structure of Arrays layout, False if Array of Structures");
 
-    // Fill with scalar value (use the default fill method)
-    cls.def("fill", &Field::fill, py::arg("value"), "Fill all components and cells with a constant value");
+    // Fill with scalar value (returns self for chaining)
+    cls.def("fill", [](Field& f, double value) -> Field&
+            {
+                f.fill(value);
+                return f;
+            },
+            py::arg("value"),
+            R"pbdoc(
+            Fill all components and cells with a constant value.
 
-    // Fill with per-component values
+            Parameters
+            ----------
+            value : float
+                Value to fill all components and cells with
+
+            Returns
+            -------
+            Field
+                Returns self for method chaining
+
+            Examples
+            --------
+            >>> field.fill(0.0)  # Fill all components
+            >>> field.fill(1.0).resize()  # Chain operations
+            )pbdoc");
+
+    // Fill with per-component values (returns self for chaining)
     cls.def(
         "fill",
-        [](Field& f, py::list values)
+        [](Field& f, py::list values) -> Field&
         {
             if (values.size() != n_comp)
             {
@@ -897,9 +947,27 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
                     }
                 }
             }
+            return f;
         },
         py::arg("values"),
-        "Fill all cells with per-component values");
+        R"pbdoc(
+        Fill all cells with per-component values.
+
+        Parameters
+        ----------
+        values : list of float
+            Values for each component (length must match n_components)
+
+        Returns
+        -------
+        Field
+            Returns self for method chaining
+
+        Examples
+        --------
+        >>> velocity.fill([1.0, 0.0])  # Fill 2-component field
+        >>> velocity.fill([0.0, 1.0, 0.0]).resize()  # Chain operations
+        )pbdoc");
 
     // String representation
     cls.def("__repr__",
@@ -1318,7 +1386,7 @@ void bind_vector_field(py::module_& m, const std::string& name)
             Mesh to define the field on
         name : str
             Field identifier
-        init_value : float, optional
+        init : float, optional
             Initial value for all components and cells (default: 0.0)
 
         Examples
@@ -1348,14 +1416,14 @@ void bind_vector_field(py::module_& m, const std::string& name)
 
     // Constructor using factory function
     cls.def(py::init(
-                [](Mesh& mesh, const std::string& field_name, value_t init_value)
+                [](Mesh& mesh, const std::string& field_name, value_t init)
                 {
-                    auto field = samurai::make_vector_field<value_t, n_comp, SOA>(field_name, mesh, init_value);
+                    auto field = samurai::make_vector_field<value_t, n_comp, SOA>(field_name, mesh, init);
                     return field;
                 }),
             py::arg("mesh"),
             py::arg("name"),
-            py::arg("init_value") = 0.0,
+            py::arg("init") = 0.0,
             py::keep_alive<1, 2>(), // Field keeps Mesh alive
             "Create vector field");
 
@@ -1405,9 +1473,9 @@ void init_field_bindings(py::module_& m)
     // ----- Scalar field factories (dimension inferred from mesh) -----
     field.def(
         "scalar",
-        [](MRMesh<1>& mesh, const std::string& name, double init_value)
+        [](MRMesh<1>& mesh, const std::string& name, double init)
         {
-            return samurai::make_scalar_field<double>(name, mesh, init_value);
+            return samurai::make_scalar_field<double>(name, mesh, init);
         },
         py::arg("mesh"),
         py::arg("name"),
@@ -1439,9 +1507,9 @@ void init_field_bindings(py::module_& m)
 
     field.def(
         "scalar",
-        [](MRMesh<2>& mesh, const std::string& name, double init_value)
+        [](MRMesh<2>& mesh, const std::string& name, double init)
         {
-            return samurai::make_scalar_field<double>(name, mesh, init_value);
+            return samurai::make_scalar_field<double>(name, mesh, init);
         },
         py::arg("mesh"),
         py::arg("name"),
@@ -1451,9 +1519,9 @@ void init_field_bindings(py::module_& m)
 
     field.def(
         "scalar",
-        [](MRMesh<3>& mesh, const std::string& name, double init_value)
+        [](MRMesh<3>& mesh, const std::string& name, double init)
         {
-            return samurai::make_scalar_field<double>(name, mesh, init_value);
+            return samurai::make_scalar_field<double>(name, mesh, init);
         },
         py::arg("mesh"),
         py::arg("name"),
@@ -1464,16 +1532,16 @@ void init_field_bindings(py::module_& m)
     // ----- Vector field factories (dimension inferred from mesh) -----
     field.def(
         "vector",
-        [](MRMesh<1>& mesh, const std::string& name, std::size_t n_components, double init_value) -> py::object
+        [](MRMesh<1>& mesh, const std::string& name, std::size_t n_components, double init) -> py::object
         {
             if (n_components == 2)
             {
-                auto field_obj = samurai::make_vector_field<double, 2, false>(name, mesh, init_value);
+                auto field_obj = samurai::make_vector_field<double, 2, false>(name, mesh, init);
                 return py::cast(std::move(field_obj));
             }
             else if (n_components == 3)
             {
-                auto field_obj = samurai::make_vector_field<double, 3, false>(name, mesh, init_value);
+                auto field_obj = samurai::make_vector_field<double, 3, false>(name, mesh, init);
                 return py::cast(std::move(field_obj));
             }
             else
@@ -1514,16 +1582,16 @@ void init_field_bindings(py::module_& m)
 
     field.def(
         "vector",
-        [](MRMesh<2>& mesh, const std::string& name, std::size_t n_components, double init_value) -> py::object
+        [](MRMesh<2>& mesh, const std::string& name, std::size_t n_components, double init) -> py::object
         {
             if (n_components == 2)
             {
-                auto field_obj = samurai::make_vector_field<double, 2, false>(name, mesh, init_value);
+                auto field_obj = samurai::make_vector_field<double, 2, false>(name, mesh, init);
                 return py::cast(std::move(field_obj));
             }
             else if (n_components == 3)
             {
-                auto field_obj = samurai::make_vector_field<double, 3, false>(name, mesh, init_value);
+                auto field_obj = samurai::make_vector_field<double, 3, false>(name, mesh, init);
                 return py::cast(std::move(field_obj));
             }
             else
@@ -1540,16 +1608,16 @@ void init_field_bindings(py::module_& m)
 
     field.def(
         "vector",
-        [](MRMesh<3>& mesh, const std::string& name, std::size_t n_components, double init_value) -> py::object
+        [](MRMesh<3>& mesh, const std::string& name, std::size_t n_components, double init) -> py::object
         {
             if (n_components == 2)
             {
-                auto field_obj = samurai::make_vector_field<double, 2, false>(name, mesh, init_value);
+                auto field_obj = samurai::make_vector_field<double, 2, false>(name, mesh, init);
                 return py::cast(std::move(field_obj));
             }
             else if (n_components == 3)
             {
-                auto field_obj = samurai::make_vector_field<double, 3, false>(name, mesh, init_value);
+                auto field_obj = samurai::make_vector_field<double, 3, false>(name, mesh, init);
                 return py::cast(std::move(field_obj));
             }
             else

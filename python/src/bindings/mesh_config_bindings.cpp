@@ -233,6 +233,8 @@ void bind_mesh_config(py::module_& m, const std::string& name)
         >>> config.max_level = 6
         >>> # Or use method chaining
         >>> config = sam.MeshConfig2D().min_level(2).max_level(6)
+        >>> # Or use constructor with defaults
+        >>> config = sam.MeshConfig2D(min_level=2, max_level=6)
 
         Attributes
         ----------
@@ -270,13 +272,13 @@ void bind_mesh_config(py::module_& m, const std::string& name)
             {
                 Config cfg;
 
+                // Always set min_level (now has default of 0)
+                cfg.min_level(min_level);
+
+                // Always set max_level (has default of 6)
+                cfg.max_level(max_level);
+
                 // Only set if provided (use sentinel values)
-                if (min_level != std::numeric_limits<std::size_t>::max()) {
-                    cfg.min_level(min_level);
-                }
-                if (max_level != std::numeric_limits<std::size_t>::max()) {
-                    cfg.max_level(max_level);
-                }
                 if (start_level != std::numeric_limits<std::size_t>::max()) {
                     cfg.start_level(start_level);
                 }
@@ -312,7 +314,7 @@ void bind_mesh_config(py::module_& m, const std::string& name)
 
                 return cfg;
             }),
-        py::arg("min_level") = std::numeric_limits<std::size_t>::max(),
+        py::arg("min_level") = 0,
         py::arg("max_level") = 6,
         py::arg("start_level") = std::numeric_limits<std::size_t>::max(),
         py::arg("graduation_width") = std::numeric_limits<std::size_t>::max(),
@@ -328,7 +330,7 @@ void bind_mesh_config(py::module_& m, const std::string& name)
         Parameters
         ----------
         min_level : int, optional
-            Minimum refinement level
+            Minimum refinement level (default: 0)
         max_level : int, optional
             Maximum refinement level (default: 6)
         start_level : int, optional

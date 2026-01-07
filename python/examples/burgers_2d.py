@@ -10,7 +10,14 @@ build_dir = os.path.join(os.path.dirname(__file__), "..", "..", "build", "python
 if os.path.exists(build_dir):
     sys.path.insert(0, build_dir)
 
+# Add viz directory to path for matplotlib visualization
+viz_dir = os.path.join(os.path.dirname(__file__), "..", "viz")
+if os.path.exists(viz_dir):
+    sys.path.insert(0, viz_dir)
+
+import matplotlib.pyplot as plt
 import samurai_python as sam
+import samplotlib as svmpl
 
 
 def init_hat(u):
@@ -75,6 +82,21 @@ def init_bands(u):
     sam.for_each_cell(u.mesh, init_cell)
 
 
+def compute_magnitude(vector_field, scalar_field):
+    """Compute magnitude of vector field into scalar field.
+
+    Args:
+        vector_field: VectorField2D_2 source
+        scalar_field: ScalarField2D destination for magnitude
+    """
+    def compute_cell(cell):
+        val = vector_field[cell.index]
+        magnitude = math.sqrt(val[0]**2 + val[1]**2)
+        scalar_field[cell.index] = magnitude
+
+    sam.for_each_cell(vector_field.mesh, compute_cell)
+
+
 def main():
     """Main simulation function."""
 
@@ -99,6 +121,9 @@ def main():
     output_path = Path("/home/sbstndbs/sbstndbs/samurai/burgers_2d_python")
     filename = "burgers_2d_python"
 
+    # Visualization option
+    enable_realtime_viz = True  # Set to False to disable matplotlib visualization
+
     # ============================================================
     # Mesh and field creation
     # ============================================================
@@ -116,6 +141,9 @@ def main():
     u1 = sam.field.zeros_vector(mesh, "u1", n_components=2)
     u2 = sam.field.zeros_vector(mesh, "u2", n_components=2)
     unp1 = sam.field.zeros_vector(mesh, "unp1", n_components=2)
+
+    # ScalarField for visualization (magnitude of velocity)
+    u_mag = sam.field.zeros(mesh, "u_mag")
 
     # ============================================================
     # Initial conditions
@@ -144,6 +172,20 @@ def main():
 
     # Initial adaptation
     MRadaptation(mra_config)
+
+    # ============================================================
+    # Real-time visualization setup
+    # ============================================================
+    plotter = None
+    plot_interval = 10  # Update plot every N iterations
+    if enable_realtime_viz:
+        plt.ion()  # Interactive mode
+        fig, ax = plt.subplots(figsize=(8, 8))
+        # Compute initial magnitude
+        compute_magnitude(u, u_mag)
+        plotter = svmpl.FieldPlotter(u_mag, ax=ax, cmap='plasma',
+                                     vmin=0.0, vmax=2.0, show_mesh=True)
+        plt.pause(0.01)
 
     # ============================================================
     # Time stepping setup
@@ -214,6 +256,15 @@ def main():
         u.name = "u"      # Rename to ensure consistent field names in output
 
         # ========================================================
+        # Update visualization
+        # ========================================================
+        if enable_realtime_viz and plotter is not None and nt % plot_interval == 0:
+            u_mag.resize()  # Ensure magnitude field matches current mesh
+            compute_magnitude(u, u_mag)
+            plotter.update(u_mag, title=f"Burgers 2D - t={t:.3f}, cells={mesh.nb_cells}")
+            plt.pause(0.001)  # Small pause to allow GUI update
+
+        # ========================================================
         # Save output
         # ========================================================
         if t >= (nsave + 1) * dt_save or t == Tf:
@@ -228,6 +279,13 @@ def main():
     print(f"  Output saved to: {output_path.absolute()}")
     print(f"\nTo visualize in Paraview:")
     print(f"  paraview {output_path.absolute() / filename}{suffix}.xdmf")
+
+    # Keep matplotlib figure open if visualization was enabled
+    if enable_realtime_viz and plotter is not None:
+        plt.ioff()  # Turn off interactive mode
+        print(f"\nReal-time visualization complete.")
+        print(f"Close the plot window to exit...")
+        plt.show()
 
 
 if __name__ == "__main__":

@@ -1,10 +1,12 @@
-# Field Namespace API Documentation
+# Field Namespace API Documentation (v0.30.0)
 
 ## Overview
 
+**BREAKING CHANGE in v0.30.0**: The old module-level factory functions (`make_scalar_field`, `make_vector_field`, `swap_field_arrays_*`) have been **removed**. Only the `sam.field.scalar()` and `sam.field.vector()` namespace API remains.
+
 The `sam.field` namespace provides a cleaner, more Pythonic API for creating scalar and vector fields in Samurai Python bindings.
 
-## New API (Recommended)
+## Quick Start
 
 ### Creating Scalar Fields
 
@@ -42,166 +44,171 @@ magnetic_field = sam.field.vector(mesh_2d, "B", n_components=3, init=0.0)
 v = sam.field.vector(mesh_3d, "v", n_components=3, init=0.0)
 ```
 
-## Old API (Still Supported)
+## API Reference
 
-The following APIs continue to work for backward compatibility:
+### sam.field.scalar()
 
+Create a scalar field on an adaptive mesh.
+
+**Signature**:
 ```python
-# Direct constructor (old way)
-u = sam.ScalarField2D("u", mesh, 0.0)
-u = sam.ScalarField3D("u", mesh, 0.0)
-
-# Factory functions (old way)
-u = sam.make_scalar_field(mesh, "u", 0.0)
-v = sam.make_vector_field(mesh, "v", 2, 0.0)
+sam.field.scalar(mesh, name, init=0.0) -> ScalarField
 ```
 
-## Comparison
+**Parameters**:
+- `mesh` (MRMesh): The mesh to define the field on (1D, 2D, or 3D)
+- `name` (str): Field identifier
+- `init` (float, optional): Initial value for all cells (default: 0.0)
 
-### Before (Old API)
+**Returns**:
+- `ScalarField1D`, `ScalarField2D`, or `ScalarField3D` depending on mesh dimension
 
+**Example**:
 ```python
-# Verbose, dimension-specific
-u = sam.ScalarField2D("u", mesh, 0.0)
-v = sam.VectorField2D_2("velocity", mesh, 0.0)
+u = sam.field.scalar(mesh_2d, "u", init=1.0)
+print(u.name)  # "u"
+print(u.dim)   # 2
 ```
 
-### After (New API)
+### sam.field.vector()
+
+Create a vector field on an adaptive mesh.
+
+**Signature**:
+```python
+sam.field.vector(mesh, name, n_components=2, init=0.0) -> VectorField
+```
+
+**Parameters**:
+- `mesh` (MRMesh): The mesh to define the field on (1D, 2D, or 3D)
+- `name` (str): Field identifier
+- `n_components` (int, optional): Number of components (2 or 3, default: 2)
+- `init` (float, optional): Initial value for all components and cells (default: 0.0)
+
+**Returns**:
+- `VectorField{1D,2D,3D}_{2,3}` depending on mesh dimension and component count
+
+**Example**:
+```python
+vel = sam.field.vector(mesh_2d, "vel", n_components=2, init=0.0)
+print(vel.name)        # "vel"
+print(vel.dim)         # 2
+print(vel.n_components) # 2
+```
+
+## Common Usage Patterns
+
+### Time Stepping (RK3)
 
 ```python
-# Cleaner, dimension inferred from mesh
+# Create fields for TVD-RK3 time stepping
 u = sam.field.scalar(mesh, "u", init=0.0)
-v = sam.field.vector(mesh, "velocity", n_components=2, init=0.0)
-```
+u1 = sam.field.scalar(mesh, "u1", init=0.0)
+u2 = sam.field.scalar(mesh, "u2", init=0.0)
+unp1 = sam.field.scalar(mesh, "unp1", init=0.0)
 
-## Complete Example
+# RK3 stages
+u1.assign(u - dt * sam.upwind(velocity, u))
+u2.assign(3./4 * u + 1./4 * (u1 - dt * sam.upwind(velocity, u1)))
+unp1.assign(1./3 * u + 2./3 * (u2 - dt * sam.upwind(velocity, u2)))
 
-```python
-#!/usr/bin/env python3
-"""Example using the new sam.field namespace API."""
-
-import samurai_python as sam
-
-# Create mesh
-box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-config = sam.MeshConfig2D(min_level=2, max_level=4)
-mesh = sam.MRMesh2D(box, config)
-
-# Create scalar field using new API
-u = sam.field.scalar(mesh, "u", init=1.0)
-print(f"Created {type(u).__name__} with name '{u.name}'")
-
-# Create vector field using new API
-velocity = sam.field.vector(mesh, "velocity", n_components=2, init=0.0)
-print(f"Created {type(velocity).__name__} with {velocity.n_components} components")
-
-# Access the field submodule
-print("\nAvailable in sam.field:")
-print(f"  - ScalarField2D: {hasattr(sam.field, 'ScalarField2D')}")
-print(f"  - VectorField2D_2: {hasattr(sam.field, 'VectorField2D_2')}")
-print(f"  - scalar(): {hasattr(sam.field, 'scalar')}")
-print(f"  - vector(): {hasattr(sam.field, 'vector')}")
-```
-
-## Common Patterns
-
-### TVD-RK3 Time Stepping
-
-```python
-# Create 3 fields for RK3 time stepping
-u = sam.field.scalar(mesh, "u", init=1.0)
-u1 = sam.field.scalar(mesh, "u1", init=1.0)
-u2 = sam.field.scalar(mesh, "u2", init=1.0)
-
-# Time stepping loop
-for n in range(steps):
-    # Stage 1
-    du1 = compute_rhs(u)
-    u1 = u - dt * du1
-
-    # Stage 2
-    du2 = compute_rhs(u1)
-    u2 = (3.0/4.0) * u + (1.0/4.0) * (u1 - dt * du2)
-
-    # Stage 3
-    du3 = compute_rhs(u2)
-    u = (1.0/3.0) * u + (2.0/3.0) * (u2 - dt * du3)
+# Efficient swap (pure Python, no C++ helper needed)
+u.array, unp1.array = unp1.array, u.array
+u.ghosts_updated(), unp1.ghosts_updated() = unp1.ghosts_updated(), u.ghosts_updated()
 ```
 
 ### Burgers Equation
 
 ```python
-# 2D Burgers uses a 2-component vector field
-u = sam.field.vector(mesh, "u", n_components=2, init=0.0)
+# Create vector field for Burgers equation
+u = sam.field.vector(mesh_2d, "u", n_components=2, init=0.0)
+u1 = sam.field.vector(mesh_2d, "u1", n_components=2, init=0.0)
+u2 = sam.field.vector(mesh_2d, "u2", n_components=2, init=0.0)
+unp1 = sam.field.vector(mesh_2d, "unp1", n_components=2, init=0.0)
 
-# Apply initial condition
-for cell in mesh:
-    u[cell] = [initial_condition_x(cell.center),
-               initial_condition_y(cell.center)]
+# Time stepping with WENO5 convection
+flux1 = sam.make_convection_weno5(u)
+u1.assign(u - dt * flux1)
+
+flux2 = sam.make_convection_weno5(u1)
+u2.assign(3./4 * u + 1./4 * (u1 - dt * flux2))
+
+flux3 = sam.make_convection_weno5(u2)
+unp1.assign(1./3 * u + 2./3 * (u2 - dt * flux3))
+
+# Swap
+u.array, unp1.array = unp1.array, u.array
+u.ghosts_updated(), unp1.ghosts_updated() = unp1.ghosts_updated(), u.ghosts_updated()
 ```
 
-## API Reference
+## Migration from v0.29.x to v0.30.0
 
-### `sam.field.scalar(mesh, name, init=0.0)`
+### Removed Functions
 
-Create a scalar field. Dimension is inferred from the mesh type.
+The following functions have been **removed** in v0.30.0:
 
-**Parameters:**
-- `mesh` (MRMesh1D/2D/3D): The mesh to define the field on
-- `name` (str): Field identifier
-- `init` (float, optional): Initial value for all cells (default: 0.0)
+```python
+# REMOVED - use sam.field.scalar() instead
+sam.make_scalar_field(mesh, "u", 0.0)  # ❌ No longer exists
 
-**Returns:**
-- `ScalarField1D` / `ScalarField2D` / `ScalarField3D`
+# REMOVED - use sam.field.vector() instead
+sam.make_vector_field(mesh, "v", 2, 0.0)  # ❌ No longer exists
 
-### `sam.field.vector(mesh, name, n_components=2, init=0.0)`
+# REMOVED - use pure Python swap instead
+sam.swap_field_arrays_2d(u, unp1)  # ❌ No longer exists
+sam.swap_field_arrays_1d(u, unp1)  # ❌ No longer exists
+sam.swap_field_arrays_3d(u, unp1)  # ❌ No longer exists
+```
 
-Create a vector field. Dimension is inferred from the mesh type.
+### Migration Guide
 
-**Parameters:**
-- `mesh` (MRMesh1D/2D/3D): The mesh to define the field on
-- `name` (str): Field identifier
-- `n_components` (int, optional): Number of components (2 or 3, default: 2)
-- `init` (float, optional): Initial value for all cells (default: 0.0)
+**Old API** (v0.29.x and earlier):
+```python
+u = sam.make_scalar_field(mesh, "u", 0.0)
+vel = sam.make_vector_field(mesh, "vel", 2, 0.0)
+```
 
-**Returns:**
-- `VectorField1D_2` / `VectorField1D_3`
-- `VectorField2D_2` / `VectorField2D_3`
-- `VectorField3D_2` / `VectorField3D_3`
+**New API** (v0.30.0+):
+```python
+u = sam.field.scalar(mesh, "u", init=0.0)
+vel = sam.field.vector(mesh, "vel", n_components=2, init=0.0)
+```
 
-## Migration Guide
+**Old swap helper** (v0.29.x):
+```python
+sam.swap_field_arrays_2d(u, unp1)
+```
 
-### From Old API to New API
+**New pure Python swap** (v0.30.0+):
+```python
+u.array, unp1.array = unp1.array, u.array
+u.ghosts_updated(), unp1.ghosts_updated() = unp1.ghosts_updated(), u.ghosts_updated()
+```
 
-| Old API | New API |
-|---------|---------|
-| `sam.ScalarField1D("u", mesh, 0.0)` | `sam.field.scalar(mesh, "u", init=0.0)` |
-| `sam.ScalarField2D("u", mesh, 0.0)` | `sam.field.scalar(mesh, "u", init=0.0)` |
-| `sam.ScalarField3D("u", mesh, 0.0)` | `sam.field.scalar(mesh, "u", init=0.0)` |
-| `sam.make_scalar_field(mesh, "u", 0.0)` | `sam.field.scalar(mesh, "u", init=0.0)` |
-| `sam.VectorField2D_2("v", mesh, 0.0)` | `sam.field.vector(mesh, "v", n_components=2, init=0.0)` |
-| `sam.make_vector_field(mesh, "v", 2, 0.0)` | `sam.field.vector(mesh, "v", n_components=2, init=0.0)` |
+### Class Constructors Still Available
 
-## Benefits
+Direct class constructors still work (for backward compatibility with existing code):
 
-1. **Dimension inference**: No need to specify dimension in function name
-2. **Consistent API**: Same pattern for all dimensions
-3. **Keyword arguments**: Self-documenting code with `init=` and `n_components=`
-4. **Namespace organization**: All field-related functionality in `sam.field`
-5. **100% backward compatible**: Old APIs still work
+```python
+# These still work
+u = sam.ScalarField2D("u", mesh, 0.0)
+vel = sam.VectorField2D_2("vel", mesh, 0.0)
+```
 
-## Implementation Details
+However, the namespace API is **recommended** for new code:
+- More Pythonic
+- Keyword arguments for clarity
+- Dimension automatically inferred from mesh type
 
-- The `sam.field` namespace also provides access to field classes:
-  - `sam.field.ScalarField1D`
-  - `sam.field.ScalarField2D`
-  - `sam.field.ScalarField3D`
-  - `sam.field.VectorField1D_2`, `sam.field.VectorField1D_3`
-  - `sam.field.VectorField2D_2`, `sam.field.VectorField2D_3`
-  - `sam.field.VectorField3D_2`, `sam.field.VectorField3D_3`
+## Benefits of the Namespace API
 
-## Notes
+1. **Dimension Inference**: No need to specify 1D/2D/3D in function names
+2. **Keyword Arguments**: `init=` and `n_components=` are more readable
+3. **Consistent**: Same pattern for both scalar and vector fields
+4. **Organized**: All field creation functions in `sam.field` namespace
 
-- The new API was introduced in version 0.28.0
-- No breaking changes - old code continues to work
-- The old APIs are not deprecated and will continue to be supported
+## Version History
+
+- **v0.30.0** (2026-01-07): Breaking change - removed `make_scalar_field`, `make_vector_field`, and `swap_field_arrays_*` functions
+- **v0.29.0** (2026-01-06): Introduced `sam.field.scalar()` and `sam.field.vector()` namespace API alongside old functions
+- **v0.28.0** and earlier: Only module-level factory functions available

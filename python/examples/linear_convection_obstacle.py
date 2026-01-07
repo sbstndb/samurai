@@ -119,10 +119,10 @@ def main():
     mesh = sam.MRMesh2D(domain, config)
 
     # Create fields for TVD-RK3 time stepping
-    u = sam.ScalarField2D("u", mesh, 0.0)      # Current solution
-    u1 = sam.ScalarField2D("u1", mesh, 0.0)    # RK stage 1
-    u2 = sam.ScalarField2D("u2", mesh, 0.0)    # RK stage 2
-    unp1 = sam.ScalarField2D("unp1", mesh, 0.0)  # RK stage 3
+    u = sam.field.scalar(mesh, "u", init=0.0)      # Current solution
+    u1 = sam.field.scalar(mesh, "u1", init=0.0)    # RK stage 1
+    u2 = sam.field.scalar(mesh, "u2", init=0.0)    # RK stage 2
+    unp1 = sam.field.scalar(mesh, "unp1", init=0.0)  # RK stage 3
 
     # ============================================================
     # Initialize with rectangle condition
@@ -219,7 +219,10 @@ def main():
         unp1.assign((1.0 / 3.0) * u + (2.0 / 3.0) * (u2 - dt * flux3))
 
         # Swap u and unp1 (u becomes the new solution)
-        sam.swap_field_arrays_2d(u, unp1)
+        # Efficient swap without allocation
+        u.array, unp1.array = unp1.array, u.array
+        # Also swap ghost update flags
+        u.ghosts_updated(), unp1.ghosts_updated() = unp1.ghosts_updated(), u.ghosts_updated()
 
         # ========================================================
         # Save output

@@ -26,7 +26,7 @@
 namespace py = pybind11;
 
 // Version information (will be read from version.txt in production)
-#define SAMURAI_PYTHON_VERSION "0.28.0-dev"
+#define SAMURAI_PYTHON_VERSION "0.30.0"
 
 PYBIND11_MODULE(samurai_python, m)
 {

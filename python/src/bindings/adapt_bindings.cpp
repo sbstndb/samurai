@@ -200,21 +200,24 @@ class PyAdaptVariant
 // ============================================================
 
 // 1D update_ghost_mr wrapper
-void update_ghost_mr_1d(ScalarField<1>& field)
+ScalarField<1>& update_ghost_mr_1d(ScalarField<1>& field)
 {
     samurai::update_ghost_mr(field);
+    return field;
 }
 
 // 2D update_ghost_mr wrapper
-void update_ghost_mr_2d(ScalarField<2>& field)
+ScalarField<2>& update_ghost_mr_2d(ScalarField<2>& field)
 {
     samurai::update_ghost_mr(field);
+    return field;
 }
 
 // 3D update_ghost_mr wrapper
-void update_ghost_mr_3d(ScalarField<3>& field)
+ScalarField<3>& update_ghost_mr_3d(ScalarField<3>& field)
 {
     samurai::update_ghost_mr(field);
+    return field;
 }
 
 // 1D make_MRAdapt wrapper
@@ -261,15 +264,17 @@ PyAdaptVariant make_mr_adapt_vector_3d_3(VectorField3D_3& field)
 // ============================================================
 
 // 2D VectorField (VectorField2D_2) update_ghost_mr wrapper
-void update_ghost_mr_vector_2d_2(VectorField2D_2& field)
+VectorField2D_2& update_ghost_mr_vector_2d_2(VectorField2D_2& field)
 {
     samurai::update_ghost_mr(field);
+    return field;
 }
 
 // 3D VectorField (VectorField3D_3) update_ghost_mr wrapper
-void update_ghost_mr_vector_3d_3(VectorField3D_3& field)
+VectorField3D_3& update_ghost_mr_vector_3d_3(VectorField3D_3& field)
 {
     samurai::update_ghost_mr(field);
+    return field;
 }
 
 // ============================================================
@@ -334,16 +339,101 @@ void init_adapt_bindings(py::module_& m)
     // Bind update_ghost_mr for all dimensions
     // Following pattern from operator_bindings.cpp where multiple functions
     // are bound with the same Python name
-    m.def("update_ghost_mr", &update_ghost_mr_1d, py::arg("field"), "Update ghost cells for multiresolution analysis (1D)");
+    m.def("update_ghost_mr", &update_ghost_mr_1d, py::arg("field"),
+        R"pbdoc(
+        Update ghost cells for multiresolution analysis (1D).
 
-    m.def("update_ghost_mr", &update_ghost_mr_2d, py::arg("field"), "Update ghost cells for multiresolution analysis (2D)");
+        Parameters
+        ----------
+        field : ScalarField1D
+            Field to update ghost cells for
 
-    m.def("update_ghost_mr", &update_ghost_mr_3d, py::arg("field"), "Update ghost cells for multiresolution analysis (3D)");
+        Returns
+        -------
+        ScalarField1D
+            Returns the field for method chaining
+
+        Examples
+        --------
+        >>> sam.update_ghost_mr(u).resize()
+        )pbdoc");
+
+    m.def("update_ghost_mr", &update_ghost_mr_2d, py::arg("field"),
+        R"pbdoc(
+        Update ghost cells for multiresolution analysis (2D).
+
+        Parameters
+        ----------
+        field : ScalarField2D
+            Field to update ghost cells for
+
+        Returns
+        -------
+        ScalarField2D
+            Returns the field for method chaining
+
+        Examples
+        --------
+        >>> sam.update_ghost_mr(u).resize()
+        )pbdoc");
+
+    m.def("update_ghost_mr", &update_ghost_mr_3d, py::arg("field"),
+        R"pbdoc(
+        Update ghost cells for multiresolution analysis (3D).
+
+        Parameters
+        ----------
+        field : ScalarField3D
+            Field to update ghost cells for
+
+        Returns
+        -------
+        ScalarField3D
+            Returns the field for method chaining
+
+        Examples
+        --------
+        >>> sam.update_ghost_mr(u).resize()
+        )pbdoc");
 
     // Bind update_ghost_mr for VectorField types
-    m.def("update_ghost_mr", &update_ghost_mr_vector_2d_2, py::arg("field"), "Update ghost cells for 2D vector field (2 components)");
+    m.def("update_ghost_mr", &update_ghost_mr_vector_2d_2, py::arg("field"),
+        R"pbdoc(
+        Update ghost cells for 2D vector field (2 components).
 
-    m.def("update_ghost_mr", &update_ghost_mr_vector_3d_3, py::arg("field"), "Update ghost cells for 3D vector field (3 components)");
+        Parameters
+        ----------
+        field : VectorField2D
+            Vector field to update ghost cells for
+
+        Returns
+        -------
+        VectorField2D
+            Returns the field for method chaining
+
+        Examples
+        --------
+        >>> sam.update_ghost_mr(velocity).resize()
+        )pbdoc");
+
+    m.def("update_ghost_mr", &update_ghost_mr_vector_3d_3, py::arg("field"),
+        R"pbdoc(
+        Update ghost cells for 3D vector field (3 components).
+
+        Parameters
+        ----------
+        field : VectorField3D
+            Vector field to update ghost cells for
+
+        Returns
+        -------
+        VectorField3D
+            Returns the field for method chaining
+
+        Examples
+        --------
+        >>> sam.update_ghost_mr(velocity).resize()
+        )pbdoc");
 
     // Bind make_MRAdapt for all dimensions
     m.def("make_MRAdapt", &make_mr_adapt_1d, py::arg("field"), "Create multiresolution adaptation object (1D)");

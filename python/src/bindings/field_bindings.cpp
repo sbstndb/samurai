@@ -366,17 +366,19 @@ inline FilePathParts parse_unified_filepath(const py::object& filepath_obj)
 // ============================================================
 
 template <std::size_t dim>
-void field_method_save(const ScalarField<dim>& field, const py::object& filepath_obj)
+ScalarField<dim>& field_method_save(ScalarField<dim>& field, const py::object& filepath_obj)
 {
     auto [directory, basename] = parse_unified_filepath(filepath_obj);
     samurai::save(directory, basename, field.mesh(), field);
+    return field;
 }
 
 template <std::size_t dim>
-void field_method_dump(const ScalarField<dim>& field, const py::object& filepath_obj)
+ScalarField<dim>& field_method_dump(ScalarField<dim>& field, const py::object& filepath_obj)
 {
     auto [directory, basename] = parse_unified_filepath(filepath_obj);
     samurai::dump(directory, basename, field.mesh(), field);
+    return field;
 }
 
 template <std::size_t dim>
@@ -391,17 +393,19 @@ void field_method_load(ScalarField<dim>& field, const py::object& filepath_obj)
 // ============================================================
 
 template <std::size_t dim, std::size_t n_comp, bool SOA>
-void field_method_save_vector(const VectorField<dim, n_comp, SOA>& field, const py::object& filepath_obj)
+VectorField<dim, n_comp, SOA>& field_method_save_vector(VectorField<dim, n_comp, SOA>& field, const py::object& filepath_obj)
 {
     auto [directory, basename] = parse_unified_filepath(filepath_obj);
     samurai::save(directory, basename, field.mesh(), field);
+    return field;
 }
 
 template <std::size_t dim, std::size_t n_comp, bool SOA>
-void field_method_dump_vector(const VectorField<dim, n_comp, SOA>& field, const py::object& filepath_obj)
+VectorField<dim, n_comp, SOA>& field_method_dump_vector(VectorField<dim, n_comp, SOA>& field, const py::object& filepath_obj)
 {
     auto [directory, basename] = parse_unified_filepath(filepath_obj);
     samurai::dump(directory, basename, field.mesh(), field);
+    return field;
 }
 
 // Helper to bind common Field methods
@@ -724,9 +728,10 @@ void bind_scalar_field(py::module_& m, const std::string& name)
 
     cls.def(
         "save",
-        [](const Field& f, const py::object& filepath_obj)
+        [](Field& f, const py::object& filepath_obj) -> Field&
         {
             field_method_save<dim>(f, filepath_obj);
+            return f;
         },
         py::arg("filepath"),
         R"pbdoc(
@@ -737,6 +742,11 @@ void bind_scalar_field(py::module_& m, const std::string& name)
             filepath : str or Path
                 Output file path (e.g., 'results/solution.h5')
                 The .h5 and .xdmf extensions are added automatically.
+
+            Returns
+            -------
+            Field
+                Returns self for method chaining
 
             Creates
             -------
@@ -749,6 +759,7 @@ void bind_scalar_field(py::module_& m, const std::string& name)
             >>> field.save('results/solution.h5')      # Subdirectory
             >>> from pathlib import Path
             >>> field.save(Path('results') / 'solution.h5')  # pathlib support
+            >>> field.fill(1.0).save('solution.h5')    # Method chaining
 
             Notes
             -----
@@ -765,9 +776,10 @@ void bind_scalar_field(py::module_& m, const std::string& name)
 
     cls.def(
         "dump",
-        [](const Field& f, const py::object& filepath_obj)
+        [](Field& f, const py::object& filepath_obj) -> Field&
         {
             field_method_dump<dim>(f, filepath_obj);
+            return f;
         },
         py::arg("filepath"),
         R"pbdoc(
@@ -779,6 +791,11 @@ void bind_scalar_field(py::module_& m, const std::string& name)
                 Output file path (e.g., 'checkpoints/restart.h5')
                 The .h5 extension is added automatically.
 
+            Returns
+            -------
+            Field
+                Returns self for method chaining
+
             Creates
             -------
             {directory}/{basename}.h5 - HDF5 restart file only
@@ -787,6 +804,7 @@ void bind_scalar_field(py::module_& m, const std::string& name)
             --------
             >>> field.dump('checkpoint.h5')             # Current directory
             >>> field.dump('checkpoints/restart.h5')    # Subdirectory
+            >>> field.fill(1.0).dump('checkpoint.h5')   # Method chaining
 
             Notes
             -----
@@ -1140,9 +1158,10 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
 
     cls.def(
         "save",
-        [](const Field& f, const py::object& filepath_obj)
+        [](Field& f, const py::object& filepath_obj) -> Field&
         {
             field_method_save_vector<Field::dim, n_comp, Field::is_soa>(f, filepath_obj);
+            return f;
         },
         py::arg("filepath"),
         R"pbdoc(
@@ -1154,6 +1173,11 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
                 Output file path (e.g., 'results/velocity.h5')
                 The .h5 and .xdmf extensions are added automatically.
 
+            Returns
+            -------
+            Field
+                Returns self for method chaining
+
             Creates
             -------
             {directory}/{basename}.h5 - HDF5 data file
@@ -1163,6 +1187,7 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
             --------
             >>> velocity.save('velocity.h5')              # Current directory
             >>> velocity.save('results/velocity.h5')      # Subdirectory
+            >>> velocity.fill([1.0, 0.0]).save('velocity.h5')  # Method chaining
 
             See Also
             --------
@@ -1171,9 +1196,10 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
 
     cls.def(
         "dump",
-        [](const Field& f, const py::object& filepath_obj)
+        [](Field& f, const py::object& filepath_obj) -> Field&
         {
             field_method_dump_vector<Field::dim, n_comp, Field::is_soa>(f, filepath_obj);
+            return f;
         },
         py::arg("filepath"),
         R"pbdoc(
@@ -1185,10 +1211,16 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
                 Output file path (e.g., 'checkpoints/restart.h5')
                 The .h5 extension is added automatically.
 
+            Returns
+            -------
+            Field
+                Returns self for method chaining
+
             Examples
             --------
             >>> velocity.dump('checkpoint.h5')             # Current directory
             >>> velocity.dump('checkpoints/restart.h5')    # Subdirectory
+            >>> velocity.fill([1.0, 0.0]).dump('checkpoint.h5')  # Method chaining
 
             See Also
             --------

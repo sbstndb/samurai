@@ -554,7 +554,7 @@ void bind_scalar_field(py::module_& m, const std::string& name)
         >>> config.min_level = 0
         >>> config.max_level = 2
         >>> mesh = sam.MRMesh2D(box, config)
-        >>> field = sam.ScalarField2D("u", mesh)
+        >>> field = sam.ScalarField2D(mesh, "u")
         >>> field.fill(1.0)
 
         NumPy Integration
@@ -576,13 +576,13 @@ void bind_scalar_field(py::module_& m, const std::string& name)
 
     // Constructor using factory function
     cls.def(py::init(
-                [](const std::string& field_name, Mesh& mesh, value_t init_value)
+                [](Mesh& mesh, const std::string& field_name, value_t init_value)
                 {
                     auto field = samurai::make_scalar_field<value_t>(field_name, mesh, init_value);
                     return field;
                 }),
-            py::arg("name"),
             py::arg("mesh"),
+            py::arg("name"),
             py::arg("init_value") = 0.0,
             py::keep_alive<1, 2>(), // Field keeps Mesh alive
             "Create scalar field");
@@ -1319,13 +1319,13 @@ void bind_vector_field(py::module_& m, const std::string& name)
         name : str
             Field identifier
         init_value : float, optional
-            Initial value for all components and cells
+            Initial value for all components and cells (default: 0.0)
 
         Examples
         --------
         >>> import samurai as sam
         >>> mesh = sam.MRMesh2D(box, config)
-        >>> velocity = sam.VectorField2D_2("vel", mesh, 2)
+        >>> velocity = sam.VectorField2D_2(mesh, "vel", 2)
         >>> velocity.fill([1.0, 0.0])  # Set (u, v) components
 
         NumPy Integration
@@ -1348,13 +1348,13 @@ void bind_vector_field(py::module_& m, const std::string& name)
 
     // Constructor using factory function
     cls.def(py::init(
-                [](const std::string& field_name, Mesh& mesh, value_t init_value)
+                [](Mesh& mesh, const std::string& field_name, value_t init_value)
                 {
                     auto field = samurai::make_vector_field<value_t, n_comp, SOA>(field_name, mesh, init_value);
                     return field;
                 }),
-            py::arg("name"),
             py::arg("mesh"),
+            py::arg("name"),
             py::arg("init_value") = 0.0,
             py::keep_alive<1, 2>(), // Field keeps Mesh alive
             "Create vector field");

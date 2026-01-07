@@ -32,7 +32,7 @@ class TestSaveFunction:
 
         box = sam.Box1D([0.0], [1.0])
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh, 1.0)
+        field = sam.field.scalar(mesh, "u", init=1.0)
 
         # Create a temporary directory for output
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -53,7 +53,7 @@ class TestSaveFunction:
 
         box = sam.Box1D([0.0], [1.0])
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh, 2.0)
+        field = sam.field.scalar(mesh, "u", init=2.0)
 
         # Create a temporary directory for output
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -79,7 +79,7 @@ class TestSaveFunction:
 
         box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
         mesh = sam.MRMesh2D(box, config)
-        field = sam.ScalarField2D("u", mesh, 3.0)
+        field = sam.field.scalar(mesh, "u", init=3.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             sam.save(tmpdir, "test_2d_save", field)
@@ -97,7 +97,7 @@ class TestSaveFunction:
 
         box = sam.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         mesh = sam.MRMesh3D(box, config)
-        field = sam.ScalarField3D("u", mesh, 4.0)
+        field = sam.field.scalar(mesh, "u", init=4.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             sam.save(tmpdir, "test_3d_save", field)
@@ -115,8 +115,8 @@ class TestSaveFunction:
 
         box = sam.Box1D([0.0], [1.0])
         mesh = sam.MRMesh1D(box, config)
-        field1 = sam.ScalarField1D("u", mesh, 1.0)
-        field2 = sam.ScalarField1D("v", mesh, 2.0)
+        field1 = sam.field.scalar(mesh, "u", init=1.0)
+        field2 = sam.field.scalar(mesh, "v", init=2.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             sam.save(tmpdir, "test_1d_two", field1, field2)
@@ -134,9 +134,9 @@ class TestSaveFunction:
 
         box = sam.Box1D([0.0], [1.0])
         mesh = sam.MRMesh1D(box, config)
-        field1 = sam.ScalarField1D("u", mesh, 1.0)
-        field2 = sam.ScalarField1D("v", mesh, 2.0)
-        field3 = sam.ScalarField1D("w", mesh, 3.0)
+        field1 = sam.field.scalar(mesh, "u", init=1.0)
+        field2 = sam.field.scalar(mesh, "v", init=2.0)
+        field3 = sam.field.scalar(mesh, "w", init=3.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             sam.save(tmpdir, "test_1d_three", field1, field2, field3)
@@ -154,7 +154,7 @@ class TestSaveFunction:
 
         box = sam.Box1D([0.0], [1.0])
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh, 5.0)
+        field = sam.field.scalar(mesh, "u", init=5.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -182,7 +182,7 @@ class TestDumpFunction:
 
         box = sam.Box1D([0.0], [1.0])
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh, 1.0)
+        field = sam.field.scalar(mesh, "u", init=1.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             sam.dump(tmpdir, "test_1d_dump", field)
@@ -201,7 +201,7 @@ class TestDumpFunction:
 
         box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
         mesh = sam.MRMesh2D(box, config)
-        field = sam.ScalarField2D("u", mesh, 2.0)
+        field = sam.field.scalar(mesh, "u", init=2.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             sam.dump(tmpdir, "test_2d_dump", field)
@@ -217,7 +217,7 @@ class TestDumpFunction:
 
         box = sam.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         mesh = sam.MRMesh3D(box, config)
-        field = sam.ScalarField3D("u", mesh, 3.0)
+        field = sam.field.scalar(mesh, "u", init=3.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             sam.dump(tmpdir, "test_3d_dump", field)
@@ -233,7 +233,7 @@ class TestDumpFunction:
 
         box = sam.Box1D([0.0], [1.0])
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh, 4.0)
+        field = sam.field.scalar(mesh, "u", init=4.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -258,7 +258,7 @@ class TestLoadFunction:
 
         box = sam.Box1D([0.0], [1.0])
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh, 7.0)
+        field = sam.field.scalar(mesh, "u", init=7.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Dump
@@ -266,7 +266,7 @@ class TestLoadFunction:
 
             # Create new mesh and field for loading
             mesh2 = sam.MRMesh1D(box, config)
-            field2 = sam.ScalarField1D("u", mesh2, 0.0)
+            field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
             # Load
             sam.load(tmpdir, "test_1d_restart", field2)
@@ -283,7 +283,7 @@ class TestLoadFunction:
 
         box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
         mesh = sam.MRMesh2D(box, config)
-        field = sam.ScalarField2D("u", mesh, 8.0)
+        field = sam.field.scalar(mesh, "u", init=8.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Dump
@@ -291,7 +291,7 @@ class TestLoadFunction:
 
             # Create new mesh and field for loading
             mesh2 = sam.MRMesh2D(box, config)
-            field2 = sam.ScalarField2D("u", mesh2, 0.0)
+            field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
             # Load
             sam.load(tmpdir, "test_2d_restart", field2)
@@ -307,7 +307,7 @@ class TestLoadFunction:
 
         box = sam.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         mesh = sam.MRMesh3D(box, config)
-        field = sam.ScalarField3D("u", mesh, 9.0)
+        field = sam.field.scalar(mesh, "u", init=9.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Dump
@@ -315,7 +315,7 @@ class TestLoadFunction:
 
             # Create new mesh and field for loading
             mesh2 = sam.MRMesh3D(box, config)
-            field2 = sam.ScalarField3D("u", mesh2, 0.0)
+            field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
             # Load
             sam.load(tmpdir, "test_3d_restart", field2)
@@ -331,7 +331,7 @@ class TestLoadFunction:
 
         box = sam.Box1D([0.0], [1.0])
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh, 10.0)
+        field = sam.field.scalar(mesh, "u", init=10.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -343,7 +343,7 @@ class TestLoadFunction:
 
                 # Create new mesh and field for loading
                 mesh2 = sam.MRMesh1D(box, config)
-                field2 = sam.ScalarField1D("u", mesh2, 0.0)
+                field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
                 # Load with filename only
                 sam.load("test_1d_restart_only", field2)
@@ -365,7 +365,7 @@ class TestIoIntegration:
 
         box = sam.Box1D([0.0], [1.0])
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh, 1.0)
+        field = sam.field.scalar(mesh, "u", init=1.0)
 
         # Apply boundary conditions
         sam.make_dirichlet_bc(field, 0.0)
@@ -395,7 +395,7 @@ class TestIoIntegration:
 
         box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
         mesh = sam.MRMesh2D(box, config)
-        field = sam.ScalarField2D("u", mesh, 1.0)
+        field = sam.field.scalar(mesh, "u", init=1.0)
 
         sam.make_dirichlet_bc(field, 0.0)
 

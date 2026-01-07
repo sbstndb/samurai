@@ -219,10 +219,7 @@ def main():
         unp1.assign((1.0 / 3.0) * u + (2.0 / 3.0) * (u2 - dt * flux3))
 
         # Swap u and unp1 (u becomes the new solution)
-        # Efficient swap without allocation
-        u.array, unp1.array = unp1.array, u.array
-        # Also swap ghost update flags
-        u.ghosts_updated(), unp1.ghosts_updated() = unp1.ghosts_updated(), u.ghosts_updated()
+        sam.swap_field_arrays_2d(u, unp1)
 
         # ========================================================
         # Save output

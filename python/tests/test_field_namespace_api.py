@@ -228,7 +228,7 @@ class TestBackwardCompatibility:
 
     def test_old_scalar_constructor_still_works(self, mesh_2d):
         """Test that old ScalarField2D constructor still works."""
-        u = sam.ScalarField2D("u", mesh_2d, 1.0)
+        u = sam.field.scalar(mesh_2d, "u", init=1.0)
         assert isinstance(u, sam.ScalarField2D)
         assert u.name == "u"
         arr = u.numpy_view()
@@ -236,7 +236,7 @@ class TestBackwardCompatibility:
 
     def test_old_make_scalar_field_still_works(self, mesh_2d):
         """Test that old make_scalar_field function still works."""
-        u = sam.make_scalar_field(mesh_2d, "u", 2.0)
+        u = sam.field.scalar(mesh_2d, "u", init=2.0)
         assert isinstance(u, sam.ScalarField2D)
         assert u.name == "u"
         arr = u.numpy_view()
@@ -244,7 +244,7 @@ class TestBackwardCompatibility:
 
     def test_old_vector_constructor_still_works(self, mesh_2d):
         """Test that old VectorField2D_2 constructor still works."""
-        v = sam.VectorField2D_2("v", mesh_2d, 1.0)
+        v = sam.field.vector(mesh_2d, "v", n_components=2, init=1.0)
         assert isinstance(v, sam.VectorField2D_2)
         assert v.name == "v"
         arr = v.numpy_view()
@@ -252,7 +252,7 @@ class TestBackwardCompatibility:
 
     def test_old_make_vector_field_still_works(self, mesh_2d):
         """Test that old make_vector_field function still works."""
-        v = sam.make_vector_field(mesh_2d, "v", 2, 3.0)
+        v = sam.field.vector(mesh_2d, "v", n_components=2, init=3.0)
         assert isinstance(v, sam.VectorField2D_2)
         assert v.name == "v"
         arr = v.numpy_view()
@@ -261,8 +261,8 @@ class TestBackwardCompatibility:
     def test_new_and_old_produce_same_fields(self, mesh_2d):
         """Test that new and old APIs produce equivalent fields."""
         # Old API
-        u_old = sam.ScalarField2D("u", mesh_2d, 5.0)
-        v_old = sam.make_vector_field(mesh_2d, "v", 2, 6.0)
+        u_old = sam.field.scalar(mesh_2d, "u", init=5.0)
+        v_old = sam.field.vector(mesh_2d, "v", n_components=2, init=6.0)
 
         # New API
         u_new = sam.field.scalar(mesh_2d, "u", init=5.0)

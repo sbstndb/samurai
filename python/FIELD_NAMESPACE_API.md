@@ -114,7 +114,9 @@ unp1.assign(1./3 * u + 2./3 * (u2 - dt * sam.upwind(velocity, u2)))
 
 # Efficient swap (pure Python, no C++ helper needed)
 u.array, unp1.array = unp1.array, u.array
-u.ghosts_updated(), unp1.ghosts_updated() = unp1.ghosts_updated(), u.ghosts_updated()
+u_ghost, unp1_ghost = unp1.ghosts_updated(), u.ghosts_updated()
+u.ghosts_updated = u_ghost
+unp1.ghosts_updated = unp1_ghost
 ```
 
 ### Burgers Equation
@@ -138,7 +140,9 @@ unp1.assign(1./3 * u + 2./3 * (u2 - dt * flux3))
 
 # Swap
 u.array, unp1.array = unp1.array, u.array
-u.ghosts_updated(), unp1.ghosts_updated() = unp1.ghosts_updated(), u.ghosts_updated()
+u_ghost, unp1_ghost = unp1.ghosts_updated(), u.ghosts_updated()
+u.ghosts_updated = u_ghost
+unp1.ghosts_updated = unp1_ghost
 ```
 
 ## Migration from v0.29.x to v0.30.0
@@ -182,7 +186,9 @@ sam.swap_field_arrays_2d(u, unp1)
 **New pure Python swap** (v0.30.0+):
 ```python
 u.array, unp1.array = unp1.array, u.array
-u.ghosts_updated(), unp1.ghosts_updated() = unp1.ghosts_updated(), u.ghosts_updated()
+u_ghost, unp1_ghost = unp1.ghosts_updated(), u.ghosts_updated()
+u.ghosts_updated = u_ghost
+unp1.ghosts_updated = unp1_ghost
 ```
 
 ### Class Constructors Still Available

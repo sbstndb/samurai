@@ -65,8 +65,8 @@ print("\n[Test 4] copy_bc_from method")
 print("-" * 40)
 
 # Create two scalar fields
-u = sam.make_scalar_field(mesh, "u", 1.0)
-v = sam.make_scalar_field(mesh, "v", 0.0)
+u = sam.field.scalar(mesh, "u", init=1.0)
+v = sam.field.scalar(mesh, "v", init=0.0)
 
 # Test that copy_bc_from method exists
 try:
@@ -81,7 +81,7 @@ print("\n[Test 5] WENO5 convection with VectorField velocity")
 print("-" * 40)
 
 # Create a scalar field for testing
-u = sam.make_scalar_field(mesh, "u", 1.0)
+u = sam.field.scalar(mesh, "u", init=1.0)
 
 # Try to apply WENO5 convection
 try:

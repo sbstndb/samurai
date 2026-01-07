@@ -982,4 +982,48 @@ void init_field_bindings(py::module_& m)
         py::arg("init") = 0.0,
         "Create a 3D vector field.\n\n"
         "See 1D version for detailed documentation.");
+
+    // ============================================================
+    // Array swap utilities for efficient time stepping
+    // ============================================================
+    // Note: These are needed because the internal array() method is not exposed to Python
+
+    m.def(
+        "swap_field_arrays_1d",
+        [](ScalarField<1>& f1, ScalarField<1>& f2)
+        {
+            std::swap(f1.array(), f2.array());
+            bool f1_ghosts      = f1.ghosts_updated();
+            f1.ghosts_updated() = f2.ghosts_updated();
+            f2.ghosts_updated() = f1_ghosts;
+        },
+        py::arg("f1"),
+        py::arg("f2"),
+        "Swap underlying data arrays of two 1D fields (efficient for time stepping)");
+
+    m.def(
+        "swap_field_arrays_2d",
+        [](ScalarField<2>& f1, ScalarField<2>& f2)
+        {
+            std::swap(f1.array(), f2.array());
+            bool f1_ghosts      = f1.ghosts_updated();
+            f1.ghosts_updated() = f2.ghosts_updated();
+            f2.ghosts_updated() = f1_ghosts;
+        },
+        py::arg("f1"),
+        py::arg("f2"),
+        "Swap underlying data arrays of two 2D fields (efficient for time stepping)");
+
+    m.def(
+        "swap_field_arrays_3d",
+        [](ScalarField<3>& f1, ScalarField<3>& f2)
+        {
+            std::swap(f1.array(), f2.array());
+            bool f1_ghosts      = f1.ghosts_updated();
+            f1.ghosts_updated() = f2.ghosts_updated();
+            f2.ghosts_updated() = f1_ghosts;
+        },
+        py::arg("f1"),
+        py::arg("f2"),
+        "Swap underlying data arrays of two 3D fields (efficient for time stepping)");
 }

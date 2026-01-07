@@ -30,10 +30,10 @@ config.disable_minimal_ghost_width()
 mesh = sam.MRMesh2D(box, config)
 
 # Create fields
-u = sam.ScalarField2D("u", mesh, 0.0)
-v = sam.ScalarField2D("v", mesh, 0.0)
-flux_old = sam.ScalarField2D("flux_old", mesh, 0.0)
-flux_new = sam.ScalarField2D("flux_new", mesh, 0.0)
+u = sam.field.scalar(mesh, "u", init=0.0)
+v = sam.field.scalar(mesh, "v", init=0.0)
+flux_old = sam.field.scalar(mesh, "flux_old", init=0.0)
+flux_new = sam.field.scalar(mesh, "flux_new", init=0.0)
 
 # Initialize with simple data
 def init_field(field):
@@ -79,8 +79,8 @@ print("Test 2: Full time step comparison")
 print("-" * 60)
 
 dt = 0.01
-unp1_old = sam.ScalarField2D("unp1_old", mesh, 0.0)
-unp1_new = sam.ScalarField2D("unp1_new", mesh, 0.0)
+unp1_old = sam.field.scalar(mesh, "unp1_old", init=0.0)
+unp1_new = sam.field.scalar(mesh, "unp1_new", init=0.0)
 
 # Old way (allocates 2 fields: upwind_result + arithmetic result)
 print("Old way: flux = sam.upwind(...); unp1 = u - dt * flux")
@@ -93,7 +93,7 @@ print(f"  Time (100 iterations): {old_full_time:.4f}s")
 
 # New way (0 allocations in loop)
 print("\nNew way: sam.apply_upwind_2d(...); sam.euler_update_2d(...)")
-flux_reuse = sam.ScalarField2D("flux_reuse", mesh, 0.0)
+flux_reuse = sam.field.scalar(mesh, "flux_reuse", init=0.0)
 start = time.time()
 for i in range(100):
     sam.apply_upwind_2d(flux_reuse, velocity, u)

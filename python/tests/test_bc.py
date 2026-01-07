@@ -30,7 +30,7 @@ class TestMakeDirichletBC:
         config.max_level = 3
         mesh = sam.MRMesh1D(box, config)
 
-        u = sam.ScalarField1D("u", mesh, 0.0)
+        u = sam.field.scalar(mesh, "u", init=0.0)
 
         # Create Dirichlet BC with value 0.0 (returns None, BC is attached to field)
         sam.make_dirichlet_bc(u, 0.0)
@@ -48,7 +48,7 @@ class TestMakeDirichletBC:
 
         # Test orders 1-4
         for order in [1, 2, 3, 4]:
-            u = sam.ScalarField1D("u", mesh, 0.0)
+            u = sam.field.scalar(mesh, "u", init=0.0)
             sam.make_dirichlet_bc(u, 1.5, order=order)
             # If we get here without exception, it worked
             assert True
@@ -61,7 +61,7 @@ class TestMakeDirichletBC:
         config.max_level = 2
         mesh = sam.MRMesh1D(box, config)
 
-        u = sam.ScalarField1D("u", mesh, 0.0)
+        u = sam.field.scalar(mesh, "u", init=0.0)
 
         # Order 5 should raise an error
         with pytest.raises(RuntimeError, match="order must be between 1 and 4"):
@@ -75,7 +75,7 @@ class TestMakeDirichletBC:
         config.max_level = 4
         mesh = sam.MRMesh2D(box, config)
 
-        u = sam.ScalarField2D("u", mesh, 0.0)
+        u = sam.field.scalar(mesh, "u", init=0.0)
 
         # Create Dirichlet BC with value 0.0 (as in advection_2d.cpp line 110)
         sam.make_dirichlet_bc(u, 0.0)
@@ -91,7 +91,7 @@ class TestMakeDirichletBC:
         config.max_level = 2
         mesh = sam.MRMesh2D(box, config)
 
-        u = sam.ScalarField2D("u", mesh, 0.0)
+        u = sam.field.scalar(mesh, "u", init=0.0)
 
         # Create Dirichlet BC with value 5.0
         sam.make_dirichlet_bc(u, 5.0)
@@ -108,7 +108,7 @@ class TestMakeDirichletBC:
 
         # Test orders 1-4
         for order in [1, 2, 3, 4]:
-            u = sam.ScalarField2D("u", mesh, 0.0)
+            u = sam.field.scalar(mesh, "u", init=0.0)
             sam.make_dirichlet_bc(u, 0.0, order=order)
             assert True
 
@@ -120,7 +120,7 @@ class TestMakeDirichletBC:
         config.max_level = 1
         mesh = sam.MRMesh3D(box, config)
 
-        u = sam.ScalarField3D("u", mesh, 0.0)
+        u = sam.field.scalar(mesh, "u", init=0.0)
 
         # Create Dirichlet BC
         sam.make_dirichlet_bc(u, 1.0)
@@ -135,8 +135,8 @@ class TestMakeDirichletBC:
         config.max_level = 3
         mesh = sam.MRMesh1D(box, config)
 
-        u1 = sam.ScalarField1D("u1", mesh, 0.0)
-        u2 = sam.ScalarField1D("u2", mesh, 0.0)
+        u1 = sam.field.scalar(mesh, "u1", init=0.0)
+        u2 = sam.field.scalar(mesh, "u2", init=0.0)
 
         # Don't specify order - should default to 1
         sam.make_dirichlet_bc(u1, 0.0)

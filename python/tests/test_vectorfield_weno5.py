@@ -40,7 +40,7 @@ try:
     mesh2d = sam.MRMesh2D(box, config2d)
 
     # Create VectorField2D_2 (velocity field u = [u, v])
-    u_vec = sam.VectorField2D_2("u", mesh2d, 0.0)
+    u_vec = sam.field.vector(mesh2d, "u", n_components=2, init=0.0)
 
     # Initialize with a simple velocity field
     def init_velocity_2d(cell):
@@ -82,7 +82,7 @@ try:
     mesh3d = sam.MRMesh3D(box, config3d)
 
     # Create VectorField3D_3 (velocity field u = [u, v, w])
-    u_vec = sam.VectorField3D_3("u", mesh3d, 0.0)
+    u_vec = sam.field.vector(mesh3d, "u", n_components=3, init=0.0)
 
     # Initialize with a simple velocity field
     def init_velocity_3d(cell):
@@ -124,10 +124,10 @@ try:
     mesh = sam.MRMesh2D(box, config)
 
     # Create fields for RK3
-    u = sam.VectorField2D_2("u", mesh, 0.0)
-    u1 = sam.VectorField2D_2("u1", mesh, 0.0)
-    u2 = sam.VectorField2D_2("u2", mesh, 0.0)
-    unp1 = sam.VectorField2D_2("unp1", mesh, 0.0)
+    u = sam.field.vector(mesh, "u", n_components=2, init=0.0)
+    u1 = sam.field.vector(mesh, "u1", n_components=2, init=0.0)
+    u2 = sam.field.vector(mesh, "u2", n_components=2, init=0.0)
+    unp1 = sam.field.vector(mesh, "unp1", n_components=2, init=0.0)
 
     # Initialize with a Gaussian pulse
     def init_gaussian(cell):

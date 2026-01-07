@@ -31,7 +31,7 @@ class TestScalarField1D:
         config.max_level = 1
 
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
 
         assert field.name == "u"
         assert field.dim == 1
@@ -46,7 +46,7 @@ class TestScalarField1D:
         config.max_level = 1
 
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh, 3.14)
+        field = sam.field.scalar(mesh, "u", init=3.14)
 
         # Check a few cells have the init value
         for i in range(min(5, field.size)):
@@ -60,7 +60,7 @@ class TestScalarField1D:
         config.max_level = 1
 
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
 
         assert field.name == "u"
 
@@ -75,7 +75,7 @@ class TestScalarField1D:
         config.max_level = 1
 
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
 
         assert field.mesh is mesh
 
@@ -87,7 +87,7 @@ class TestScalarField1D:
         config.max_level = 1
 
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
         field.fill(2.5)
 
         for i in range(field.size):
@@ -101,7 +101,7 @@ class TestScalarField1D:
         config.max_level = 1
 
         mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
         field.fill(42.0)
 
         arr = field.numpy_view()

@@ -160,10 +160,7 @@ def main():
         unp1.assign(u - dt * upwind_result)  # In-place to avoid stale mesh references
 
         # 6. Swap arrays (efficient: no memory allocation)
-        # Efficient swap without allocation
-        u.array, unp1.array = unp1.array, u.array
-        # Also swap ghost update flags
-        u.ghosts_updated(), unp1.ghosts_updated() = unp1.ghosts_updated(), u.ghosts_updated()
+        sam.swap_field_arrays_2d(u, unp1)
 
         # Print progress and save
         if nt % save_interval == 0 or t >= Tf:

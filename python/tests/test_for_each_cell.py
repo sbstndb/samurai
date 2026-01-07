@@ -90,7 +90,7 @@ class TestForEachCell1D:
         mesh = sam.MRMesh1D(box, config)
 
         # Create a field
-        u = sam.ScalarField1D("u", mesh, 0.0)
+        u = sam.field.scalar(mesh, "u", init=0.0)
 
         # Set values using cell.index
         def callback(cell):
@@ -200,7 +200,7 @@ class TestForEachCell2D:
         mesh = sam.MRMesh2D(box, config)
 
         # Create field
-        u = sam.ScalarField2D("u", mesh, 0.0)
+        u = sam.field.scalar(mesh, "u", init=0.0)
 
         # Circular initial condition
         x_center, y_center = 0.3, 0.3
@@ -337,7 +337,7 @@ class TestForEachCellIntegration:
         config.max_level = 2
         mesh = sam.MRMesh2D(box, config)
 
-        u = sam.ScalarField2D("u", mesh, 0.0)
+        u = sam.field.scalar(mesh, "u", init=0.0)
 
         # Set field using cell centers
         def callback(cell):

@@ -37,7 +37,7 @@ try:
     mesh = sam.MRMesh2D(box, config)
 
     # Create VectorField2D_2
-    u = sam.VectorField2D_2("u", mesh, 0.0)
+    u = sam.field.vector(mesh, "u", n_components=2, init=0.0)
 
     # Test __setitem__ with for_each_cell
     def init_velocity(cell):
@@ -80,7 +80,7 @@ try:
     mesh = sam.MRMesh3D(box, config)
 
     # Create VectorField3D_3
-    u = sam.VectorField3D_3("u", mesh, 0.0)
+    u = sam.field.vector(mesh, "u", n_components=3, init=0.0)
 
     # Test __setitem__ with for_each_cell
     def init_velocity(cell):

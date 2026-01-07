@@ -38,7 +38,7 @@ try:
     mesh2d = sam.MRMesh2D(box, config2d)
 
     # Create VectorField2D_2 (velocity field u = [u, v])
-    u_vec = sam.VectorField2D_2("u", mesh2d, 0.0)
+    u_vec = sam.field.vector(mesh2d, "u", n_components=2, init=0.0)
 
     # Apply WENO5 convection operator (even with zero field, should work)
     flux = sam.make_convection_weno5(u_vec)
@@ -72,7 +72,7 @@ try:
     mesh3d = sam.MRMesh3D(box, config3d)
 
     # Create VectorField3D_3 (velocity field u = [u, v, w])
-    u_vec = sam.VectorField3D_3("u", mesh3d, 0.0)
+    u_vec = sam.field.vector(mesh3d, "u", n_components=3, init=0.0)
 
     # Apply WENO5 convection operator
     flux = sam.make_convection_weno5(u_vec)
@@ -106,9 +106,9 @@ try:
     mesh = sam.MRMesh2D(box, config)
 
     # Create fields for RK3
-    u = sam.VectorField2D_2("u", mesh, 0.0)
-    u1 = sam.VectorField2D_2("u1", mesh, 0.0)
-    u2 = sam.VectorField2D_2("u2", mesh, 0.0)
+    u = sam.field.vector(mesh, "u", n_components=2, init=0.0)
+    u1 = sam.field.vector(mesh, "u1", n_components=2, init=0.0)
+    u2 = sam.field.vector(mesh, "u2", n_components=2, init=0.0)
 
     # Boundary conditions
     sam.make_dirichlet_bc(u, [0.0, 0.0], order=1)

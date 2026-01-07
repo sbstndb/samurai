@@ -40,8 +40,10 @@ from matplotlib.colors import Normalize
 from typing import Optional, Tuple, List, Union
 
 
-def _extract_cell_data(field) -> Tuple[List, List, List, List]:
+def _extract_cell_data(field) -> Tuple[List, List, np.ndarray, List]:
     """Extract cell geometry and data from a Samurai field.
+
+    Optimized version using numpy_view() for faster value access.
 
     Args:
         field: Samurai ScalarField or VectorField
@@ -50,25 +52,26 @@ def _extract_cell_data(field) -> Tuple[List, List, List, List]:
         Tuple of (x_corners, y_corners, values, levels)
         - x_corners: List of x-coordinates of cell corners
         - y_corners: List of y-coordinates of cell corners
-        - values: List of field values at cell centers
+        - values: np.ndarray of field values at cell centers
         - levels: List of refinement levels for each cell
     """
     import samurai_python as sam
 
-    x_corners = []
-    y_corners = []
-    values = []
-    levels = []
+    # Pre-allocate lists with known size for better performance
+    n_cells = field.mesh.nb_cells
+    x_corners = [0.0] * n_cells
+    y_corners = [0.0] * n_cells
+    levels = [0] * n_cells
+
+    # Use numpy_view() for O(1) access to all values (much faster than per-cell indexing)
+    values = field.numpy_view()
 
     def collect_cell(cell):
+        idx = cell.index
         cx, cy = cell.corner()
-        L = cell.length
-        val = field[cell.index]
-
-        x_corners.append(cx)
-        y_corners.append(cy)
-        values.append(val)
-        levels.append(cell.level)
+        x_corners[idx] = cx
+        y_corners[idx] = cy
+        levels[idx] = cell.level
 
     sam.for_each_cell(field.mesh, collect_cell)
 
@@ -498,9 +501,9 @@ class FieldPlotter:
             # Full recreation needed
             self._rebuild_collection(field)
         else:
-            # Just update values
-            _, _, values, _ = _extract_cell_data(field)
-            self.collection.set_array(np.array(values))
+            # Fast path: use numpy_view() directly (O(1) instead of O(n))
+            values = field.numpy_view()
+            self.collection.set_array(values)
 
             # Update limits if auto
             if self.vmin is None:

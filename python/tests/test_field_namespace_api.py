@@ -11,8 +11,8 @@ New API:
     v = sam.field.vector(mesh, "v", n_components=2, init=1.0)
 
 Old API (still supported):
-    u = sam.ScalarField2D("u", mesh, 0.0)
-    u = sam.make_scalar_field(mesh, "u", 0.0)
+    u = sam.field.ScalarField2D("u", mesh, 0.0)
+    u = sam.field.scalar(mesh, "u", 0.0)
 """
 
 import sys
@@ -35,31 +35,31 @@ import samurai_python as sam
 @pytest.fixture
 def mesh_1d():
     """Create a simple 1D mesh for testing."""
-    box = sam.Box1D([0.0], [1.0])
-    config = sam.MeshConfig1D()
+    box = sam.geometry.Box1D([0.0], [1.0])
+    config = sam.config.MeshConfig1D()
     config.min_level = 4
     config.max_level = 4
-    return sam.MRMesh1D(box, config)
+    return sam.mesh.MRMesh1D(box, config)
 
 
 @pytest.fixture
 def mesh_2d():
     """Create a simple 2D mesh for testing."""
-    box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-    config = sam.MeshConfig2D()
+    box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+    config = sam.config.MeshConfig2D()
     config.min_level = 4
     config.max_level = 4
-    return sam.MRMesh2D(box, config)
+    return sam.mesh.MRMesh2D(box, config)
 
 
 @pytest.fixture
 def mesh_3d():
     """Create a simple 3D mesh for testing."""
-    box = sam.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
-    config = sam.MeshConfig3D()
+    box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+    config = sam.config.MeshConfig3D()
     config.min_level = 3
     config.max_level = 3
-    return sam.MRMesh3D(box, config)
+    return sam.mesh.MRMesh3D(box, config)
 
 
 # ============================================================
@@ -72,7 +72,7 @@ class TestFieldNamespaceScalar:
     def test_scalar_1d_default_init(self, mesh_1d):
         """Test 1D scalar field with default init value (0.0)."""
         u = sam.field.scalar(mesh_1d, "u")
-        assert isinstance(u, sam.ScalarField1D)
+        assert isinstance(u, sam.field.ScalarField1D)
         assert u.name == "u"
         arr = u.numpy_view()
         assert np.allclose(arr, 0.0), "Default init should be 0.0"
@@ -80,7 +80,7 @@ class TestFieldNamespaceScalar:
     def test_scalar_1d_explicit_init(self, mesh_1d):
         """Test 1D scalar field with explicit init value."""
         u = sam.field.scalar(mesh_1d, "u", init=1.5)
-        assert isinstance(u, sam.ScalarField1D)
+        assert isinstance(u, sam.field.ScalarField1D)
         assert u.name == "u"
         arr = u.numpy_view()
         assert np.allclose(arr, 1.5), f"Expected 1.5, got {arr[0]:.2f}"
@@ -88,7 +88,7 @@ class TestFieldNamespaceScalar:
     def test_scalar_2d_default_init(self, mesh_2d):
         """Test 2D scalar field with default init value."""
         u = sam.field.scalar(mesh_2d, "u")
-        assert isinstance(u, sam.ScalarField2D)
+        assert isinstance(u, sam.field.ScalarField2D)
         assert u.name == "u"
         arr = u.numpy_view()
         assert np.allclose(arr, 0.0)
@@ -96,14 +96,14 @@ class TestFieldNamespaceScalar:
     def test_scalar_2d_explicit_init(self, mesh_2d):
         """Test 2D scalar field with explicit init value."""
         u = sam.field.scalar(mesh_2d, "u", init=2.5)
-        assert isinstance(u, sam.ScalarField2D)
+        assert isinstance(u, sam.field.ScalarField2D)
         arr = u.numpy_view()
         assert np.allclose(arr, 2.5), f"Expected 2.5, got mean {arr.mean():.2f}"
 
     def test_scalar_3d_default_init(self, mesh_3d):
         """Test 3D scalar field with default init value."""
         u = sam.field.scalar(mesh_3d, "u")
-        assert isinstance(u, sam.ScalarField3D)
+        assert isinstance(u, sam.field.ScalarField3D)
         assert u.name == "u"
         arr = u.numpy_view()
         assert np.allclose(arr, 0.0)
@@ -111,7 +111,7 @@ class TestFieldNamespaceScalar:
     def test_scalar_3d_explicit_init(self, mesh_3d):
         """Test 3D scalar field with explicit init value."""
         u = sam.field.scalar(mesh_3d, "u", init=3.14)
-        assert isinstance(u, sam.ScalarField3D)
+        assert isinstance(u, sam.field.ScalarField3D)
         arr = u.numpy_view()
         assert np.allclose(arr, 3.14), f"Expected 3.14, got mean {arr.mean():.2f}"
 
@@ -121,14 +121,14 @@ class TestFieldNamespaceScalar:
         u2 = sam.field.scalar(mesh_2d, "u")
         u3 = sam.field.scalar(mesh_3d, "u")
 
-        assert isinstance(u1, sam.ScalarField1D)
-        assert isinstance(u2, sam.ScalarField2D)
-        assert isinstance(u3, sam.ScalarField3D)
+        assert isinstance(u1, sam.field.ScalarField1D)
+        assert isinstance(u2, sam.field.ScalarField2D)
+        assert isinstance(u3, sam.field.ScalarField3D)
 
     def test_scalar_keyword_args(self, mesh_2d):
         """Test that keyword arguments work correctly."""
         u = sam.field.scalar(mesh=mesh_2d, name="test", init=42.0)
-        assert isinstance(u, sam.ScalarField2D)
+        assert isinstance(u, sam.field.ScalarField2D)
         assert u.name == "test"
         arr = u.numpy_view()
         assert np.allclose(arr, 42.0)
@@ -144,7 +144,7 @@ class TestFieldNamespaceVector:
     def test_vector_1d_2_components_default(self, mesh_1d):
         """Test 1D vector field with 2 components (default)."""
         v = sam.field.vector(mesh_1d, "v")
-        assert isinstance(v, sam.VectorField1D_2)
+        assert isinstance(v, sam.field.VectorField1D_2)
         assert v.n_components == 2
         assert v.name == "v"
         arr = v.numpy_view()
@@ -153,7 +153,7 @@ class TestFieldNamespaceVector:
     def test_vector_1d_2_components_explicit(self, mesh_1d):
         """Test 1D vector field with 2 components explicit."""
         v = sam.field.vector(mesh_1d, "v", n_components=2, init=1.5)
-        assert isinstance(v, sam.VectorField1D_2)
+        assert isinstance(v, sam.field.VectorField1D_2)
         arr = v.numpy_view()
         assert np.allclose(arr, 1.5)
 
@@ -168,7 +168,7 @@ class TestFieldNamespaceVector:
     def test_vector_2d_2_components_default(self, mesh_2d):
         """Test 2D vector field with 2 components (default)."""
         v = sam.field.vector(mesh_2d, "velocity")
-        assert isinstance(v, sam.VectorField2D_2)
+        assert isinstance(v, sam.field.VectorField2D_2)
         assert v.n_components == 2
         assert v.name == "velocity"
         arr = v.numpy_view()
@@ -177,14 +177,14 @@ class TestFieldNamespaceVector:
     def test_vector_2d_2_components_explicit_init(self, mesh_2d):
         """Test 2D vector field with 2 components and explicit init."""
         v = sam.field.vector(mesh_2d, "v", n_components=2, init=1.0)
-        assert isinstance(v, sam.VectorField2D_2)
+        assert isinstance(v, sam.field.VectorField2D_2)
         arr = v.numpy_view()
         assert np.allclose(arr, 1.0)
 
     def test_vector_2d_3_components(self, mesh_2d):
         """Test 2D vector field with 3 components."""
         v = sam.field.vector(mesh_2d, "v", n_components=3, init=0.5)
-        assert isinstance(v, sam.VectorField2D_3)
+        assert isinstance(v, sam.field.VectorField2D_3)
         assert v.n_components == 3
         arr = v.numpy_view()
         assert np.allclose(arr, 0.5)
@@ -200,7 +200,7 @@ class TestFieldNamespaceVector:
     def test_vector_3d_3_components(self, mesh_3d):
         """Test 3D vector field with 3 components."""
         v = sam.field.vector(mesh_3d, "v", n_components=3, init=2.0)
-        assert isinstance(v, sam.VectorField3D_3)
+        assert isinstance(v, sam.field.VectorField3D_3)
         assert v.n_components == 3
         arr = v.numpy_view()
         assert np.allclose(arr, 2.0)
@@ -213,7 +213,7 @@ class TestFieldNamespaceVector:
     def test_vector_keyword_args(self, mesh_2d):
         """Test that keyword arguments work correctly."""
         v = sam.field.vector(mesh=mesh_2d, name="test", n_components=2, init=99.0)
-        assert isinstance(v, sam.VectorField2D_2)
+        assert isinstance(v, sam.field.VectorField2D_2)
         assert v.name == "test"
         arr = v.numpy_view()
         assert np.allclose(arr, 99.0)
@@ -229,7 +229,7 @@ class TestBackwardCompatibility:
     def test_old_scalar_constructor_still_works(self, mesh_2d):
         """Test that old ScalarField2D constructor still works."""
         u = sam.field.scalar(mesh_2d, "u", init=1.0)
-        assert isinstance(u, sam.ScalarField2D)
+        assert isinstance(u, sam.field.ScalarField2D)
         assert u.name == "u"
         arr = u.numpy_view()
         assert np.allclose(arr, 1.0)
@@ -237,7 +237,7 @@ class TestBackwardCompatibility:
     def test_old_make_scalar_field_still_works(self, mesh_2d):
         """Test that old make_scalar_field function still works."""
         u = sam.field.scalar(mesh_2d, "u", init=2.0)
-        assert isinstance(u, sam.ScalarField2D)
+        assert isinstance(u, sam.field.ScalarField2D)
         assert u.name == "u"
         arr = u.numpy_view()
         assert np.allclose(arr, 2.0)
@@ -245,7 +245,7 @@ class TestBackwardCompatibility:
     def test_old_vector_constructor_still_works(self, mesh_2d):
         """Test that old VectorField2D_2 constructor still works."""
         v = sam.field.vector(mesh_2d, "v", n_components=2, init=1.0)
-        assert isinstance(v, sam.VectorField2D_2)
+        assert isinstance(v, sam.field.VectorField2D_2)
         assert v.name == "v"
         arr = v.numpy_view()
         assert np.allclose(arr, 1.0)
@@ -253,7 +253,7 @@ class TestBackwardCompatibility:
     def test_old_make_vector_field_still_works(self, mesh_2d):
         """Test that old make_vector_field function still works."""
         v = sam.field.vector(mesh_2d, "v", n_components=2, init=3.0)
-        assert isinstance(v, sam.VectorField2D_2)
+        assert isinstance(v, sam.field.VectorField2D_2)
         assert v.name == "v"
         arr = v.numpy_view()
         assert np.allclose(arr, 3.0)
@@ -291,9 +291,9 @@ class TestFieldNamespaceIntegration:
         u1 = sam.field.scalar(mesh_2d, "u1", init=1.0)
         u2 = sam.field.scalar(mesh_2d, "u2", init=1.0)
 
-        assert isinstance(u, sam.ScalarField2D)
-        assert isinstance(u1, sam.ScalarField2D)
-        assert isinstance(u2, sam.ScalarField2D)
+        assert isinstance(u, sam.field.ScalarField2D)
+        assert isinstance(u1, sam.field.ScalarField2D)
+        assert isinstance(u2, sam.field.ScalarField2D)
 
         # Check all have correct initial value
         assert np.allclose(u.numpy_view(), 1.0)
@@ -305,7 +305,7 @@ class TestFieldNamespaceIntegration:
         # Burgers uses 2D vector field with 2 components
         u = sam.field.vector(mesh_2d, "u", n_components=2, init=0.0)
 
-        assert isinstance(u, sam.VectorField2D_2)
+        assert isinstance(u, sam.field.VectorField2D_2)
         assert u.n_components == 2
         arr = u.numpy_view()
         assert np.allclose(arr, 0.0)

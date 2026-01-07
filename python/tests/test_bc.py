@@ -24,11 +24,11 @@ class TestMakeDirichletBC:
 
     def test_1d_dirichlet_order1(self):
         """Test Dirichlet BC of order 1 for 1D field."""
-        box = sam.Box1D([0.0], [1.0])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.0], [1.0])
+        config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 
@@ -40,11 +40,11 @@ class TestMakeDirichletBC:
 
     def test_1d_dirichlet_different_orders(self):
         """Test Dirichlet BC with different orders."""
-        box = sam.Box1D([0.0], [1.0])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.0], [1.0])
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
 
         # Test orders 1-4
         for order in [1, 2, 3, 4]:
@@ -55,11 +55,11 @@ class TestMakeDirichletBC:
 
     def test_1d_dirichlet_invalid_order(self):
         """Test that invalid order raises an error."""
-        box = sam.Box1D([0.0], [1.0])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.0], [1.0])
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 
@@ -69,11 +69,11 @@ class TestMakeDirichletBC:
 
     def test_2d_dirichlet_order1(self):
         """Test Dirichlet BC of order 1 for 2D field (advection_2d case)."""
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        config = sam.config.MeshConfig2D()
         config.min_level = 4
         config.max_level = 4
-        mesh = sam.MRMesh2D(box, config)
+        mesh = sam.mesh.MRMesh2D(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 
@@ -85,11 +85,11 @@ class TestMakeDirichletBC:
 
     def test_2d_dirichlet_nonzero_value(self):
         """Test Dirichlet BC with non-zero constant value."""
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.MRMesh2D(box, config)
+        mesh = sam.mesh.MRMesh2D(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 
@@ -100,11 +100,11 @@ class TestMakeDirichletBC:
 
     def test_2d_dirichlet_different_orders(self):
         """Test Dirichlet BC with different orders in 2D."""
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 2
-        mesh = sam.MRMesh2D(box, config)
+        mesh = sam.mesh.MRMesh2D(box, config)
 
         # Test orders 1-4
         for order in [1, 2, 3, 4]:
@@ -114,11 +114,11 @@ class TestMakeDirichletBC:
 
     def test_3d_dirichlet_order1(self):
         """Test Dirichlet BC of order 1 for 3D field."""
-        box = sam.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
-        config = sam.MeshConfig3D()
+        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        config = sam.config.MeshConfig3D()
         config.min_level = 1
         config.max_level = 1
-        mesh = sam.MRMesh3D(box, config)
+        mesh = sam.mesh.MRMesh3D(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
 
@@ -129,11 +129,11 @@ class TestMakeDirichletBC:
 
     def test_default_order_parameter(self):
         """Test that order defaults to 1."""
-        box = sam.Box1D([0.0], [1.0])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.0], [1.0])
+        config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
 
         u1 = sam.field.scalar(mesh, "u1", init=0.0)
         u2 = sam.field.scalar(mesh, "u2", init=0.0)

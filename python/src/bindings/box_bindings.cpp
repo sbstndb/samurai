@@ -257,32 +257,128 @@ void bind_box(py::module_& m, const std::string& name)
              });
 }
 
+// Helper function to detect dimension from Python object
+std::size_t detect_dimension_from_input(const py::object& obj)
+{
+    // Try list/tuple
+    try
+    {
+        py::list list = py::cast<py::list>(obj);
+        return list.size();
+    }
+    catch (const py::cast_error&)
+    {
+        // Try numpy array
+        try
+        {
+            py::array_t<double> arr = py::cast<py::array_t<double>>(obj);
+            return arr.size();
+        }
+        catch (const py::cast_error&)
+        {
+            throw std::runtime_error("Cannot determine dimension: expected list or numpy array");
+        }
+    }
+}
+
 // Module initialization function for Box bindings
 void init_box_bindings(py::module_& m)
 {
-    // Bind Box classes for dimensions 1, 2, 3
-    bind_box<1>(m, "Box1D");
-    bind_box<2>(m, "Box2D");
-    bind_box<3>(m, "Box3D");
+    // ============================================================
+    // BREAKING CHANGE: No longer bind Box classes to main module
+    // Users must use sam.geometry.Box1D, sam.geometry.Box2D, etc.
+    // Or use the new factory: sam.geometry.box(min_corner, max_corner)
+    // ============================================================
 
     // ============================================================
     // Create geometry submodule for organized API access
     // ============================================================
     py::module_ geometry = m.def_submodule("geometry",
         "Geometric primitives for Samurai AMR simulations\n\n"
-        "This submodule provides organized access to geometric classes.\n"
-        "Both sam.geometry.Box2D and sam.Box2D reference the same class.\n\n"
+        "Factory Functions:\n"
+        "  box(min_corner, max_corner) - Create Box with inferred dimension\n\n"
+        "Classes:\n"
+        "  Box1D, Box2D, Box3D - Dimension-specific Box classes\n\n"
         "Examples:\n"
         "    >>> import samurai_python as sam\n"
-        "    >>> # New organized API (recommended)\n"
-        "    >>> box = sam.geometry.Box2D([0., 0.], [1., 1.])\n"
-        "    >>> # Old API (still works)\n"
-        "    >>> box = sam.Box2D([0., 0.], [1., 1.])\n");
+        "    >>> # Factory function (recommended)\n"
+        "    >>> box = sam.geometry.box([0., 0.], [1., 1.])\n"
+        "    >>> # Direct class access\n"
+        "    >>> box = sam.geometry.Box2D([0., 0.], [1., 1.])\n");
 
-    // Reference existing Box classes in the submodule
-    geometry.attr("Box1D") = m.attr("Box1D");
-    geometry.attr("Box2D") = m.attr("Box2D");
-    geometry.attr("Box3D") = m.attr("Box3D");
+    // Bind Box classes ONLY to geometry submodule (not to main module)
+    bind_box<1>(geometry, "Box1D");
+    bind_box<2>(geometry, "Box2D");
+    bind_box<3>(geometry, "Box3D");
+
+    // ============================================================
+    // Factory function: sam.geometry.box(min_corner, max_corner)
+    // Infers dimension from array length
+    // ============================================================
+    geometry.def("box",
+        [](const py::object& min_obj, const py::object& max_obj) -> py::object
+        {
+            // Detect dimension from input
+            std::size_t dim = detect_dimension_from_input(min_obj);
+
+            // Validate both inputs have same dimension
+            std::size_t dim_max = detect_dimension_from_input(max_obj);
+            if (dim != dim_max)
+            {
+                throw std::runtime_error("min_corner and max_corner must have the same dimension");
+            }
+
+            // Create appropriate Box based on dimension
+            if (dim == 1)
+            {
+                auto min_corner = convert_to_point<1>(min_obj);
+                auto max_corner = convert_to_point<1>(max_obj);
+                Box1D box(min_corner, max_corner);
+                return py::cast(box);
+            }
+            else if (dim == 2)
+            {
+                auto min_corner = convert_to_point<2>(min_obj);
+                auto max_corner = convert_to_point<2>(max_obj);
+                Box2D box(min_corner, max_corner);
+                return py::cast(box);
+            }
+            else if (dim == 3)
+            {
+                auto min_corner = convert_to_point<3>(min_obj);
+                auto max_corner = convert_to_point<3>(max_obj);
+                Box3D box(min_corner, max_corner);
+                return py::cast(box);
+            }
+            else
+            {
+                throw std::runtime_error("Unsupported dimension: " + std::to_string(dim) + " (must be 1, 2, or 3)");
+            }
+        },
+        py::arg("min_corner"),
+        py::arg("max_corner"),
+        R"pbdoc(
+        Create a Box by inferring dimension from array length.
+
+        Parameters
+        ----------
+        min_corner : array_like
+            Minimum corner coordinates (e.g., [0.0] for 1D, [0.0, 0.0] for 2D)
+        max_corner : array_like
+            Maximum corner coordinates
+
+        Returns
+        -------
+        Box
+            Dimension-specific Box object (Box1D, Box2D, or Box3D)
+
+        Examples
+        --------
+        >>> import samurai_python as sam
+        >>> box_1d = sam.geometry.box([0.0], [1.0])
+        >>> box_2d = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
+        >>> box_3d = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+    )pbdoc");
 
     // Also include Interval if it's bound in the main module
     // (interval_bindings.cpp may be initialized before or after this file)

@@ -28,13 +28,13 @@ print("-" * 60)
 
 try:
     # Setup 2D mesh
-    box = sam.Box2D([-1., -1.], [1., 1.])
-    config = sam.MeshConfig2D()
+    box = sam.geometry.Box2D([-1., -1.], [1., 1.])
+    config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 5
     config.max_stencil_size = 6
 
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
 
     # Create VectorField2D_2
     u = sam.field.vector(mesh, "u", n_components=2, init=0.0)
@@ -71,13 +71,13 @@ print("-" * 60)
 
 try:
     # Setup 3D mesh
-    box = sam.Box3D([-1., -1., -1.], [1., 1., 1.])
-    config = sam.MeshConfig3D()
+    box = sam.geometry.Box3D([-1., -1., -1.], [1., 1., 1.])
+    config = sam.config.MeshConfig3D()
     config.min_level = 2
     config.max_level = 3
     config.max_stencil_size = 6
 
-    mesh = sam.MRMesh3D(box, config)
+    mesh = sam.mesh.MRMesh3D(box, config)
 
     # Create VectorField3D_3
     u = sam.field.vector(mesh, "u", n_components=3, init=0.0)

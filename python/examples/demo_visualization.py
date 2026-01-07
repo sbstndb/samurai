@@ -277,8 +277,8 @@ def demo_multiple_initial_conditions():
     # Test 1: Circle at origin
     u1 = sam.field.zeros(mesh, "circle")
     init_circular(u1, center=(0.0, 0.0), radius=0.4)
-    MRadapt1 = sam.make_MRAdapt(u1)
-    mra_config = sam.MRAConfig()
+    MRadapt1 = sam.adaptation.make_MRAdapt(u1)
+    mra_config = sam.config.MRAConfig()
     mra_config.epsilon = 1e-3
     mra_config.regularity = 1.0
     MRadapt1(mra_config)
@@ -289,7 +289,7 @@ def demo_multiple_initial_conditions():
     # Test 2: Offset circle
     u2 = sam.field.zeros(mesh, "offset_circle")
     init_circular(u2, center=(0.3, 0.3), radius=0.3)
-    MRadapt2 = sam.make_MRAdapt(u2)
+    MRadapt2 = sam.adaptation.make_MRAdapt(u2)
     MRadapt2(mra_config)
     svmpl.plot_field(u2, ax=axes[0, 1], cmap='plasma')
     axes[0, 1].set_title('Offset Circle')
@@ -308,7 +308,7 @@ def demo_multiple_initial_conditions():
         else:
             u3[cell.index] = 0.0
     sam.algorithms.for_each_cell(mesh, init_two_circles)
-    MRadapt3 = sam.make_MRAdapt(u3)
+    MRadapt3 = sam.adaptation.make_MRAdapt(u3)
     MRadapt3(mra_config)
     svmpl.plot_field(u3, ax=axes[1, 0], cmap='coolwarm')
     axes[1, 0].set_title('Two Circles')
@@ -317,7 +317,7 @@ def demo_multiple_initial_conditions():
     # Test 4: Refinement levels
     u4 = sam.field.zeros(mesh, "levels")
     init_circular(u4, center=(0.0, 0.0), radius=0.5)
-    MRadapt4 = sam.make_MRAdapt(u4)
+    MRadapt4 = sam.adaptation.make_MRAdapt(u4)
     MRadapt4(mra_config)
     svmpl.plot_field(u4, ax=axes[1, 1], show_level=True)
     axes[1, 1].set_title('Refinement Levels')

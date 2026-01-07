@@ -1469,34 +1469,46 @@ void bind_vector_field(py::module_& m, const std::string& name)
 // Module initialization function for Field bindings
 void init_field_bindings(py::module_& m)
 {
-    // Bind ScalarField classes for dimensions 1, 2, and 3
-    bind_scalar_field<1>(m, "ScalarField1D");
-    bind_scalar_field<2>(m, "ScalarField2D");
-    bind_scalar_field<3>(m, "ScalarField3D");
+    // ============================================================
+    // BREAKING CHANGE: No longer bind Field classes to main module
+    // Users must use sam.field.ScalarField1D, sam.field.VectorField2D_2, etc.
+    // Or use the factory: sam.field.scalar(mesh, name, init=0.0)
+    // ============================================================
 
-    // Bind VectorField classes for 1D (AOS layout)
-    bind_vector_field<1, 2, false>(m, "VectorField1D_2");
-    bind_vector_field<1, 3, false>(m, "VectorField1D_3");
+    // ============================================================
+    // Create field submodule for organized API access
+    // ============================================================
+    py::module_ field = m.def_submodule("field",
+        "Field classes for Samurai AMR simulations\n\n"
+        "Factory Functions:\n"
+        "  scalar(mesh, name, init=0.0) - Create ScalarField (dim inferred from mesh)\n"
+        "  vector(mesh, name, n_components=2, init=0.0) - Create VectorField\n\n"
+        "Classes:\n"
+        "  ScalarField1D, ScalarField2D, ScalarField3D - Dimension-specific scalar fields\n"
+        "  VectorField1D_2, VectorField1D_3 - 1D vector fields with 2 or 3 components\n"
+        "  VectorField2D_2, VectorField2D_3 - 2D vector fields with 2 or 3 components\n"
+        "  VectorField3D_2, VectorField3D_3 - 3D vector fields with 2 or 3 components\n\n"
+        "Examples:\n"
+        "    >>> import samurai_python as sam\n"
+        "    >>> # Factory function (recommended)\n"
+        "    >>> mesh = sam.mesh.make(box, min_level=4, max_level=8)\n"
+        "    >>> u = sam.field.scalar(mesh, \"u\")\n"
+        "    >>> vel = sam.field.vector(mesh, \"vel\", n_components=2)\n"
+        "    >>> # Direct class access\n"
+        "    >>> u = sam.field.ScalarField2D(mesh, \"u\")\n");
 
-    // Bind VectorField classes for 2 components (AOS layout)
-    bind_vector_field<2, 2, false>(m, "VectorField2D_2");
-    bind_vector_field<2, 3, false>(m, "VectorField2D_3");
+    // Bind ScalarField classes ONLY to field submodule (not to main module)
+    bind_scalar_field<1>(field, "ScalarField1D");
+    bind_scalar_field<2>(field, "ScalarField2D");
+    bind_scalar_field<3>(field, "ScalarField3D");
 
-    // Bind VectorField classes for 3D (AOS layout)
-    bind_vector_field<3, 2, false>(m, "VectorField3D_2");
-    bind_vector_field<3, 3, false>(m, "VectorField3D_3");
-
-    // Also expose them in a submodule for better organization
-    py::module_ field             = m.def_submodule("field", "Field classes");
-    field.attr("ScalarField1D")   = m.attr("ScalarField1D");
-    field.attr("ScalarField2D")   = m.attr("ScalarField2D");
-    field.attr("ScalarField3D")   = m.attr("ScalarField3D");
-    field.attr("VectorField1D_2") = m.attr("VectorField1D_2");
-    field.attr("VectorField1D_3") = m.attr("VectorField1D_3");
-    field.attr("VectorField2D_2") = m.attr("VectorField2D_2");
-    field.attr("VectorField2D_3") = m.attr("VectorField2D_3");
-    field.attr("VectorField3D_2") = m.attr("VectorField3D_2");
-    field.attr("VectorField3D_3") = m.attr("VectorField3D_3");
+    // Bind VectorField classes ONLY to field submodule (not to main module)
+    bind_vector_field<1, 2, false>(field, "VectorField1D_2");
+    bind_vector_field<1, 3, false>(field, "VectorField1D_3");
+    bind_vector_field<2, 2, false>(field, "VectorField2D_2");
+    bind_vector_field<2, 3, false>(field, "VectorField2D_3");
+    bind_vector_field<3, 2, false>(field, "VectorField3D_2");
+    bind_vector_field<3, 3, false>(field, "VectorField3D_3");
 
     // ============================================================
     // Factory functions for creating fields

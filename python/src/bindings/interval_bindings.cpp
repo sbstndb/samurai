@@ -303,11 +303,34 @@ void bind_interval_class(py::module_& m, const std::string& name)
 // Module initialization function for Interval bindings
 void init_interval_bindings(py::module_& m)
 {
-    // Bind default Interval type (int coordinates, signed long long int index)
-    bind_interval_class<int, long long int>(m, "Interval");
+    // ============================================================
+    // BREAKING CHANGE: No longer bind Interval to main module
+    // Users must use sam.interval.Interval or sam.interval.make_interval()
+    // ============================================================
 
-    // Factory function for convenience
-    m.def(
+    // ============================================================
+    // Create interval submodule for organized API access
+    // ============================================================
+    py::module_ interval = m.def_submodule("interval",
+        "Interval class for Samurai AMR simulations\n\n"
+        "An Interval represents a half-open range [start, end) with optional\n"
+        "storage index, used internally by the mesh data structure.\n\n"
+        "Factory Functions:\n"
+        "  make_interval(start, end, index=0) - Create an Interval\n\n"
+        "Classes:\n"
+        "  Interval - Half-open interval [start, end) with storage index\n\n"
+        "Examples:\n"
+        "    >>> import samurai_python as sam\n"
+        "    >>> # Factory function\n"
+        "    >>> interval = sam.interval.make_interval(0, 10)\n"
+        "    >>> # Direct class access\n"
+        "    >>> interval = sam.interval.Interval(0, 10, index=0)\n");
+
+    // Bind Interval class ONLY to interval submodule (not to main module)
+    bind_interval_class<int, long long int>(interval, "Interval");
+
+    // Factory function for convenience (in submodule only)
+    interval.def(
         "make_interval",
         [](int start, int end, long long int index = 0)
         {
@@ -316,9 +339,27 @@ void init_interval_bindings(py::module_& m)
         py::arg("start"),
         py::arg("end"),
         py::arg("index") = 0,
-        "Create an Interval [start, end) with optional storage index");
+        R"pbdoc(
+        Create an Interval [start, end) with optional storage index.
 
-    // Also expose in interval submodule for better organization
-    py::module_ interval      = m.def_submodule("interval", "Interval class");
-    interval.attr("Interval") = m.attr("Interval");
+        Parameters
+        ----------
+        start : int
+            Start of interval (inclusive)
+        end : int
+            End of interval (exclusive)
+        index : int, optional
+            Storage index (default: 0)
+
+        Returns
+        -------
+        Interval
+            The created interval
+
+        Examples
+        --------
+        >>> import samurai_python as sam
+        >>> interval = sam.interval.make_interval(0, 10)
+        >>> interval_with_index = sam.interval.make_interval(0, 10, index=5)
+        )pbdoc");
 }

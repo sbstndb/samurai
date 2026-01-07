@@ -227,49 +227,44 @@ void for_each_cell_3d(const Mesh3D& mesh, py::function func)
 // Module initialization function for algorithm bindings
 void init_algorithm_bindings(py::module_& m)
 {
-    // Bind 1D overload
-    m.def("for_each_interval", &for_each_interval_1d, py::arg("mesh"), py::arg("function"), "Iterate over all intervals in the 1D mesh.");
-
-    // Bind 2D overload
-    m.def("for_each_interval", &for_each_interval_2d, py::arg("mesh"), py::arg("function"), "Iterate over all intervals in the 2D mesh.");
-
-    // Bind 3D overload
-    m.def("for_each_interval", &for_each_interval_3d, py::arg("mesh"), py::arg("function"), "Iterate over all intervals in the 3D mesh.");
-
     // ============================================================
-    // Bind CellWrapper classes for for_each_cell
+    // BREAKING CHANGE: No longer bind Cell classes or algorithms to main module
+    // Users must use sam.algorithms.Cell1D, sam.algorithms.for_each_cell(), etc.
     // ============================================================
-    bind_cell_wrapper<1>(m, "Cell1D");
-    bind_cell_wrapper<2>(m, "Cell2D");
-    bind_cell_wrapper<3>(m, "Cell3D");
-
-    // ============================================================
-    // Bind for_each_cell functions
-    // ============================================================
-    // Bind 1D overload
-    m.def("for_each_cell", &for_each_cell_1d, py::arg("mesh"), py::arg("function"), "Iterate over all cells in the 1D mesh.");
-
-    // Bind 2D overload
-    m.def("for_each_cell", &for_each_cell_2d, py::arg("mesh"), py::arg("function"), "Iterate over all cells in the 2D mesh.");
-
-    // Bind 3D overload
-    m.def("for_each_cell", &for_each_cell_3d, py::arg("mesh"), py::arg("function"), "Iterate over all cells in the 3D mesh.");
 
     // ============================================================
     // Create algorithms submodule for organized API access
     // ============================================================
     py::module_ algorithms = m.def_submodule("algorithms",
         "Algorithmic primitives for mesh traversal and field operations\n\n"
-        "This submodule provides organized access to iteration algorithms.\n"
-        "Both sam.algorithms.for_each_cell() and sam.for_each_cell() reference the same function.\n\n"
+        "Factory Functions:\n"
+        "  for_each_cell(mesh, function) - Iterate over all cells in mesh\n"
+        "  for_each_interval(mesh, function) - Iterate over all intervals in mesh\n\n"
+        "Classes:\n"
+        "  Cell1D, Cell2D, Cell3D - Cell wrapper objects for iteration\n\n"
         "Examples:\n"
         "    >>> import samurai_python as sam\n"
-        "    >>> # New organized API (recommended)\n"
         "    >>> sam.algorithms.for_each_cell(mesh, lambda cell: print(cell.center()))\n"
-        "    >>> # Old API (still works)\n"
-        "    >>> sam.for_each_cell(mesh, lambda cell: print(cell.center()))\n");
+        "    >>> sam.algorithms.for_each_interval(mesh, lambda interval, index: ...)\n");
 
-    // Reference existing algorithm functions in the submodule
-    algorithms.attr("for_each_cell") = m.attr("for_each_cell");
-    algorithms.attr("for_each_interval") = m.attr("for_each_interval");
+    // Bind CellWrapper classes ONLY to algorithms submodule (not to main module)
+    bind_cell_wrapper<1>(algorithms, "Cell1D");
+    bind_cell_wrapper<2>(algorithms, "Cell2D");
+    bind_cell_wrapper<3>(algorithms, "Cell3D");
+
+    // Bind for_each_interval functions ONLY to algorithms submodule (not to main module)
+    algorithms.def("for_each_interval", &for_each_interval_1d, py::arg("mesh"), py::arg("function"),
+        "Iterate over all intervals in the 1D mesh.");
+    algorithms.def("for_each_interval", &for_each_interval_2d, py::arg("mesh"), py::arg("function"),
+        "Iterate over all intervals in the 2D mesh.");
+    algorithms.def("for_each_interval", &for_each_interval_3d, py::arg("mesh"), py::arg("function"),
+        "Iterate over all intervals in the 3D mesh.");
+
+    // Bind for_each_cell functions ONLY to algorithms submodule (not to main module)
+    algorithms.def("for_each_cell", &for_each_cell_1d, py::arg("mesh"), py::arg("function"),
+        "Iterate over all cells in the 1D mesh.");
+    algorithms.def("for_each_cell", &for_each_cell_2d, py::arg("mesh"), py::arg("function"),
+        "Iterate over all cells in the 2D mesh.");
+    algorithms.def("for_each_cell", &for_each_cell_3d, py::arg("mesh"), py::arg("function"),
+        "Iterate over all cells in the 3D mesh.");
 }

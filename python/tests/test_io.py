@@ -26,12 +26,12 @@ class TestSaveFunction:
 
     def test_save_1d_single_field(self):
         """Test saving 1D field with current directory."""
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u", init=1.0)
 
         # Create a temporary directory for output
@@ -47,12 +47,12 @@ class TestSaveFunction:
 
     def test_save_1d_none_path(self):
         """Test saving 1D field with None path (current directory)."""
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u", init=2.0)
 
         # Create a temporary directory for output
@@ -73,12 +73,12 @@ class TestSaveFunction:
 
     def test_save_2d_single_field(self):
         """Test saving 2D field."""
-        config = sam.MeshConfig2D()
+        config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.MRMesh2D(box, config)
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        mesh = sam.mesh.MRMesh2D(box, config)
         field = sam.field.scalar(mesh, "u", init=3.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -91,12 +91,12 @@ class TestSaveFunction:
 
     def test_save_3d_single_field(self):
         """Test saving 3D field."""
-        config = sam.MeshConfig3D()
+        config = sam.config.MeshConfig3D()
         config.min_level = 2
         config.max_level = 3
 
-        box = sam.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
-        mesh = sam.MRMesh3D(box, config)
+        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        mesh = sam.mesh.MRMesh3D(box, config)
         field = sam.field.scalar(mesh, "u", init=4.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -109,12 +109,12 @@ class TestSaveFunction:
 
     def test_save_1d_two_fields(self):
         """Test saving 1D mesh with two fields."""
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field1 = sam.field.scalar(mesh, "u", init=1.0)
         field2 = sam.field.scalar(mesh, "v", init=2.0)
 
@@ -128,12 +128,12 @@ class TestSaveFunction:
 
     def test_save_1d_three_fields(self):
         """Test saving 1D mesh with three fields."""
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field1 = sam.field.scalar(mesh, "u", init=1.0)
         field2 = sam.field.scalar(mesh, "v", init=2.0)
         field3 = sam.field.scalar(mesh, "w", init=3.0)
@@ -148,12 +148,12 @@ class TestSaveFunction:
 
     def test_save_filename_only_1d(self):
         """Test saving 1D field with filename only (current directory)."""
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u", init=5.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -176,12 +176,12 @@ class TestDumpFunction:
 
     def test_dump_1d_field(self):
         """Test dumping 1D field."""
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u", init=1.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -195,12 +195,12 @@ class TestDumpFunction:
 
     def test_dump_2d_field(self):
         """Test dumping 2D field."""
-        config = sam.MeshConfig2D()
+        config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.MRMesh2D(box, config)
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        mesh = sam.mesh.MRMesh2D(box, config)
         field = sam.field.scalar(mesh, "u", init=2.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -211,12 +211,12 @@ class TestDumpFunction:
 
     def test_dump_3d_field(self):
         """Test dumping 3D field."""
-        config = sam.MeshConfig3D()
+        config = sam.config.MeshConfig3D()
         config.min_level = 2
         config.max_level = 3
 
-        box = sam.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
-        mesh = sam.MRMesh3D(box, config)
+        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        mesh = sam.mesh.MRMesh3D(box, config)
         field = sam.field.scalar(mesh, "u", init=3.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -227,12 +227,12 @@ class TestDumpFunction:
 
     def test_dump_filename_only_1d(self):
         """Test dumping 1D field with filename only (current directory)."""
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u", init=4.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -252,12 +252,12 @@ class TestLoadFunction:
 
     def test_dump_load_1d_field(self):
         """Test dumping and loading 1D field."""
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u", init=7.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -265,7 +265,7 @@ class TestLoadFunction:
             sam.dump(tmpdir, "test_1d_restart", field)
 
             # Create new mesh and field for loading
-            mesh2 = sam.MRMesh1D(box, config)
+            mesh2 = sam.mesh.MRMesh1D(box, config)
             field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
             # Load
@@ -277,12 +277,12 @@ class TestLoadFunction:
 
     def test_dump_load_2d_field(self):
         """Test dumping and loading 2D field."""
-        config = sam.MeshConfig2D()
+        config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.MRMesh2D(box, config)
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        mesh = sam.mesh.MRMesh2D(box, config)
         field = sam.field.scalar(mesh, "u", init=8.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -290,7 +290,7 @@ class TestLoadFunction:
             sam.dump(tmpdir, "test_2d_restart", field)
 
             # Create new mesh and field for loading
-            mesh2 = sam.MRMesh2D(box, config)
+            mesh2 = sam.mesh.MRMesh2D(box, config)
             field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
             # Load
@@ -301,12 +301,12 @@ class TestLoadFunction:
 
     def test_dump_load_3d_field(self):
         """Test dumping and loading 3D field."""
-        config = sam.MeshConfig3D()
+        config = sam.config.MeshConfig3D()
         config.min_level = 2
         config.max_level = 3
 
-        box = sam.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
-        mesh = sam.MRMesh3D(box, config)
+        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        mesh = sam.mesh.MRMesh3D(box, config)
         field = sam.field.scalar(mesh, "u", init=9.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -314,7 +314,7 @@ class TestLoadFunction:
             sam.dump(tmpdir, "test_3d_restart", field)
 
             # Create new mesh and field for loading
-            mesh2 = sam.MRMesh3D(box, config)
+            mesh2 = sam.mesh.MRMesh3D(box, config)
             field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
             # Load
@@ -325,12 +325,12 @@ class TestLoadFunction:
 
     def test_load_filename_only_1d(self):
         """Test loading 1D field with filename only (current directory)."""
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u", init=10.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -342,7 +342,7 @@ class TestLoadFunction:
                 sam.dump("test_1d_restart_only", field)
 
                 # Create new mesh and field for loading
-                mesh2 = sam.MRMesh1D(box, config)
+                mesh2 = sam.mesh.MRMesh1D(box, config)
                 field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
                 # Load with filename only
@@ -359,20 +359,20 @@ class TestIoIntegration:
 
     def test_adapt_save_pipeline_1d(self):
         """Test full pipeline: adapt + save (1D)."""
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 5
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u", init=1.0)
 
         # Apply boundary conditions
         sam.make_dirichlet_bc(field, 0.0)
 
         # Adaptation
-        MRadaptation = sam.make_MRAdapt(field)
-        mra_config = sam.MRAConfig()
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
+        mra_config = sam.config.MRAConfig()
         mra_config.epsilon = 1e-2
 
         MRadaptation(mra_config)
@@ -389,18 +389,18 @@ class TestIoIntegration:
 
     def test_adapt_save_pipeline_2d(self):
         """Test full pipeline: adapt + save (2D)."""
-        config = sam.MeshConfig2D()
+        config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 5
 
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.MRMesh2D(box, config)
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        mesh = sam.mesh.MRMesh2D(box, config)
         field = sam.field.scalar(mesh, "u", init=1.0)
 
         sam.make_dirichlet_bc(field, 0.0)
 
-        MRadaptation = sam.make_MRAdapt(field)
-        mra_config = sam.MRAConfig()
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
+        mra_config = sam.config.MRAConfig()
         mra_config.epsilon = 1e-2
 
         MRadaptation(mra_config)

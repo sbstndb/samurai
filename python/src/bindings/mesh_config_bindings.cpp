@@ -376,13 +376,67 @@ void bind_mesh_config(py::module_& m, const std::string& name)
         "Dimension of the mesh configuration");
 }
 
+// Helper template function to create MeshConfig with parameters
+template <std::size_t dim>
+samurai::mesh_config<dim> create_mesh_config_helper(
+    std::size_t min_level,
+    std::size_t max_level,
+    std::size_t start_level,
+    std::size_t graduation_width,
+    int max_stencil_radius,
+    double scaling_factor,
+    double approx_box_tol,
+    bool periodic,
+    py::object periodic_per_direction,
+    bool disable_minimal_ghost)
+{
+    samurai::mesh_config<dim> cfg;
+
+    cfg.min_level(min_level);
+    cfg.max_level(max_level);
+
+    if (start_level != std::numeric_limits<std::size_t>::max()) {
+        cfg.start_level(start_level);
+    }
+    if (graduation_width != std::numeric_limits<std::size_t>::max()) {
+        cfg.graduation_width(graduation_width);
+    }
+    if (max_stencil_radius >= 0) {
+        cfg.max_stencil_radius(max_stencil_radius);
+    }
+    if (scaling_factor >= 0.0) {
+        cfg.scaling_factor(scaling_factor);
+    }
+    if (approx_box_tol >= 0.0) {
+        cfg.approx_box_tol(approx_box_tol);
+    }
+
+    if (!periodic_per_direction.is_none()) {
+        if constexpr (dim == 1) {
+            cfg.periodic(periodic);
+        } else {
+            auto per = periodic_per_direction.cast<std::array<bool, dim>>();
+            cfg.periodic(per);
+        }
+    } else if (periodic) {
+        cfg.periodic(periodic);
+    }
+
+    if (disable_minimal_ghost) {
+        cfg.disable_minimal_ghost_width();
+    }
+
+    return cfg;
+}
+
 // Module initialization function for MeshConfig bindings
 void init_mesh_config_bindings(py::module_& m)
 {
-    // Bind MeshConfig classes for dimensions 1, 2, 3
-    bind_mesh_config<1>(m, "MeshConfig1D");
-    bind_mesh_config<2>(m, "MeshConfig2D");
-    bind_mesh_config<3>(m, "MeshConfig3D");
+    // ============================================================
+    // BREAKING CHANGE: No longer bind MeshConfig classes to main module
+    // Users must use sam.config.MeshConfig1D, sam.config.MeshConfig2D, etc.
+    // Or use the new factory: sam.config.make(dim, min_level=0, max_level=6, ...)
+    // ============================================================
 
     // ============================================================
     // Create config submodule for organized API access
@@ -390,22 +444,114 @@ void init_mesh_config_bindings(py::module_& m)
     py::module_ config = m.def_submodule(
         "config",
         "Configuration classes for Samurai AMR simulations\n\n"
-        "This submodule provides organized access to mesh and adaptation configuration.\n"
-        "Both sam.config.MeshConfig2D and sam.MeshConfig2D reference the same class.\n\n"
+        "Factory Functions:\n"
+        "  make(dim, min_level=0, max_level=6, ...) - Create MeshConfig with explicit dimension\n\n"
+        "Classes:\n"
+        "  MeshConfig1D, MeshConfig2D, MeshConfig3D - Dimension-specific MeshConfig\n"
+        "  MRAConfig - Multiresolution adaptation configuration\n\n"
         "Examples:\n"
         "    >>> import samurai_python as sam\n"
-        "    >>> # New organized API (recommended)\n"
-        "    >>> cfg = sam.config.MeshConfig2D(min_level=2, max_level=8)\n"
-        "    >>> # Old API (still works)\n"
-        "    >>> cfg = sam.MeshConfig2D(min_level=2, max_level=8)\n\n"
-        "Available classes:\n"
-        "    - MeshConfig1D, MeshConfig2D, MeshConfig3D: Mesh configuration\n"
-        "    - MRAConfig: Multiresolution adaptation configuration");
+        "    >>> # Factory function (recommended)\n"
+        "    >>> cfg = sam.config.make(2, min_level=4, max_level=8)\n"
+        "    >>> # Direct class access\n"
+        "    >>> cfg = sam.config.MeshConfig2D(min_level=2, max_level=8)\n");
 
-    // Reference existing MeshConfig classes to the submodule
-    config.attr("MeshConfig1D") = m.attr("MeshConfig1D");
-    config.attr("MeshConfig2D") = m.attr("MeshConfig2D");
-    config.attr("MeshConfig3D") = m.attr("MeshConfig3D");
+    // Bind MeshConfig classes ONLY to config submodule (not to main module)
+    bind_mesh_config<1>(config, "MeshConfig1D");
+    bind_mesh_config<2>(config, "MeshConfig2D");
+    bind_mesh_config<3>(config, "MeshConfig3D");
+
+    // ============================================================
+    // Factory function: sam.config.make(dim, min_level, max_level, ...)
+    // Creates MeshConfig with explicit dimension parameter
+    // ============================================================
+    config.def("make",
+        [](int dim,
+           std::size_t min_level,
+           std::size_t max_level,
+           std::size_t start_level,
+           std::size_t graduation_width,
+           int max_stencil_radius,
+           double scaling_factor,
+           double approx_box_tol,
+           bool periodic,
+           py::object periodic_per_direction,
+           bool disable_minimal_ghost_width) -> py::object
+        {
+            if (dim == 1) {
+                auto cfg = create_mesh_config_helper<1>(
+                    min_level, max_level, start_level, graduation_width,
+                    max_stencil_radius, scaling_factor, approx_box_tol,
+                    periodic, periodic_per_direction, disable_minimal_ghost_width);
+                return py::cast(cfg);
+            } else if (dim == 2) {
+                auto cfg = create_mesh_config_helper<2>(
+                    min_level, max_level, start_level, graduation_width,
+                    max_stencil_radius, scaling_factor, approx_box_tol,
+                    periodic, periodic_per_direction, disable_minimal_ghost_width);
+                return py::cast(cfg);
+            } else if (dim == 3) {
+                auto cfg = create_mesh_config_helper<3>(
+                    min_level, max_level, start_level, graduation_width,
+                    max_stencil_radius, scaling_factor, approx_box_tol,
+                    periodic, periodic_per_direction, disable_minimal_ghost_width);
+                return py::cast(cfg);
+            } else {
+                throw std::runtime_error("Unsupported dimension: " + std::to_string(dim) + " (must be 1, 2, or 3)");
+            }
+        },
+        py::arg("dim"),
+        py::arg("min_level") = 0,
+        py::arg("max_level") = 6,
+        py::arg("start_level") = std::numeric_limits<std::size_t>::max(),
+        py::arg("graduation_width") = std::numeric_limits<std::size_t>::max(),
+        py::arg("max_stencil_radius") = -1,
+        py::arg("scaling_factor") = -1.0,
+        py::arg("approx_box_tol") = -1.0,
+        py::arg("periodic") = false,
+        py::arg("periodic_per_direction") = py::none(),
+        py::arg("disable_minimal_ghost_width") = false,
+        R"pbdoc(
+        Create a MeshConfig by specifying dimension explicitly.
+
+        Parameters
+        ----------
+        dim : int
+            Spatial dimension (1, 2, or 3)
+        min_level : int, optional
+            Minimum refinement level (default: 0)
+        max_level : int, optional
+            Maximum refinement level (default: 6)
+        start_level : int, optional
+            Starting refinement level
+        graduation_width : int, optional
+            AMR graduation width
+        max_stencil_radius : int, optional
+            Maximum stencil radius
+        scaling_factor : float, optional
+            Coordinate scaling factor
+        approx_box_tol : float, optional
+            Approximation tolerance for box
+        periodic : bool, optional
+            Set periodicity in all directions (default: False)
+        periodic_per_direction : list[bool], optional
+            Set periodicity per direction (overrides periodic)
+        disable_minimal_ghost_width : bool, optional
+            Disable minimal ghost width (default: False)
+
+        Returns
+        -------
+        MeshConfig
+            Dimension-specific MeshConfig object (MeshConfig1D, MeshConfig2D, or MeshConfig3D)
+
+        Examples
+        --------
+        >>> import samurai_python as sam
+        >>> config = sam.config.make(2, min_level=4, max_level=8)
+        >>> config = sam.config.make(2, min_level=2, max_level=6, periodic=True)
+        >>> config = sam.config.make(3, min_level=0, max_level=5,
+        ...                          periodic_per_direction=[True, False, True])
+    )pbdoc");
 
     // Note: MRAConfig will be added in init_mra_config_bindings()
     // since it's initialized after this function

@@ -35,42 +35,61 @@ PYBIND11_MODULE(samurai_python, m)
         Samurai Python Bindings
         -----------------------
 
-        Adaptive Mesh Refinement (AMR) and Multiresolution Analysis library
+        Adaptive Mesh Refinement (AMR) and Multiresolution Analysis library for Python.
 
-        .. currentmodule:: samurai_python
+        **IMPORTANT API CHANGE (v0.30.0+):** All types are now organized in submodules.
+
+        Quick Start
+        -----------
+        >>> import samurai_python as sam
+        >>>
+        >>> # Create mesh using factory (recommended)
+        >>> box = sam.geometry.box([0., 0.], [1., 1.])
+        >>> mesh = sam.mesh.make(box, min_level=4, max_level=8)
+        >>>
+        >>> # Create field using factory
+        >>> u = sam.field.scalar(mesh, "u")
+        >>> vel = sam.field.vector(mesh, "vel", n_components=2)
+        >>>
+        >>> # Mesh adaptation
+        >>> MRadapt = sam.adaptation.make_MRAdapt(u)
+        >>> MRadapt(sam.config.MRAConfig(epsilon=1e-4))
+
+        Submodules
+        ----------
+        .. autosummary::
+           :toctree: _generate
+
+           samurai_python.geometry
+           samurai_python.config
+           samurai_python.mesh
+           samurai_python.field
+           samurai_python.interval
+           samurai_python.algorithms
+           samurai_python.adaptation
+           samurai_python.io
+
+        Main Module Functions
+        ---------------------
+        The following functions remain available at module level for convenience:
 
         .. autosummary::
            :toctree: _generate
 
-           Box1D
-           Box2D
-           Box3D
-           MeshConfig1D
-           MeshConfig2D
-           MeshConfig3D
-           MRMesh1D
-           MRMesh2D
-           MRMesh3D
-           ScalarField1D
-           ScalarField2D
-           ScalarField3D
-           VectorField1D_2
-           VectorField1D_3
-           VectorField2D_2
-           VectorField2D_3
-           VectorField3D_2
-           VectorField3D_3
-           Interval
-           MRAConfig
-           MRAdapt
-           make_MRAdapt
-           update_ghost_mr
            upwind
            make_dirichlet_bc
            make_neumann_bc
-           save
-           dump
-           load
+
+        Examples
+        --------
+        See the submodule documentation for detailed examples:
+
+        - `sam.geometry` - Geometric primitives (Box, DomainBuilder)
+        - `sam.config` - Mesh configuration (MeshConfig, MRAConfig)
+        - `sam.mesh` - Mesh types and creation
+        - `sam.field` - Field types and creation
+        - `sam.adaptation` - Mesh adaptation (MRAdapt, update_ghost_mr)
+        - `sam.algorithms` - Iteration algorithms (for_each_cell, for_each_interval)
     )pbdoc";
 
     // Version attribute

@@ -26,48 +26,48 @@ class TestMRAdaptCreation:
     def test_create_mr_adapt_1d(self):
         """Test creating MRAdapt for 1D field."""
         # Create mesh and field
-        config = sam.MeshConfig1D()
+        config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 5
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Create adaptation object
-        MRadaptation = sam.make_MRAdapt(field)
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
         assert MRadaptation is not None
         assert type(MRadaptation).__name__ == "MRAdapt"
 
     def test_create_mr_adapt_2d(self):
         """Test creating MRAdapt for 2D field."""
         # Create mesh and field
-        config = sam.MeshConfig2D()
+        config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 5
 
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.MRMesh2D(box, config)
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        mesh = sam.mesh.MRMesh2D(box, config)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Create adaptation object
-        MRadaptation = sam.make_MRAdapt(field)
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
         assert MRadaptation is not None
         assert type(MRadaptation).__name__ == "MRAdapt"
 
     def test_create_mr_adapt_3d(self):
         """Test creating MRAdapt for 3D field."""
         # Create mesh and field
-        config = sam.MeshConfig3D()
+        config = sam.config.MeshConfig3D()
         config.min_level = 2
         config.max_level = 4
 
-        box = sam.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
-        mesh = sam.MRMesh3D(box, config)
+        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        mesh = sam.mesh.MRMesh3D(box, config)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Create adaptation object
-        MRadaptation = sam.make_MRAdapt(field)
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
         assert MRadaptation is not None
         assert type(MRadaptation).__name__ == "MRAdapt"
 
@@ -78,56 +78,56 @@ class TestMRAdaptCallable:
     def test_mr_adapt_call_with_config_1d(self):
         """Test calling MRAdapt with config (1D)."""
         # Setup
-        config_mesh = sam.MeshConfig1D()
+        config_mesh = sam.config.MeshConfig1D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config_mesh)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Create adaptation config
-        mra_config = sam.MRAConfig()
+        mra_config = sam.config.MRAConfig()
         mra_config.epsilon = 1e-2
         mra_config.regularity = 1.0
 
         # Create and call adaptation
-        MRadaptation = sam.make_MRAdapt(field)
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
         MRadaptation(mra_config)  # Should not raise
 
     def test_mr_adapt_call_with_config_2d(self):
         """Test calling MRAdapt with config (2D)."""
         # Setup
-        config_mesh = sam.MeshConfig2D()
+        config_mesh = sam.config.MeshConfig2D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.MRMesh2D(box, config_mesh)
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        mesh = sam.mesh.MRMesh2D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Create adaptation config
-        mra_config = sam.MRAConfig()
+        mra_config = sam.config.MRAConfig()
         mra_config.epsilon = 1e-2
 
         # Create and call adaptation
-        MRadaptation = sam.make_MRAdapt(field)
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
         MRadaptation(mra_config)  # Should not raise
 
     def test_mr_adapt_reusability(self):
         """Test that MRAdapt can be called multiple times."""
-        config_mesh = sam.MeshConfig1D()
+        config_mesh = sam.config.MeshConfig1D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config_mesh)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
-        mra_config = sam.MRAConfig()
+        mra_config = sam.config.MRAConfig()
         mra_config.epsilon = 1e-2
 
-        MRadaptation = sam.make_MRAdapt(field)
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
 
         # Call multiple times
         MRadaptation(mra_config)
@@ -140,12 +140,12 @@ class TestUpdateGhostMr:
 
     def test_update_ghost_mr_1d(self):
         """Test update_ghost_mr for 1D field."""
-        config_mesh = sam.MeshConfig1D()
+        config_mesh = sam.config.MeshConfig1D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config_mesh)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Should not raise
@@ -153,12 +153,12 @@ class TestUpdateGhostMr:
 
     def test_update_ghost_mr_2d(self):
         """Test update_ghost_mr for 2D field."""
-        config_mesh = sam.MeshConfig2D()
+        config_mesh = sam.config.MeshConfig2D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.MRMesh2D(box, config_mesh)
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        mesh = sam.mesh.MRMesh2D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Should not raise
@@ -166,12 +166,12 @@ class TestUpdateGhostMr:
 
     def test_update_ghost_mr_3d(self):
         """Test update_ghost_mr for 3D field."""
-        config_mesh = sam.MeshConfig3D()
+        config_mesh = sam.config.MeshConfig3D()
         config_mesh.min_level = 2
         config_mesh.max_level = 4
 
-        box = sam.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
-        mesh = sam.MRMesh3D(box, config_mesh)
+        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        mesh = sam.mesh.MRMesh3D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Should not raise
@@ -184,20 +184,20 @@ class TestAdaptationPipeline:
     def test_full_pipeline_1d(self):
         """Test complete pipeline: adapt + update ghosts (1D)."""
         # Setup
-        config_mesh = sam.MeshConfig1D()
+        config_mesh = sam.config.MeshConfig1D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config_mesh)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Apply boundary conditions
         sam.make_dirichlet_bc(field, 0.0)
 
         # Create adaptation objects
-        MRadaptation = sam.make_MRAdapt(field)
-        mra_config = sam.MRAConfig()
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
+        mra_config = sam.config.MRAConfig()
         mra_config.epsilon = 1e-2
 
         # Full pipeline
@@ -209,20 +209,20 @@ class TestAdaptationPipeline:
     def test_full_pipeline_2d(self):
         """Test complete pipeline: adapt + update ghosts (2D)."""
         # Setup
-        config_mesh = sam.MeshConfig2D()
+        config_mesh = sam.config.MeshConfig2D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-        mesh = sam.MRMesh2D(box, config_mesh)
-        field = sam.ScalarField2D("u", mesh, 0.0)
+        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        mesh = sam.mesh.MRMesh2D(box, config_mesh)
+        field = sam.field.ScalarField2D("u", mesh, 0.0)
 
         # Apply boundary conditions
         sam.make_dirichlet_bc(field, 0.0)
 
         # Create adaptation objects
-        MRadaptation = sam.make_MRAdapt(field)
-        mra_config = sam.MRAConfig()
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
+        mra_config = sam.config.MRAConfig()
         mra_config.epsilon = 1e-2
 
         # Full pipeline
@@ -233,18 +233,18 @@ class TestAdaptationPipeline:
 
     def test_iterative_adaptation(self):
         """Test multiple adaptation iterations."""
-        config_mesh = sam.MeshConfig1D()
+        config_mesh = sam.config.MeshConfig1D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config_mesh)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         sam.make_dirichlet_bc(field, 0.0)
 
-        MRadaptation = sam.make_MRAdapt(field)
-        mra_config = sam.MRAConfig()
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
+        mra_config = sam.config.MRAConfig()
         mra_config.epsilon = 1e-2
 
         # Multiple iterations (simulating time loop)
@@ -258,54 +258,54 @@ class TestMRAConfigIntegration:
 
     def test_config_with_different_epsilon(self):
         """Test adaptation with different epsilon values."""
-        config_mesh = sam.MeshConfig1D()
+        config_mesh = sam.config.MeshConfig1D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config_mesh)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
-        MRadaptation = sam.make_MRAdapt(field)
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
 
         # Test different epsilon values
         for eps in [1e-1, 1e-2, 1e-3, 1e-4]:
-            mra_config = sam.MRAConfig()
+            mra_config = sam.config.MRAConfig()
             mra_config.epsilon = eps
             MRadaptation(mra_config)  # Should not raise
 
     def test_config_with_different_regularity(self):
         """Test adaptation with different regularity values."""
-        config_mesh = sam.MeshConfig1D()
+        config_mesh = sam.config.MeshConfig1D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config_mesh)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
-        MRadaptation = sam.make_MRAdapt(field)
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
 
         # Test different regularity values
         for reg in [0.0, 1.0, 2.0, 3.0]:
-            mra_config = sam.MRAConfig()
+            mra_config = sam.config.MRAConfig()
             mra_config.regularity = reg
             MRadaptation(mra_config)  # Should not raise
 
     def test_config_with_relative_detail(self):
         """Test adaptation with relative_detail flag."""
-        config_mesh = sam.MeshConfig1D()
+        config_mesh = sam.config.MeshConfig1D()
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
-        box = sam.Box1D([0.0], [1.0])
-        mesh = sam.MRMesh1D(box, config_mesh)
+        box = sam.geometry.Box1D([0.0], [1.0])
+        mesh = sam.mesh.MRMesh1D(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=1.0)  # Non-zero values
 
-        MRadaptation = sam.make_MRAdapt(field)
+        MRadaptation = sam.adaptation.make_MRAdapt(field)
 
         # Test with relative_detail
-        mra_config = sam.MRAConfig()
+        mra_config = sam.config.MRAConfig()
         mra_config.epsilon = 1e-2
         mra_config.relative_detail = True
         MRadaptation(mra_config)  # Should not raise

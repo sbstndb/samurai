@@ -29,13 +29,13 @@ print("-" * 60)
 
 try:
     # Setup 2D mesh
-    box = sam.Box2D([-1., -1.], [1., 1.])
-    config2d = sam.MeshConfig2D()
+    box = sam.geometry.Box2D([-1., -1.], [1., 1.])
+    config2d = sam.config.MeshConfig2D()
     config2d.min_level = 3
     config2d.max_level = 5
     config2d.max_stencil_size = 6  # Required for WENO5
 
-    mesh2d = sam.MRMesh2D(box, config2d)
+    mesh2d = sam.mesh.MRMesh2D(box, config2d)
 
     # Create VectorField2D_2 (velocity field u = [u, v])
     u_vec = sam.field.vector(mesh2d, "u", n_components=2, init=0.0)
@@ -63,13 +63,13 @@ print("-" * 60)
 
 try:
     # Setup 3D mesh (smaller for memory)
-    box = sam.Box3D([-1., -1., -1.], [1., 1., 1.])
-    config3d = sam.MeshConfig3D()
+    box = sam.geometry.Box3D([-1., -1., -1.], [1., 1., 1.])
+    config3d = sam.config.MeshConfig3D()
     config3d.min_level = 2
     config3d.max_level = 3
     config3d.max_stencil_size = 6  # Required for WENO5
 
-    mesh3d = sam.MRMesh3D(box, config3d)
+    mesh3d = sam.mesh.MRMesh3D(box, config3d)
 
     # Create VectorField3D_3 (velocity field u = [u, v, w])
     u_vec = sam.field.vector(mesh3d, "u", n_components=3, init=0.0)
@@ -97,13 +97,13 @@ print("-" * 60)
 
 try:
     # Setup 2D mesh
-    box = sam.Box2D([-1., -1.], [1., 1.])
-    config = sam.MeshConfig2D()
+    box = sam.geometry.Box2D([-1., -1.], [1., 1.])
+    config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 5
     config.max_stencil_size = 6
 
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
 
     # Create fields for RK3
     u = sam.field.vector(mesh, "u", n_components=2, init=0.0)

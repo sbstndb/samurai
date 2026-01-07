@@ -25,12 +25,12 @@ class TestScalarField1D:
 
     def test_creation(self):
         """Test creating ScalarField1D from mesh."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u")
 
         assert field.name == "u"
@@ -40,12 +40,12 @@ class TestScalarField1D:
 
     def test_creation_with_init_value(self):
         """Test creating ScalarField with initial value."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u", init=3.14)
 
         # Check a few cells have the init value
@@ -54,12 +54,12 @@ class TestScalarField1D:
 
     def test_name_property(self):
         """Test field name getter/setter."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u")
 
         assert field.name == "u"
@@ -69,24 +69,24 @@ class TestScalarField1D:
 
     def test_mesh_property(self):
         """Test mesh property returns correct mesh."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u")
 
         assert field.mesh is mesh
 
     def test_fill(self):
         """Test filling field with constant value."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u")
         field.fill(2.5)
 
@@ -95,12 +95,12 @@ class TestScalarField1D:
 
     def test_numpy_view(self):
         """Test zero-copy NumPy view."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = sam.field.scalar(mesh, "u")
         field.fill(42.0)
 
@@ -117,13 +117,13 @@ class TestScalarField1D:
 
     def test_numpy_memory_sharing(self):
         """Test that NumPy view shares memory with field."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh)
+        mesh = sam.mesh.MRMesh1D(box, config)
+        field = sam.field.ScalarField1D("u", mesh)
         field.fill(1.0)
 
         arr1 = field.numpy_view()
@@ -140,13 +140,13 @@ class TestScalarField1D:
 
     def test_integer_indexing(self):
         """Test indexing field by integer index."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh)
+        mesh = sam.mesh.MRMesh1D(box, config)
+        field = sam.field.ScalarField1D("u", mesh)
 
         field[0] = 123.0
         assert abs(field[0] - 123.0) < 1e-10
@@ -156,13 +156,13 @@ class TestScalarField1D:
 
     def test_ghosts_updated_flag(self):
         """Test ghosts_updated property."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh)
+        mesh = sam.mesh.MRMesh1D(box, config)
+        field = sam.field.ScalarField1D("u", mesh)
 
         # Initially False
         assert field.ghosts_updated == False
@@ -173,13 +173,13 @@ class TestScalarField1D:
 
     def test_string_representation(self):
         """Test __repr__ and __str__."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
-        field = sam.ScalarField1D("u", mesh)
+        mesh = sam.mesh.MRMesh1D(box, config)
+        field = sam.field.ScalarField1D("u", mesh)
 
         repr_str = repr(field)
         str_str = str(field)
@@ -195,13 +195,13 @@ class TestScalarField2D:
 
     def test_creation(self):
         """Test creating ScalarField2D from mesh."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.ScalarField2D("u", mesh)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.ScalarField2D("u", mesh)
 
         assert field.name == "u"
         assert field.dim == 2
@@ -210,13 +210,13 @@ class TestScalarField2D:
 
     def test_fill(self):
         """Test filling 2D field with constant value."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.ScalarField2D("u", mesh)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.ScalarField2D("u", mesh)
         field.fill(3.14)
 
         arr = field.numpy_view()
@@ -224,13 +224,13 @@ class TestScalarField2D:
 
     def test_numpy_vectorized_operations(self):
         """Test vectorized NumPy operations on field."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.ScalarField2D("u", mesh)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.ScalarField2D("u", mesh)
         field.fill(1.0)
 
         arr = field.numpy_view()
@@ -247,13 +247,13 @@ class TestVectorField2D_2:
 
     def test_creation(self):
         """Test creating VectorField2D_2 from mesh."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.VectorField2D_2("vel", mesh)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.VectorField2D_2("vel", mesh)
 
         assert field.name == "vel"
         assert field.dim == 2
@@ -263,13 +263,13 @@ class TestVectorField2D_2:
 
     def test_fill(self):
         """Test filling vector field with scalar value."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.VectorField2D_2("vel", mesh)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.VectorField2D_2("vel", mesh)
         field.fill(5.0)
 
         arr = field.numpy_view()
@@ -278,13 +278,13 @@ class TestVectorField2D_2:
 
     def test_numpy_view_shape(self):
         """Test NumPy view has correct shape."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.VectorField2D_2("vel", mesh)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.VectorField2D_2("vel", mesh)
         field.fill(0.0)
 
         arr = field.numpy_view()
@@ -296,13 +296,13 @@ class TestVectorField2D_2:
 
     def test_get_component(self):
         """Test extracting individual components."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.VectorField2D_2("vel", mesh)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.VectorField2D_2("vel", mesh)
         field.fill([1.0, 2.0])
 
         comp0 = field.get_component(0)
@@ -318,13 +318,13 @@ class TestVectorField2D_2:
 
     def test_string_representation(self):
         """Test __repr__ and __str__ for VectorField."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.VectorField2D_2("vel", mesh)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.VectorField2D_2("vel", mesh)
 
         repr_str = repr(field)
         str_str = str(field)
@@ -339,13 +339,13 @@ class TestVectorField2D_3:
 
     def test_creation(self):
         """Test creating VectorField2D_3 from mesh."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.VectorField2D_3("f", mesh)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.VectorField2D_3("f", mesh)
 
         assert field.n_components == 3
         assert field.dim == 2
@@ -356,55 +356,55 @@ class TestFactoryFunctions:
 
     def test_make_scalar_field_1d(self):
         """Test make_scalar_field for 1D mesh."""
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
-        field = sam.make_scalar_field(mesh, "u", 2.5)
+        mesh = sam.mesh.MRMesh1D(box, config)
+        field = sam.field.scalar(mesh, "u", 2.5)
 
-        assert isinstance(field, sam.ScalarField1D)
+        assert isinstance(field, sam.field.ScalarField1D)
         assert field.name == "u"
         # Check init value
         assert abs(field[0] - 2.5) < 1e-10
 
     def test_make_scalar_field_2d(self):
         """Test make_scalar_field for 2D mesh."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.make_scalar_field(mesh, "u")
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.scalar(mesh, "u")
 
-        assert isinstance(field, sam.ScalarField2D)
+        assert isinstance(field, sam.field.ScalarField2D)
 
     def test_make_vector_field_2_components(self):
         """Test make_vector_field with 2 components."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.make_vector_field(mesh, "vel", 2)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.vector(mesh, "vel", 2)
 
-        assert isinstance(field, sam.VectorField2D_2)
+        assert isinstance(field, sam.field.VectorField2D_2)
         assert field.n_components == 2
 
     def test_make_vector_field_3_components(self):
         """Test make_vector_field with 3 components."""
-        box = sam.Box2D([0., 0.], [1., 1.])
-        config = sam.MeshConfig2D()
+        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh2D(box, config)
-        field = sam.make_vector_field(mesh, "f", 3)
+        mesh = sam.mesh.MRMesh2D(box, config)
+        field = sam.field.vector(mesh, "f", 3)
 
-        assert isinstance(field, sam.VectorField2D_3)
+        assert isinstance(field, sam.field.VectorField2D_3)
         assert field.n_components == 3
 
 
@@ -430,12 +430,12 @@ class TestFieldSubmodule:
     def test_field_from_submodule(self):
         """Test creating field from submodule."""
         ScalarField1D = sam.field.ScalarField1D
-        box = sam.Box1D([0.], [1.])
-        config = sam.MeshConfig1D()
+        box = sam.geometry.Box1D([0.], [1.])
+        config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
 
-        mesh = sam.MRMesh1D(box, config)
+        mesh = sam.mesh.MRMesh1D(box, config)
         field = ScalarField1D("u", mesh)
         assert field.name == "u"
 

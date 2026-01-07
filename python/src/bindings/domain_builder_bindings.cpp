@@ -240,10 +240,10 @@ void bind_domain_builder(py::module_& m, const std::string& name)
 // Module initialization function for DomainBuilder bindings
 void init_domain_builder_bindings(py::module_& m)
 {
-    // Bind DomainBuilder classes for dimensions 1, 2, 3
-    bind_domain_builder<1>(m, "DomainBuilder1D");
-    bind_domain_builder<2>(m, "DomainBuilder2D");
-    bind_domain_builder<3>(m, "DomainBuilder3D");
+    // ============================================================
+    // BREAKING CHANGE: No longer bind DomainBuilder classes to main module
+    // Users must use sam.geometry.DomainBuilder1D, sam.geometry.DomainBuilder2D, etc.
+    // ============================================================
 
     // ============================================================
     // Contribute to geometry submodule for organized API access
@@ -251,7 +251,9 @@ void init_domain_builder_bindings(py::module_& m)
     // Note: The geometry submodule is created by box_bindings.cpp
     // We retrieve it here and add DomainBuilder classes to it
     py::module_ geometry = m.def_submodule("geometry");
-    geometry.attr("DomainBuilder1D") = m.attr("DomainBuilder1D");
-    geometry.attr("DomainBuilder2D") = m.attr("DomainBuilder2D");
-    geometry.attr("DomainBuilder3D") = m.attr("DomainBuilder3D");
+
+    // Bind DomainBuilder classes ONLY to geometry submodule (not to main module)
+    bind_domain_builder<1>(geometry, "DomainBuilder1D");
+    bind_domain_builder<2>(geometry, "DomainBuilder2D");
+    bind_domain_builder<3>(geometry, "DomainBuilder3D");
 }

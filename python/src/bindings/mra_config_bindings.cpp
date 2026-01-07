@@ -215,14 +215,19 @@ void bind_mra_config(py::module_& m, const std::string& name)
 // Module initialization function for MRA configuration bindings
 void init_mra_config_bindings(py::module_& m)
 {
-    bind_mra_config(m, "MRAConfig");
+    // ============================================================
+    // BREAKING CHANGE: No longer bind MRAConfig to main module
+    // Users must use sam.config.MRAConfig
+    // ============================================================
 
     // Add MRAConfig to the config submodule
     // The submodule is created in init_mesh_config_bindings()
     try
     {
         py::module_ config = m.attr("config");
-        config.attr("MRAConfig") = m.attr("MRAConfig");
+
+        // Bind MRAConfig ONLY to config submodule (not to main module)
+        bind_mra_config(config, "MRAConfig");
     }
     catch (const py::error_already_set&)
     {

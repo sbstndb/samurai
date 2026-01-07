@@ -1078,6 +1078,172 @@ void init_field_bindings(py::module_& m)
     field.attr("VectorField3D_3") = m.attr("VectorField3D_3");
 
     // ============================================================
+    // Factory functions for creating fields
+    // ============================================================
+
+    // ----- Scalar field factories (dimension inferred from mesh) -----
+    field.def(
+        "scalar",
+        [](MRMesh<1>& mesh, const std::string& name, double init_value)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, init_value);
+        },
+        py::arg("mesh"),
+        py::arg("name"),
+        py::arg("init") = 0.0,
+        R"pbdoc(
+        Create a 1D scalar field.
+
+        Parameters
+        ----------
+        mesh : MRMesh1D
+            The mesh to define the field on
+        name : str
+            Field identifier
+        init : float, optional
+            Initial value for all cells (default: 0.0)
+
+        Returns
+        -------
+        ScalarField1D
+            The created scalar field
+
+        Examples
+        --------
+        >>> import samurai_python as sam
+        >>> mesh = sam.MRMesh1D(box, config)
+        >>> u = sam.field.scalar(mesh, "u")
+        >>> u = sam.field.scalar(mesh, "u", init=1.0)
+        )pbdoc");
+
+    field.def(
+        "scalar",
+        [](MRMesh<2>& mesh, const std::string& name, double init_value)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, init_value);
+        },
+        py::arg("mesh"),
+        py::arg("name"),
+        py::arg("init") = 0.0,
+        "Create a 2D scalar field.\n\n"
+        "See 1D version for detailed documentation.");
+
+    field.def(
+        "scalar",
+        [](MRMesh<3>& mesh, const std::string& name, double init_value)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, init_value);
+        },
+        py::arg("mesh"),
+        py::arg("name"),
+        py::arg("init") = 0.0,
+        "Create a 3D scalar field.\n\n"
+        "See 1D version for detailed documentation.");
+
+    // ----- Vector field factories (dimension inferred from mesh) -----
+    field.def(
+        "vector",
+        [](MRMesh<1>& mesh, const std::string& name, std::size_t n_components, double init_value) -> py::object
+        {
+            if (n_components == 2)
+            {
+                auto field_obj = samurai::make_vector_field<double, 2, false>(name, mesh, init_value);
+                return py::cast(std::move(field_obj));
+            }
+            else if (n_components == 3)
+            {
+                auto field_obj = samurai::make_vector_field<double, 3, false>(name, mesh, init_value);
+                return py::cast(std::move(field_obj));
+            }
+            else
+            {
+                throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+            }
+        },
+        py::arg("mesh"),
+        py::arg("name"),
+        py::arg("n_components") = 2,
+        py::arg("init") = 0.0,
+        R"pbdoc(
+        Create a 1D vector field.
+
+        Parameters
+        ----------
+        mesh : MRMesh1D
+            The mesh to define the field on
+        name : str
+            Field identifier
+        n_components : int, optional
+            Number of components (2 or 3, default: 2)
+        init : float, optional
+            Initial value for all cells (default: 0.0)
+
+        Returns
+        -------
+        VectorField1D_2 or VectorField1D_3
+            The created vector field
+
+        Examples
+        --------
+        >>> import samurai_python as sam
+        >>> mesh = sam.MRMesh1D(box, config)
+        >>> vel = sam.field.vector(mesh, "velocity", n_components=2)
+        >>> vel = sam.field.vector(mesh, "velocity", n_components=3, init=1.0)
+        )pbdoc");
+
+    field.def(
+        "vector",
+        [](MRMesh<2>& mesh, const std::string& name, std::size_t n_components, double init_value) -> py::object
+        {
+            if (n_components == 2)
+            {
+                auto field_obj = samurai::make_vector_field<double, 2, false>(name, mesh, init_value);
+                return py::cast(std::move(field_obj));
+            }
+            else if (n_components == 3)
+            {
+                auto field_obj = samurai::make_vector_field<double, 3, false>(name, mesh, init_value);
+                return py::cast(std::move(field_obj));
+            }
+            else
+            {
+                throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+            }
+        },
+        py::arg("mesh"),
+        py::arg("name"),
+        py::arg("n_components") = 2,
+        py::arg("init") = 0.0,
+        "Create a 2D vector field.\n\n"
+        "See 1D version for detailed documentation.");
+
+    field.def(
+        "vector",
+        [](MRMesh<3>& mesh, const std::string& name, std::size_t n_components, double init_value) -> py::object
+        {
+            if (n_components == 2)
+            {
+                auto field_obj = samurai::make_vector_field<double, 2, false>(name, mesh, init_value);
+                return py::cast(std::move(field_obj));
+            }
+            else if (n_components == 3)
+            {
+                auto field_obj = samurai::make_vector_field<double, 3, false>(name, mesh, init_value);
+                return py::cast(std::move(field_obj));
+            }
+            else
+            {
+                throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+            }
+        },
+        py::arg("mesh"),
+        py::arg("name"),
+        py::arg("n_components") = 2,
+        py::arg("init") = 0.0,
+        "Create a 3D vector field.\n\n"
+        "See 1D version for detailed documentation.");
+
+    // ============================================================
     // Time-stepping helper functions
     // ============================================================
     // Note: CellWrapper classes (Cell1D, Cell2D, Cell3D) are already bound in algorithm_bindings.cpp

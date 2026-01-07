@@ -1470,9 +1470,12 @@ void bind_vector_field(py::module_& m, const std::string& name)
 void init_field_bindings(py::module_& m)
 {
     // ============================================================
-    // BREAKING CHANGE: No longer bind Field classes to main module
-    // Users must use sam.field.ScalarField1D, sam.field.VectorField2D_2, etc.
-    // Or use the factory: sam.field.scalar(mesh, name, init=0.0)
+    // BREAKING CHANGE (v0.30.0): Explicit Field classes removed from public API
+    // Users must use the factory: sam.field.scalar(mesh, name, init=0.0)
+    //
+    // NOTE: We still register the Field types with pybind11 (as _ScalarField1D, etc.)
+    // because the factory function needs to return these types. The underscore prefix
+    // indicates they are internal implementation details, not public API.
     // ============================================================
 
     // ============================================================
@@ -1483,32 +1486,24 @@ void init_field_bindings(py::module_& m)
         "Factory Functions:\n"
         "  scalar(mesh, name, init=0.0) - Create ScalarField (dim inferred from mesh)\n"
         "  vector(mesh, name, n_components=2, init=0.0) - Create VectorField\n\n"
-        "Classes:\n"
-        "  ScalarField1D, ScalarField2D, ScalarField3D - Dimension-specific scalar fields\n"
-        "  VectorField1D_2, VectorField1D_3 - 1D vector fields with 2 or 3 components\n"
-        "  VectorField2D_2, VectorField2D_3 - 2D vector fields with 2 or 3 components\n"
-        "  VectorField3D_2, VectorField3D_3 - 3D vector fields with 2 or 3 components\n\n"
         "Examples:\n"
         "    >>> import samurai_python as sam\n"
-        "    >>> # Factory function (recommended)\n"
         "    >>> mesh = sam.mesh.make(box, min_level=4, max_level=8)\n"
         "    >>> u = sam.field.scalar(mesh, \"u\")\n"
-        "    >>> vel = sam.field.vector(mesh, \"vel\", n_components=2)\n"
-        "    >>> # Direct class access\n"
-        "    >>> u = sam.field.ScalarField2D(mesh, \"u\")\n");
+        "    >>> vel = sam.field.vector(mesh, \"vel\", n_components=2)\n");
 
-    // Bind ScalarField classes ONLY to field submodule (not to main module)
-    bind_scalar_field<1>(field, "ScalarField1D");
-    bind_scalar_field<2>(field, "ScalarField2D");
-    bind_scalar_field<3>(field, "ScalarField3D");
+    // Register Field types (internal, with _ prefix) for factory function return types
+    bind_scalar_field<1>(field, "_ScalarField1D");
+    bind_scalar_field<2>(field, "_ScalarField2D");
+    bind_scalar_field<3>(field, "_ScalarField3D");
 
-    // Bind VectorField classes ONLY to field submodule (not to main module)
-    bind_vector_field<1, 2, false>(field, "VectorField1D_2");
-    bind_vector_field<1, 3, false>(field, "VectorField1D_3");
-    bind_vector_field<2, 2, false>(field, "VectorField2D_2");
-    bind_vector_field<2, 3, false>(field, "VectorField2D_3");
-    bind_vector_field<3, 2, false>(field, "VectorField3D_2");
-    bind_vector_field<3, 3, false>(field, "VectorField3D_3");
+    // Register VectorField types (internal, with _ prefix) for factory function return types
+    bind_vector_field<1, 2, false>(field, "_VectorField1D_2");
+    bind_vector_field<1, 3, false>(field, "_VectorField1D_3");
+    bind_vector_field<2, 2, false>(field, "_VectorField2D_2");
+    bind_vector_field<2, 3, false>(field, "_VectorField2D_3");
+    bind_vector_field<3, 2, false>(field, "_VectorField3D_2");
+    bind_vector_field<3, 3, false>(field, "_VectorField3D_3");
 
     // ============================================================
     // Factory functions for creating fields

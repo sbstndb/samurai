@@ -123,7 +123,7 @@ class TestScalarField1D:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.ScalarField1D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
         field.fill(1.0)
 
         arr1 = field.numpy_view()
@@ -146,7 +146,7 @@ class TestScalarField1D:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.ScalarField1D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
 
         field[0] = 123.0
         assert abs(field[0] - 123.0) < 1e-10
@@ -162,7 +162,7 @@ class TestScalarField1D:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.ScalarField1D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
 
         # Initially False
         assert field.ghosts_updated == False
@@ -179,7 +179,7 @@ class TestScalarField1D:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.ScalarField1D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
 
         repr_str = repr(field)
         str_str = str(field)
@@ -201,7 +201,7 @@ class TestScalarField2D:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.ScalarField2D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
 
         assert field.name == "u"
         assert field.dim == 2
@@ -216,7 +216,7 @@ class TestScalarField2D:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.ScalarField2D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
         field.fill(3.14)
 
         arr = field.numpy_view()
@@ -230,7 +230,7 @@ class TestScalarField2D:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.ScalarField2D("u", mesh)
+        field = sam.field.scalar(mesh, "u")
         field.fill(1.0)
 
         arr = field.numpy_view()
@@ -253,7 +253,7 @@ class TestVectorField2D_2:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.VectorField2D_2("vel", mesh)
+        field = sam.field.vector(mesh, "vel", 2)
 
         assert field.name == "vel"
         assert field.dim == 2
@@ -269,7 +269,7 @@ class TestVectorField2D_2:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.VectorField2D_2("vel", mesh)
+        field = sam.field.vector(mesh, "vel", 2)
         field.fill(5.0)
 
         arr = field.numpy_view()
@@ -284,7 +284,7 @@ class TestVectorField2D_2:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.VectorField2D_2("vel", mesh)
+        field = sam.field.vector(mesh, "vel", 2)
         field.fill(0.0)
 
         arr = field.numpy_view()
@@ -302,7 +302,7 @@ class TestVectorField2D_2:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.VectorField2D_2("vel", mesh)
+        field = sam.field.vector(mesh, "vel", 2)
         field.fill([1.0, 2.0])
 
         comp0 = field.get_component(0)
@@ -324,7 +324,7 @@ class TestVectorField2D_2:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.VectorField2D_2("vel", mesh)
+        field = sam.field.vector(mesh, "vel", 2)
 
         repr_str = repr(field)
         str_str = str(field)
@@ -345,7 +345,7 @@ class TestVectorField2D_3:
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = sam.field.VectorField2D_3("f", mesh)
+        field = sam.field.vector(mesh, "f", 3)
 
         assert field.n_components == 3
         assert field.dim == 2
@@ -364,7 +364,6 @@ class TestFactoryFunctions:
         mesh = sam.mesh.make(box, config)
         field = sam.field.scalar(mesh, "u", 2.5)
 
-        assert isinstance(field, sam.field.ScalarField1D)
         assert field.name == "u"
         # Check init value
         assert abs(field[0] - 2.5) < 1e-10
@@ -379,7 +378,8 @@ class TestFactoryFunctions:
         mesh = sam.mesh.make(box, config)
         field = sam.field.scalar(mesh, "u")
 
-        assert isinstance(field, sam.field.ScalarField2D)
+        assert field.name == "u"
+        assert field.dim == 2
 
     def test_make_vector_field_2_components(self):
         """Test make_vector_field with 2 components."""
@@ -391,7 +391,6 @@ class TestFactoryFunctions:
         mesh = sam.mesh.make(box, config)
         field = sam.field.vector(mesh, "vel", 2)
 
-        assert isinstance(field, sam.field.VectorField2D_2)
         assert field.n_components == 2
 
     def test_make_vector_field_3_components(self):
@@ -404,7 +403,6 @@ class TestFactoryFunctions:
         mesh = sam.mesh.make(box, config)
         field = sam.field.vector(mesh, "f", 3)
 
-        assert isinstance(field, sam.field.VectorField2D_3)
         assert field.n_components == 3
 
 
@@ -416,27 +414,25 @@ class TestFieldSubmodule:
         assert hasattr(sam, 'field')
 
     def test_scalar_field_in_submodule(self):
-        """Test that ScalarField is accessible from field submodule."""
+        """Test that ScalarField factory is accessible from field submodule."""
         fs = sam.field
-        assert hasattr(fs, 'ScalarField1D')
-        assert hasattr(fs, 'ScalarField2D')
+        assert hasattr(fs, 'scalar')
 
     def test_vector_field_in_submodule(self):
-        """Test that VectorField is accessible from field submodule."""
+        """Test that VectorField factory is accessible from field submodule."""
         fs = sam.field
-        assert hasattr(fs, 'VectorField2D_2')
-        assert hasattr(fs, 'VectorField2D_3')
+        assert hasattr(fs, 'vector')
 
     def test_field_from_submodule(self):
         """Test creating field from submodule."""
-        ScalarField1D = sam.field.ScalarField1D
+        scalar = sam.field.scalar
         box = sam.geometry.box([0.], [1.])
         config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
         mesh = sam.mesh.make(box, config)
-        field = ScalarField1D("u", mesh)
+        field = scalar(mesh, "u")
         assert field.name == "u"
 
 

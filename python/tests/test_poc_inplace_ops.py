@@ -63,14 +63,14 @@ def mesh_2d_adaptive():
 @pytest.fixture
 def scalar_field_1d(mesh_1d):
     """Create a ScalarField1D initialized to 1.0."""
-    field = sam.field.ScalarField1D(mesh_1d, "u", init=1.0)
+    field = sam.field.scalar(mesh_1d, "u", init=1.0)
     return field
 
 
 @pytest.fixture
 def scalar_field_2d(mesh_2d):
     """Create a ScalarField2D initialized to 2.0."""
-    field = sam.field.ScalarField2D(mesh_2d, "u", init=2.0)
+    field = sam.field.scalar(mesh_2d, "u", init=2.0)
     return field
 
 

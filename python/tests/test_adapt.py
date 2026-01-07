@@ -215,7 +215,7 @@ class TestAdaptationPipeline:
 
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.make(box, config_mesh)
-        field = sam.field.ScalarField2D("u", mesh, 0.0)
+        field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Apply boundary conditions
         sam.make_dirichlet_bc(field, 0.0)

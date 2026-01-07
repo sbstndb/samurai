@@ -48,10 +48,10 @@ print("Test 1: Verify in-place operator works")
 print("-" * 40)
 
 # Test old way (creates new field)
-print("Old way: flux = sam.upwind(velocity, u)")
+print("Old way: flux = sam.upwind(u, velocity)")
 start = time.time()
 for i in range(10):
-    flux_old = sam.upwind(velocity, u)
+    flux_old = sam.upwind(u, velocity)
 old_time = time.time() - start
 print(f"  Time (10 iterations): {old_time:.4f}s")
 print(f"  First value: {flux_old.array()[0]:.6f}")
@@ -86,7 +86,7 @@ unp1_new = sam.field.scalar(mesh, "unp1_new", init=0.0)
 print("Old way: flux = sam.upwind(...); unp1 = u - dt * flux")
 start = time.time()
 for i in range(100):
-    flux_old = sam.upwind(velocity, u)
+    flux_old = sam.upwind(u, velocity)
     unp1_old = u - dt * flux_old
 old_full_time = time.time() - start
 print(f"  Time (100 iterations): {old_full_time:.4f}s")

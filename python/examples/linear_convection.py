@@ -194,15 +194,15 @@ def main():
         #   unp1 = 1/3*u + 2/3*(u2 - dt*conv(u2))
 
         # Stage 1: u1 = u - dt * conv(u)
-        flux1 = sam.operators.convection_weno5(velocity, u)
+        flux1 = sam.operators.convection_weno5(u, velocity)
         u1.assign(u - dt * flux1)
 
         # Stage 2: u2 = 3/4*u + 1/4*(u1 - dt*conv(u1))
-        flux2 = sam.operators.convection_weno5(velocity, u1)
+        flux2 = sam.operators.convection_weno5(u1, velocity)
         u2.assign((3.0 / 4.0) * u + (1.0 / 4.0) * (u1 - dt * flux2))
 
         # Stage 3: unp1 = 1/3*u + 2/3*(u2 - dt*conv(u2))
-        flux3 = sam.operators.convection_weno5(velocity, u2)
+        flux3 = sam.operators.convection_weno5(u2, velocity)
         unp1.assign((1.0 / 3.0) * u + (2.0 / 3.0) * (u2 - dt * flux3))
 
         # Swap u and unp1 (u becomes the new solution)

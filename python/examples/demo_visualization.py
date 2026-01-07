@@ -230,7 +230,7 @@ def demo_realtime_plotting():
         sam.adaptation.update_ghost_mr(u)
 
         # Compute flux and update
-        upwind_result = sam.operators.upwind(velocity, u)
+        upwind_result = sam.operators.upwind(u, velocity)
         unp1.assign(u - dt * upwind_result)
 
         # Swap

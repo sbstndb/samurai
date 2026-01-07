@@ -85,7 +85,7 @@ u = sam.field.scalar(mesh, "u", init=1.0)
 
 # Try to apply WENO5 convection
 try:
-    flux = sam.make_convection_weno5(velocity, u)
+    flux = sam.make_convection_weno5(u, velocity)
     print(f"WENO5 convection operator created successfully")
     print(f"Flux field name: {flux.name()}")
 except Exception as e:

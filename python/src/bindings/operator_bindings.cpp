@@ -45,7 +45,7 @@ using VectorField2D_2 = VectorField<2, 2, false>;
 using VectorField3D_3 = VectorField<3, 3, false>;
 
 // 1D upwind operator - immediate evaluation version
-py::object upwind_1d(double velocity, ScalarField<1>& field)
+py::object upwind_1d(ScalarField<1>& field, double velocity)
 {
     auto& mesh = field.mesh();
 
@@ -66,7 +66,7 @@ py::object upwind_1d(double velocity, ScalarField<1>& field)
 }
 
 // 2D upwind operator - immediate evaluation version
-py::object upwind_2d(const std::array<double, 2>& velocity, ScalarField<2>& field)
+py::object upwind_2d(ScalarField<2>& field, const std::array<double, 2>& velocity)
 {
     auto& mesh = field.mesh();
 
@@ -87,7 +87,7 @@ py::object upwind_2d(const std::array<double, 2>& velocity, ScalarField<2>& fiel
 }
 
 // 3D upwind operator - immediate evaluation version
-py::object upwind_3d(const std::array<double, 3>& velocity, ScalarField<3>& field)
+py::object upwind_3d(ScalarField<3>& field, const std::array<double, 3>& velocity)
 {
     auto& mesh = field.mesh();
 
@@ -108,7 +108,7 @@ py::object upwind_3d(const std::array<double, 3>& velocity, ScalarField<3>& fiel
 }
 
 // Convenience wrapper accepting Python list/tuple for velocity (2D)
-py::object upwind_2d_py(py::sequence velocity_seq, ScalarField<2>& field)
+py::object upwind_2d_py(ScalarField<2>& field, py::sequence velocity_seq)
 {
     if (len(velocity_seq) != 2)
     {
@@ -119,11 +119,11 @@ py::object upwind_2d_py(py::sequence velocity_seq, ScalarField<2>& field)
     velocity[0] = velocity_seq[0].cast<double>();
     velocity[1] = velocity_seq[1].cast<double>();
 
-    return upwind_2d(velocity, field);
+    return upwind_2d(field, velocity);
 }
 
 // Convenience wrapper accepting Python list/tuple for velocity (3D)
-py::object upwind_3d_py(py::sequence velocity_seq, ScalarField<3>& field)
+py::object upwind_3d_py(ScalarField<3>& field, py::sequence velocity_seq)
 {
     if (len(velocity_seq) != 3)
     {
@@ -135,7 +135,7 @@ py::object upwind_3d_py(py::sequence velocity_seq, ScalarField<3>& field)
     velocity[1] = velocity_seq[1].cast<double>();
     velocity[2] = velocity_seq[2].cast<double>();
 
-    return upwind_3d(velocity, field);
+    return upwind_3d(field, velocity);
 }
 
 // -------------------------------------------------------------------------
@@ -143,7 +143,7 @@ py::object upwind_3d_py(py::sequence velocity_seq, ScalarField<3>& field)
 // -------------------------------------------------------------------------
 
 // 1D upwind operator - in-place version (no allocation)
-void apply_upwind_1d(ScalarField<1>& output, double velocity, const ScalarField<1>& input)
+void apply_upwind_1d(const ScalarField<1>& input, ScalarField<1>& output, double velocity)
 {
     // Get the upwind expression (lazy)
     auto upwind_expr = samurai::upwind(velocity, input);
@@ -157,7 +157,7 @@ void apply_upwind_1d(ScalarField<1>& output, double velocity, const ScalarField<
 }
 
 // 2D upwind operator - in-place version (no allocation)
-void apply_upwind_2d(ScalarField<2>& output, const std::array<double, 2>& velocity, const ScalarField<2>& input)
+void apply_upwind_2d(const ScalarField<2>& input, ScalarField<2>& output, const std::array<double, 2>& velocity)
 {
     // Get the upwind expression (lazy)
     auto upwind_expr = samurai::upwind(velocity, input);
@@ -171,7 +171,7 @@ void apply_upwind_2d(ScalarField<2>& output, const std::array<double, 2>& veloci
 }
 
 // 3D upwind operator - in-place version (no allocation)
-void apply_upwind_3d(ScalarField<3>& output, const std::array<double, 3>& velocity, const ScalarField<3>& input)
+void apply_upwind_3d(const ScalarField<3>& input, ScalarField<3>& output, const std::array<double, 3>& velocity)
 {
     // Get the upwind expression (lazy)
     auto upwind_expr = samurai::upwind(velocity, input);
@@ -185,7 +185,7 @@ void apply_upwind_3d(ScalarField<3>& output, const std::array<double, 3>& veloci
 }
 
 // Convenience wrapper accepting Python list/tuple for velocity (2D) - in-place version
-void apply_upwind_2d_py(ScalarField<2>& output, py::sequence velocity_seq, const ScalarField<2>& input)
+void apply_upwind_2d_py(const ScalarField<2>& input, ScalarField<2>& output, py::sequence velocity_seq)
 {
     if (len(velocity_seq) != 2)
     {
@@ -196,11 +196,11 @@ void apply_upwind_2d_py(ScalarField<2>& output, py::sequence velocity_seq, const
     velocity[0] = velocity_seq[0].cast<double>();
     velocity[1] = velocity_seq[1].cast<double>();
 
-    apply_upwind_2d(output, velocity, input);
+    apply_upwind_2d(input, output, velocity);
 }
 
 // Convenience wrapper accepting Python list/tuple for velocity (3D) - in-place version
-void apply_upwind_3d_py(ScalarField<3>& output, py::sequence velocity_seq, const ScalarField<3>& input)
+void apply_upwind_3d_py(const ScalarField<3>& input, ScalarField<3>& output, py::sequence velocity_seq)
 {
     if (len(velocity_seq) != 3)
     {
@@ -212,7 +212,7 @@ void apply_upwind_3d_py(ScalarField<3>& output, py::sequence velocity_seq, const
     velocity[1] = velocity_seq[1].cast<double>();
     velocity[2] = velocity_seq[2].cast<double>();
 
-    apply_upwind_3d(output, velocity, input);
+    apply_upwind_3d(input, output, velocity);
 }
 
 // -------------------------------------------------------------------------
@@ -282,7 +282,7 @@ py::object convection_weno5_nonlin_3d(ScalarField<3>& field)
 // ============================================================
 
 // 1D linear WENO5 with constant velocity
-py::object convection_weno5_linear_1d(double velocity, ScalarField<1>& field)
+py::object convection_weno5_linear_1d(ScalarField<1>& field, double velocity)
 {
     using VelocityVector = samurai::VelocityVector<1>;
     auto& mesh = field.mesh();
@@ -305,7 +305,7 @@ py::object convection_weno5_linear_1d(double velocity, ScalarField<1>& field)
 }
 
 // 2D linear WENO5 with constant velocity
-py::object convection_weno5_linear_2d(const std::array<double, 2>& velocity, ScalarField<2>& field)
+py::object convection_weno5_linear_2d(ScalarField<2>& field, const std::array<double, 2>& velocity)
 {
     using VelocityVector = samurai::VelocityVector<2>;
     auto& mesh = field.mesh();
@@ -329,7 +329,7 @@ py::object convection_weno5_linear_2d(const std::array<double, 2>& velocity, Sca
 }
 
 // 2D linear WENO5 - Python sequence version
-py::object convection_weno5_linear_2d_py(py::sequence velocity_seq, ScalarField<2>& field)
+py::object convection_weno5_linear_2d_py(ScalarField<2>& field, py::sequence velocity_seq)
 {
     if (len(velocity_seq) != 2)
     {
@@ -340,11 +340,11 @@ py::object convection_weno5_linear_2d_py(py::sequence velocity_seq, ScalarField<
     velocity[0] = velocity_seq[0].cast<double>();
     velocity[1] = velocity_seq[1].cast<double>();
 
-    return convection_weno5_linear_2d(velocity, field);
+    return convection_weno5_linear_2d(field, velocity);
 }
 
 // 3D linear WENO5 with constant velocity
-py::object convection_weno5_linear_3d(const std::array<double, 3>& velocity, ScalarField<3>& field)
+py::object convection_weno5_linear_3d(ScalarField<3>& field, const std::array<double, 3>& velocity)
 {
     using VelocityVector = samurai::VelocityVector<3>;
     auto& mesh = field.mesh();
@@ -369,7 +369,7 @@ py::object convection_weno5_linear_3d(const std::array<double, 3>& velocity, Sca
 }
 
 // 3D linear WENO5 - Python sequence version
-py::object convection_weno5_linear_3d_py(py::sequence velocity_seq, ScalarField<3>& field)
+py::object convection_weno5_linear_3d_py(ScalarField<3>& field, py::sequence velocity_seq)
 {
     if (len(velocity_seq) != 3)
     {
@@ -381,7 +381,7 @@ py::object convection_weno5_linear_3d_py(py::sequence velocity_seq, ScalarField<
     velocity[1] = velocity_seq[1].cast<double>();
     velocity[2] = velocity_seq[2].cast<double>();
 
-    return convection_weno5_linear_3d(velocity, field);
+    return convection_weno5_linear_3d(field, velocity);
 }
 
 // ============================================================
@@ -430,7 +430,7 @@ py::object convection_weno5_nonlin_vector_3d(VectorField3D_3& field)
 // ============================================================
 
 // 2D ScalarField with VectorField2D_2 velocity
-py::object convection_weno5_vectorfield_2d(VectorField2D_2& velocity, ScalarField<2>& field)
+py::object convection_weno5_vectorfield_2d(ScalarField<2>& field, VectorField2D_2& velocity)
 {
     auto& mesh = field.mesh();
 
@@ -449,7 +449,7 @@ py::object convection_weno5_vectorfield_2d(VectorField2D_2& velocity, ScalarFiel
 }
 
 // 3D ScalarField with VectorField3D_3 velocity
-py::object convection_weno5_vectorfield_3d(VectorField3D_3& velocity, ScalarField<3>& field)
+py::object convection_weno5_vectorfield_3d(ScalarField<3>& field, VectorField3D_3& velocity)
 {
     auto& mesh = field.mesh();
 
@@ -476,9 +476,9 @@ void init_operator_bindings(py::module_& m)
     // Bind 1D in-place upwind operator
     m.def("apply_upwind_1d",
           &apply_upwind_1d,
+          py::arg("input"),
           py::arg("output"),
           py::arg("velocity"),
-          py::arg("input"),
           R"pbdoc(
         Apply upwind operator in-place (efficient, no allocation).
 
@@ -486,18 +486,18 @@ void init_operator_bindings(py::module_& m)
 
         Parameters
         ----------
+        input : ScalarField1D
+            Input scalar field
         output : ScalarField1D
             Output field (must be pre-allocated)
         velocity : float
             Advection velocity
-        input : ScalarField1D
-            Input scalar field
 
         Examples
         --------
         >>> import samurai as sam
         >>> flux = sam.ScalarField1D("flux", mesh, 0.0)
-        >>> sam.apply_upwind_1d(flux, 1.0, u)
+        >>> sam.apply_upwind_1d(u, flux, 1.0)
         >>> # Use in time step
         >>> sam.euler_update_1d(unp1, u, dt, flux)
         )pbdoc");
@@ -505,83 +505,83 @@ void init_operator_bindings(py::module_& m)
     // Bind 2D in-place upwind operator - std::array version
     m.def("apply_upwind_2d",
           &apply_upwind_2d,
+          py::arg("input"),
           py::arg("output"),
           py::arg("velocity"),
-          py::arg("input"),
           R"pbdoc(
         Apply upwind operator in-place (2D, efficient, no allocation).
 
         Parameters
         ----------
+        input : ScalarField2D
+            Input scalar field
         output : ScalarField2D
             Output field (must be pre-allocated)
         velocity : std::array<double, 2>
             2D velocity vector [vx, vy]
-        input : ScalarField2D
-            Input scalar field
 
         Examples
         --------
         >>> flux = sam.ScalarField2D("flux", mesh, 0.0)
-        >>> sam.apply_upwind_2d(flux, [1.0, 1.0], u)
+        >>> sam.apply_upwind_2d(u, flux, [1.0, 1.0])
         >>> sam.euler_update_2d(unp1, u, dt, flux)
         )pbdoc");
 
     // Bind 2D in-place upwind operator - Python sequence version
     m.def("apply_upwind_2d",
           &apply_upwind_2d_py,
+          py::arg("input"),
           py::arg("output"),
           py::arg("velocity"),
-          py::arg("input"),
           R"pbdoc(
         Apply upwind operator in-place (2D, Python sequence version).
 
         Parameters
         ----------
+        input : ScalarField2D
+            Input scalar field
         output : ScalarField2D
             Output field (must be pre-allocated)
         velocity : sequence of float
             2D velocity vector [vx, vy] (list or tuple)
-        input : ScalarField2D
-            Input scalar field
         )pbdoc");
 
     // Bind 3D in-place upwind operator - std::array version
     m.def("apply_upwind_3d",
           &apply_upwind_3d,
+          py::arg("input"),
           py::arg("output"),
           py::arg("velocity"),
-          py::arg("input"),
           R"pbdoc(
         Apply upwind operator in-place (3D, efficient, no allocation).
 
         Parameters
         ----------
+        input : ScalarField3D
+            Input scalar field
         output : ScalarField3D
             Output field (must be pre-allocated)
         velocity : std::array<double, 3>
             3D velocity vector [vx, vy, vz]
-        input : ScalarField3D
-            Input scalar field
         )pbdoc");
 
     // Bind 3D in-place upwind operator - Python sequence version
     m.def("apply_upwind_3d",
           &apply_upwind_3d_py,
+          py::arg("input"),
           py::arg("output"),
           py::arg("velocity"),
-          py::arg("input"),
           R"pbdoc(
         Apply upwind operator in-place (3D, Python sequence version).
 
         Parameters
         ----------
+        input : ScalarField3D
+            Input scalar field
         output : ScalarField3D
             Output field (must be pre-allocated)
         velocity : sequence of float
             3D velocity vector [vx, vy, vz] (list or tuple)
-        input : ScalarField3D
-            Input scalar field
         )pbdoc");
 
     // ============================================================
@@ -591,8 +591,8 @@ void init_operator_bindings(py::module_& m)
     // Bind 1D upwind operator
     m.def("upwind",
           &upwind_1d,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         Upwind operator for 1D advection.
 
@@ -600,10 +600,10 @@ void init_operator_bindings(py::module_& m)
 
         Parameters
         ----------
-        velocity : float
-            Advection velocity (scalar for 1D)
         field : ScalarField1D
             Input scalar field
+        velocity : float
+            Advection velocity (scalar for 1D)
 
         Returns
         -------
@@ -615,24 +615,24 @@ void init_operator_bindings(py::module_& m)
         >>> import samurai as sam
         >>> mesh = sam.MRMesh1D(box, config)
         >>> u = sam.ScalarField1D("u", mesh)
-        >>> flux = sam.upwind(1.0, u)
+        >>> flux = sam.upwind(u, 1.0)
         >>> # Use in time step: unp1 = u - dt * flux
         )pbdoc");
 
     // Bind 2D upwind operator - std::array version
     m.def("upwind",
           &upwind_2d,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         Upwind operator for 2D advection (std::array version).
 
         Parameters
         ----------
-        velocity : std::array<double, 2>
-            2D velocity vector [vx, vy]
         field : ScalarField2D
             Input scalar field
+        velocity : std::array<double, 2>
+            2D velocity vector [vx, vy]
 
         Returns
         -------
@@ -643,8 +643,8 @@ void init_operator_bindings(py::module_& m)
     // Bind 2D upwind operator - Python sequence version (more convenient)
     m.def("upwind",
           &upwind_2d_py,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         Upwind operator for 2D advection.
 
@@ -652,10 +652,10 @@ void init_operator_bindings(py::module_& m)
 
         Parameters
         ----------
-        velocity : sequence of float
-            2D velocity vector [vx, vy] (list or tuple)
         field : ScalarField2D
             Input scalar field
+        velocity : sequence of float
+            2D velocity vector [vx, vy] (list or tuple)
 
         Returns
         -------
@@ -668,24 +668,24 @@ void init_operator_bindings(py::module_& m)
         >>> mesh = sam.MRMesh2D(box, config)
         >>> u = sam.ScalarField2D("u", mesh)
         >>> velocity = [1.0, 1.0]  # [vx, vy]
-        >>> flux = sam.upwind(velocity, u)
+        >>> flux = sam.upwind(u, velocity)
         >>> # Use in time step: unp1 = u - dt * flux
         )pbdoc");
 
     // Bind 3D upwind operator - std::array version
     m.def("upwind",
           &upwind_3d,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         Upwind operator for 3D advection (std::array version).
 
         Parameters
         ----------
-        velocity : std::array<double, 3>
-            3D velocity vector [vx, vy, vz]
         field : ScalarField3D
             Input scalar field
+        velocity : std::array<double, 3>
+            3D velocity vector [vx, vy, vz]
 
         Returns
         -------
@@ -696,8 +696,8 @@ void init_operator_bindings(py::module_& m)
     // Bind 3D upwind operator - Python sequence version (more convenient)
     m.def("upwind",
           &upwind_3d_py,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         Upwind operator for 3D advection.
 
@@ -705,10 +705,10 @@ void init_operator_bindings(py::module_& m)
 
         Parameters
         ----------
-        velocity : sequence of float
-            3D velocity vector [vx, vy, vz] (list or tuple)
         field : ScalarField3D
             Input scalar field
+        velocity : sequence of float
+            3D velocity vector [vx, vy, vz] (list or tuple)
 
         Returns
         -------
@@ -721,7 +721,7 @@ void init_operator_bindings(py::module_& m)
         >>> mesh = sam.MRMesh3D(box, config)
         >>> u = sam.ScalarField3D("u", mesh)
         >>> velocity = [1.0, 1.0, 0.0]  # [vx, vy, vz]
-        >>> flux = sam.upwind(velocity, u)
+        >>> flux = sam.upwind(u, velocity)
         >>> # Use in time step: unp1 = u - dt * flux
         )pbdoc");
 
@@ -828,8 +828,8 @@ void init_operator_bindings(py::module_& m)
     // 1D linear WENO5
     m.def("make_convection_weno5",
           &convection_weno5_linear_1d,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         WENO5 convection operator for 1D linear advection with constant velocity.
 
@@ -838,10 +838,10 @@ void init_operator_bindings(py::module_& m)
 
         Parameters
         ----------
-        velocity : float
-            Advection velocity (scalar for 1D)
         field : ScalarField1D
             Input scalar field
+        velocity : float
+            Advection velocity (scalar for 1D)
 
         Returns
         -------
@@ -853,24 +853,24 @@ void init_operator_bindings(py::module_& m)
         >>> import samurai as sam
         >>> mesh = sam.MRMesh1D(box, config)
         >>> u = sam.ScalarField1D("u", mesh)
-        >>> flux = sam.make_convection_weno5(1.0, u)
+        >>> flux = sam.make_convection_weno5(u, 1.0)
         >>> # Use in time step: unp1 = u - dt * flux
         )pbdoc");
 
     // 2D linear WENO5 - std::array version
     m.def("make_convection_weno5",
           &convection_weno5_linear_2d,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         WENO5 convection operator for 2D linear advection with constant velocity (std::array version).
 
         Parameters
         ----------
-        velocity : std::array<double, 2>
-            2D velocity vector [vx, vy]
         field : ScalarField2D
             Input scalar field
+        velocity : std::array<double, 2>
+            2D velocity vector [vx, vy]
 
         Returns
         -------
@@ -881,8 +881,8 @@ void init_operator_bindings(py::module_& m)
     // 2D linear WENO5 - Python sequence version
     m.def("make_convection_weno5",
           &convection_weno5_linear_2d_py,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         WENO5 convection operator for 2D linear advection with constant velocity.
 
@@ -891,10 +891,10 @@ void init_operator_bindings(py::module_& m)
 
         Parameters
         ----------
-        velocity : sequence of float
-            2D velocity vector [vx, vy] (list or tuple)
         field : ScalarField2D
             Input scalar field
+        velocity : sequence of float
+            2D velocity vector [vx, vy] (list or tuple)
 
         Returns
         -------
@@ -907,24 +907,24 @@ void init_operator_bindings(py::module_& m)
         >>> mesh = sam.MRMesh2D(box, config)
         >>> u = sam.ScalarField2D("u", mesh)
         >>> velocity = [1.0, 1.0]  # [vx, vy]
-        >>> flux = sam.make_convection_weno5(velocity, u)
+        >>> flux = sam.make_convection_weno5(u, velocity)
         >>> # Use in time step: unp1 = u - dt * flux
         )pbdoc");
 
     // 3D linear WENO5 - std::array version
     m.def("make_convection_weno5",
           &convection_weno5_linear_3d,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         WENO5 convection operator for 3D linear advection with constant velocity (std::array version).
 
         Parameters
         ----------
-        velocity : std::array<double, 3>
-            3D velocity vector [vx, vy, vz]
         field : ScalarField3D
             Input scalar field
+        velocity : std::array<double, 3>
+            3D velocity vector [vx, vy, vz]
 
         Returns
         -------
@@ -935,8 +935,8 @@ void init_operator_bindings(py::module_& m)
     // 3D linear WENO5 - Python sequence version
     m.def("make_convection_weno5",
           &convection_weno5_linear_3d_py,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         WENO5 convection operator for 3D linear advection with constant velocity.
 
@@ -945,10 +945,10 @@ void init_operator_bindings(py::module_& m)
 
         Parameters
         ----------
-        velocity : sequence of float
-            3D velocity vector [vx, vy, vz] (list or tuple)
         field : ScalarField3D
             Input scalar field
+        velocity : sequence of float
+            3D velocity vector [vx, vy, vz] (list or tuple)
 
         Returns
         -------
@@ -961,7 +961,7 @@ void init_operator_bindings(py::module_& m)
         >>> mesh = sam.MRMesh3D(box, config)
         >>> u = sam.ScalarField3D("u", mesh)
         >>> velocity = [1.0, 1.0, 0.0]  # [vx, vy, vz]
-        >>> flux = sam.make_convection_weno5(velocity, u)
+        >>> flux = sam.make_convection_weno5(u, velocity)
         >>> # Use in time step: unp1 = u - dt * flux
         )pbdoc");
 
@@ -1048,8 +1048,8 @@ void init_operator_bindings(py::module_& m)
     // 2D ScalarField with VectorField2D_2 velocity
     m.def("make_convection_weno5",
           &convection_weno5_vectorfield_2d,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         WENO5 convection operator for 2D linear advection with VectorField velocity.
 
@@ -1059,10 +1059,10 @@ void init_operator_bindings(py::module_& m)
 
         Parameters
         ----------
-        velocity : VectorField2D_2
-            Velocity field [u, v] (can vary in space)
         field : ScalarField2D
             Input scalar field
+        velocity : VectorField2D_2
+            Velocity field [u, v] (can vary in space)
 
         Returns
         -------
@@ -1078,7 +1078,7 @@ void init_operator_bindings(py::module_& m)
         >>> velocity = sam.make_vector_field(mesh, "velocity",
         ...     lambda center: [1.0, -1.0], 2)
         >>> u = sam.ScalarField2D("u", mesh, 0.0)
-        >>> flux = sam.make_convection_weno5(velocity, u)
+        >>> flux = sam.make_convection_weno5(u, velocity)
         >>> # Use in time step: unp1 = u - dt * flux
 
         Notes
@@ -1092,8 +1092,8 @@ void init_operator_bindings(py::module_& m)
     // 3D ScalarField with VectorField3D_3 velocity
     m.def("make_convection_weno5",
           &convection_weno5_vectorfield_3d,
-          py::arg("velocity"),
           py::arg("field"),
+          py::arg("velocity"),
           R"pbdoc(
         WENO5 convection operator for 3D linear advection with VectorField velocity.
 
@@ -1103,10 +1103,10 @@ void init_operator_bindings(py::module_& m)
 
         Parameters
         ----------
-        velocity : VectorField3D_3
-            Velocity field [u, v, w] (can vary in space)
         field : ScalarField3D
             Input scalar field
+        velocity : VectorField3D_3
+            Velocity field [u, v, w] (can vary in space)
 
         Returns
         -------

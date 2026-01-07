@@ -149,7 +149,7 @@ class TestUpdateGhostMr:
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Should not raise
-        sam.update_ghost_mr(field)
+        sam.adaptation.update_ghost_mr(field)
 
     def test_update_ghost_mr_2d(self):
         """Test update_ghost_mr for 2D field."""
@@ -162,7 +162,7 @@ class TestUpdateGhostMr:
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Should not raise
-        sam.update_ghost_mr(field)
+        sam.adaptation.update_ghost_mr(field)
 
     def test_update_ghost_mr_3d(self):
         """Test update_ghost_mr for 3D field."""
@@ -175,7 +175,7 @@ class TestUpdateGhostMr:
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Should not raise
-        sam.update_ghost_mr(field)
+        sam.adaptation.update_ghost_mr(field)
 
 
 class TestAdaptationPipeline:
@@ -193,7 +193,7 @@ class TestAdaptationPipeline:
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Apply boundary conditions
-        sam.make_dirichlet_bc(field, 0.0)
+        sam.boundary.dirichlet(field, 0.0)
 
         # Create adaptation objects
         MRadaptation = sam.adaptation.make_MRAdapt(field)
@@ -202,7 +202,7 @@ class TestAdaptationPipeline:
 
         # Full pipeline
         MRadaptation(mra_config)
-        sam.update_ghost_mr(field)
+        sam.adaptation.update_ghost_mr(field)
 
         # Should complete without errors
 
@@ -218,7 +218,7 @@ class TestAdaptationPipeline:
         field = sam.field.scalar(mesh, "u", init=0.0)
 
         # Apply boundary conditions
-        sam.make_dirichlet_bc(field, 0.0)
+        sam.boundary.dirichlet(field, 0.0)
 
         # Create adaptation objects
         MRadaptation = sam.adaptation.make_MRAdapt(field)
@@ -227,7 +227,7 @@ class TestAdaptationPipeline:
 
         # Full pipeline
         MRadaptation(mra_config)
-        sam.update_ghost_mr(field)
+        sam.adaptation.update_ghost_mr(field)
 
         # Should complete without errors
 
@@ -241,7 +241,7 @@ class TestAdaptationPipeline:
         mesh = sam.mesh.make(box, config_mesh)
         field = sam.field.scalar(mesh, "u", init=0.0)
 
-        sam.make_dirichlet_bc(field, 0.0)
+        sam.boundary.dirichlet(field, 0.0)
 
         MRadaptation = sam.adaptation.make_MRAdapt(field)
         mra_config = sam.config.MRAConfig()
@@ -250,7 +250,7 @@ class TestAdaptationPipeline:
         # Multiple iterations (simulating time loop)
         for i in range(3):
             MRadaptation(mra_config)
-            sam.update_ghost_mr(field)
+            sam.adaptation.update_ghost_mr(field)
 
 
 class TestMRAConfigIntegration:

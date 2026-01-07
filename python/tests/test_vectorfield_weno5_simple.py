@@ -41,7 +41,7 @@ try:
     u_vec = sam.field.vector(mesh2d, "u", n_components=2, init=0.0)
 
     # Apply WENO5 convection operator (even with zero field, should work)
-    flux = sam.make_convection_weno5(u_vec)
+    flux = sam.operators.convection_weno5(u_vec)
 
     print(f"  Input field type: {type(u_vec).__name__}")
     print(f"  Input field name: {u_vec.name}")
@@ -75,7 +75,7 @@ try:
     u_vec = sam.field.vector(mesh3d, "u", n_components=3, init=0.0)
 
     # Apply WENO5 convection operator
-    flux = sam.make_convection_weno5(u_vec)
+    flux = sam.operators.convection_weno5(u_vec)
 
     print(f"  Input field type: {type(u_vec).__name__}")
     print(f"  Input field name: {u_vec.name}")
@@ -117,9 +117,9 @@ try:
     dt = 0.001
 
     # RK3 scheme (with zero field, this should still work)
-    u1 = u - dt * sam.make_convection_weno5(u)
-    u2 = 3./4 * u + 1./4 * (u1 - dt * sam.make_convection_weno5(u1))
-    unp1 = 1./3 * u + 2./3 * (u2 - dt * sam.make_convection_weno5(u2))
+    u1 = u - dt * sam.operators.convection_weno5(u)
+    u2 = 3./4 * u + 1./4 * (u1 - dt * sam.operators.convection_weno5(u1))
+    unp1 = 1./3 * u + 2./3 * (u2 - dt * sam.operators.convection_weno5(u2))
 
     print(f"  Successfully performed RK3 time step")
     print(f"  dt = {dt}")

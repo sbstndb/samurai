@@ -76,13 +76,13 @@ def main():
         print(f"iteration {nt}: t = {t:.4f}, dt = {dt:.6f}")
 
         # RK3
-        flux1 = sam.make_convection_weno5(u)
+        flux1 = sam.operators.convection_weno5(u)
         u1.assign(u - dt * flux1)
 
-        flux2 = sam.make_convection_weno5(u1)
+        flux2 = sam.operators.convection_weno5(u1)
         u2.assign((3.0/4.0) * u + (1.0/4.0) * (u1 - dt * flux2))
 
-        flux3 = sam.make_convection_weno5(u2)
+        flux3 = sam.operators.convection_weno5(u2)
         u.assign((1.0/3.0) * u + (2.0/3.0) * (u2 - dt * flux3))
 
         # Save every 10 iterations

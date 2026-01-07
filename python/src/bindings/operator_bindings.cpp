@@ -1113,4 +1113,29 @@ void init_operator_bindings(py::module_& m)
         ScalarField3D
             New field containing convection flux values
         )pbdoc");
+
+    // ============================================================
+    // Create operators submodule for better organization
+    // ============================================================
+
+    // Create the operators submodule
+    py::module_ operators = m.def_submodule("operators", "Finite volume operators for AMR");
+
+    // Reference all operator functions in the submodule
+    // This maintains backward compatibility (operators still in main module)
+    // while also providing them in the organized submodule
+
+    // In-place upwind operators
+    operators.attr("apply_upwind_1d") = m.attr("apply_upwind_1d");
+    operators.attr("apply_upwind_2d") = m.attr("apply_upwind_2d");
+    operators.attr("apply_upwind_3d") = m.attr("apply_upwind_3d");
+
+    // Upwind operators (return new fields)
+    operators.attr("upwind") = m.attr("upwind");
+
+    // WENO5 convection operators
+    operators.attr("make_convection_weno5") = m.attr("make_convection_weno5");
+
+    // Alias for shorter name (without 'make_' prefix, more Pythonic)
+    operators.attr("convection_weno5") = m.attr("make_convection_weno5");
 }

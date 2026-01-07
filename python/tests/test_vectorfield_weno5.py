@@ -51,7 +51,7 @@ try:
     sam.for_each_cell(mesh2d, init_velocity_2d)
 
     # Apply WENO5 convection operator
-    flux = sam.make_convection_weno5(u_vec)
+    flux = sam.operators.convection_weno5(u_vec)
 
     print(f"  Input field type: {type(u_vec).__name__}")
     print(f"  Input field name: {u_vec.name}")
@@ -93,7 +93,7 @@ try:
     sam.for_each_cell(mesh3d, init_velocity_3d)
 
     # Apply WENO5 convection operator
-    flux = sam.make_convection_weno5(u_vec)
+    flux = sam.operators.convection_weno5(u_vec)
 
     print(f"  Input field type: {type(u_vec).__name__}")
     print(f"  Input field name: {u_vec.name}")
@@ -148,9 +148,9 @@ try:
     dt = 0.001
 
     # RK3 scheme (using assign for consistency with AMR examples)
-    u1.assign(u - dt * sam.make_convection_weno5(u))
-    u2.assign(3./4 * u + 1./4 * (u1 - dt * sam.make_convection_weno5(u1)))
-    unp1.assign(1./3 * u + 2./3 * (u2 - dt * sam.make_convection_weno5(u2)))
+    u1.assign(u - dt * sam.operators.convection_weno5(u))
+    u2.assign(3./4 * u + 1./4 * (u1 - dt * sam.operators.convection_weno5(u1)))
+    unp1.assign(1./3 * u + 2./3 * (u2 - dt * sam.operators.convection_weno5(u2)))
 
     print(f"  Successfully performed RK3 time step")
     print(f"  dt = {dt}")

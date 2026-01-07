@@ -154,7 +154,7 @@ def main():
         nt += 1
 
         # 4. Apply upwind operator with FRESH ghost values
-        upwind_result = sam.upwind(velocity, u)
+        upwind_result = sam.operators.upwind(velocity, u)
 
         # 5. Euler time step: unp1 = u - dt * upwind(a, u)
         unp1.assign(u - dt * upwind_result)  # In-place to avoid stale mesh references

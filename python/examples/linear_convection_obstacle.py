@@ -231,7 +231,7 @@ def main():
             nsave += 1
 
             # Print progress
-            print(f"{nt:6d} {t:12.6f} {dt:12.6f} {mesh.nb_cells():10d}")
+            print(f"{nt:6d} {t:12.6f} {dt:12.6f} {mesh.nb_cells:10d}")
 
     print()
     print("=" * 70)

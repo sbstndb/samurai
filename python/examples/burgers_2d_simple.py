@@ -60,7 +60,7 @@ def main():
 
     # Save initial
     sam.save(str(output_path), "burgers_simple_init", u)
-    print(f"Saved initial condition, cells = {mesh.nb_cells()}")
+    print(f"Saved initial condition, cells = {mesh.nb_cells}")
 
     # Time loop
     t = 0.0

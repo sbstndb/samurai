@@ -18,8 +18,10 @@ void bind_mesh_base_common_methods(py::class_<Mesh>& cls)
 {
     using namespace samurai;
 
-    // nb_cells methods - use lambdas to avoid overload resolution issues
-    cls.def(
+    // nb_cells property (total cells) and method (cells per level)
+    // Note: Can't have both property and method with same name in pybind11
+    // So we use nb_cells as property and nb_cells_at_level as method
+    cls.def_property_readonly(
         "nb_cells",
         [](const Mesh& mesh) -> std::size_t
         {
@@ -28,7 +30,7 @@ void bind_mesh_base_common_methods(py::class_<Mesh>& cls)
         "Total number of cells in the mesh");
 
     cls.def(
-        "nb_cells",
+        "nb_cells_at_level",
         [](const Mesh& mesh, std::size_t level) -> std::size_t
         {
             return mesh.nb_cells(level);
@@ -76,8 +78,8 @@ void bind_mesh_base_common_methods(py::class_<Mesh>& cls)
     cls.def_property_readonly("min_cell_length", &Mesh::min_cell_length, "Minimum cell length in the mesh");
 
     // Periodicity
-    cls.def(
-        "is_periodic",
+    cls.def_property_readonly(
+        "periodic",
         [](const Mesh& mesh) -> bool
         {
             return mesh.is_periodic();

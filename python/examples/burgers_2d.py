@@ -187,7 +187,7 @@ def main():
         nt += 1
 
         # Print progress
-        print(f"\riteration {nt:4d}: t = {t:.4f}, dt = {dt:.6f}, cells = {mesh.nb_cells():6d}", end="")
+        print(f"\riteration {nt:4d}: t = {t:.4f}, dt = {dt:.6f}, cells = {mesh.nb_cells:6d}", end="")
 
         # Resize temporary fields after mesh adaptation
         u1.resize()

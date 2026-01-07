@@ -387,7 +387,7 @@ class TestForEachIntervalIntegration:
         # Store original mesh properties
         original_min_level = mesh.min_level
         original_max_level = mesh.max_level
-        original_nb_cells = mesh.nb_cells()
+        original_nb_cells = mesh.nb_cells
 
         def callback(level, interval, index):
             pass  # Do nothing
@@ -397,7 +397,7 @@ class TestForEachIntervalIntegration:
         # Mesh properties should be unchanged
         assert mesh.min_level == original_min_level, "min_level should be unchanged"
         assert mesh.max_level == original_max_level, "max_level should be unchanged"
-        assert mesh.nb_cells() == original_nb_cells, "nb_cells should be unchanged"
+        assert mesh.nb_cells == original_nb_cells, "nb_cells should be unchanged"
 
 
 class TestForEachIntervalEdgeCases:

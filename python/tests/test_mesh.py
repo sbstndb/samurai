@@ -40,11 +40,11 @@ class TestMRMesh1D:
         config.max_level = 1
 
         mesh = sam.MRMesh1D(box, config)
-        # Total cells
-        total = mesh.nb_cells()
+        # Total cells (property)
+        total = mesh.nb_cells
         assert total > 0
-        # Cells at specific level
-        cells_level_0 = mesh.nb_cells(0)
+        # Cells at specific level (method with argument)
+        cells_level_0 = mesh.nb_cells_at_level(0)
         assert cells_level_0 > 0
 
     def test_level_properties(self):
@@ -119,7 +119,7 @@ class TestMRMesh1D:
         config = sam.MeshConfig1D()
 
         mesh = sam.MRMesh1D(box, config)
-        assert not mesh.is_periodic()
+        assert not mesh.periodic
         assert not mesh.is_periodic(0)
         assert mesh.periodicity == [False]
 
@@ -130,7 +130,7 @@ class TestMRMesh1D:
         config.set_periodic(True)
 
         mesh = sam.MRMesh1D(box, config)
-        assert mesh.is_periodic()
+        assert mesh.periodic
         assert mesh.is_periodic(0)
 
     def test_string_representation(self):
@@ -171,9 +171,9 @@ class TestMRMesh2D:
         config.max_level = 1
 
         mesh = sam.MRMesh2D(box, config)
-        total = mesh.nb_cells()
+        total = mesh.nb_cells
         assert total > 0
-        cells_level_0 = mesh.nb_cells(0)
+        cells_level_0 = mesh.nb_cells_at_level(0)
         assert cells_level_0 > 0
 
     def test_cell_length(self):
@@ -222,7 +222,7 @@ class TestMRMesh3D:
         config.max_level = 0  # Single level only
 
         mesh = sam.MRMesh3D(box, config)
-        total = mesh.nb_cells()
+        total = mesh.nb_cells
         assert total > 0
 
 

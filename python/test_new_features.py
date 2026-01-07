@@ -39,7 +39,7 @@ config.min_level = 1
 config.max_level = 3
 
 mesh = sam.MRMesh2D(domain, config)
-print(f"Mesh created with {mesh.nb_cells()} cells")
+print(f"Mesh created with {mesh.nb_cells} cells")
 print(f"Mesh min level: {mesh.min_level}, max level: {mesh.max_level}")
 
 # Test 3: VectorField with lambda initialization (constant velocity)

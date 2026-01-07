@@ -53,7 +53,7 @@ try:
     assert len(values) == 2, f"Expected 2 values, got {len(values)}"
     assert isinstance(values[0], float), f"Expected float, got {type(values[0])}"
 
-    print(f"  Field size: {mesh.nb_cells()} cells")
+    print(f"  Field size: {mesh.nb_cells} cells")
     print(f"  Number of components: {u.n_components}")
     print("  PASSED ✓")
 
@@ -95,7 +95,7 @@ try:
     print(f"  Cell {idx} values: {values}")
     assert len(values) == 3, f"Expected 3 values, got {len(values)}"
 
-    print(f"  Field size: {mesh.nb_cells()} cells")
+    print(f"  Field size: {mesh.nb_cells} cells")
     print(f"  Number of components: {u.n_components}")
     print("  PASSED ✓")
 

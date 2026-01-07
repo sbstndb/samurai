@@ -112,10 +112,10 @@ def main():
     mesh = sam.MRMesh2D(box, config)
 
     # Create VectorFields for RK3 time stepping
-    u = sam.VectorField2D_2("u", mesh, 0.0)      # Current solution
-    u1 = sam.VectorField2D_2("u1", mesh, 0.0)    # RK stage 1
-    u2 = sam.VectorField2D_2("u2", mesh, 0.0)    # RK stage 2
-    unp1 = sam.VectorField2D_2("unp1", mesh, 0.0)  # RK stage 3
+    u = sam.field.vector(mesh, "u", n_components=2, init=0.0)      # Current solution
+    u1 = sam.field.vector(mesh, "u1", n_components=2, init=0.0)    # RK stage 1
+    u2 = sam.field.vector(mesh, "u2", n_components=2, init=0.0)    # RK stage 2
+    unp1 = sam.field.vector(mesh, "unp1", n_components=2, init=0.0)  # RK stage 3
 
     # ============================================================
     # Initial conditions

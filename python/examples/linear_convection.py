@@ -137,7 +137,7 @@ def main():
     it = 0
     save_filename = f"{filename}_init"
     print(f"Saving initial condition to {output_path / save_filename}")
-    sam.save(str(output_path), save_filename, u)
+    sam.save(f"{output_path}/{save_filename}", u)
 
     # ============================================================
     # Time stepping setup
@@ -214,7 +214,7 @@ def main():
         if t >= (nsave + 1) * dt_save or abs(t - Tf) < 1e-12:
             suffix = f"_ite_{nsave}" if nfiles > 1 else ""
             save_filename = f"{filename}{suffix}"
-            sam.save(str(output_path), save_filename, u)
+            sam.save(f"{output_path}/{save_filename}", u)
             nsave += 1
 
             # Print progress

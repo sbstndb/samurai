@@ -202,7 +202,7 @@ def main():
 
     # Save initial condition
     save_filename = f"{filename}_init"
-    sam.save(str(output_path), save_filename, u)
+    sam.save(f"{output_path}/{save_filename}", u)
     print(f"Saved initial condition to {output_path / save_filename}")
 
     # ============================================================
@@ -263,7 +263,7 @@ def main():
             # ========================================================
             if pbar.current_time >= (nsave + 1) * dt_save:
                 suffix = f"_ite_{nsave}" if nfiles > 1 else ""
-                sam.save(str(output_path), f"{filename}{suffix}", u)
+                sam.save(f"{output_path}/{filename}{suffix}", u)
                 nsave += 1
 
     print(f"\nSimulation complete!")

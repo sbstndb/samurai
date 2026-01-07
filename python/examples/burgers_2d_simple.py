@@ -59,7 +59,7 @@ def main():
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Save initial
-    sam.save(str(output_path), "burgers_simple_init", u)
+    sam.save(f"{output_path}/burgers_simple_init", u)
     print(f"Saved initial condition, cells = {mesh.nb_cells}")
 
     # Time loop
@@ -87,10 +87,10 @@ def main():
 
         # Save every 10 iterations
         if nt % 10 == 0:
-            sam.save(str(output_path), f"burgers_simple_{nt:04d}", u)
+            sam.save(f"{output_path}/burgers_simple_{nt:04d}", u)
 
     # Save final
-    sam.save(str(output_path), "burgers_simple_final", u)
+    sam.save(f"{output_path}/burgers_simple_final", u)
     print(f"\nSimulation complete! {nt} iterations, final time = {t}")
 
 

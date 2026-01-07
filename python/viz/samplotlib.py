@@ -199,9 +199,7 @@ def plot_field(
     # Add to axes
     ax.add_collection(collection)
 
-    # Auto-scale axes
-    mesh = field.mesh
-    ax.set_xlim(left=0)  # Will be updated by autoscale
+    # Auto-scale axes to fit all cells (handles negative coordinates)
     ax.autoscale_view()
 
     # Overlay mesh if requested

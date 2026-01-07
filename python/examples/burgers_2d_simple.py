@@ -39,9 +39,9 @@ def main():
     mesh = sam.MRMesh2D(box, config)
 
     # Fields
-    u = sam.field.vector(mesh, "u", n_components=2, init=0.0)
-    u1 = sam.field.vector(mesh, "u1", n_components=2, init=0.0)
-    u2 = sam.field.vector(mesh, "u2", n_components=2, init=0.0)
+    u = sam.field.zeros_vector(mesh, "u", n_components=2)
+    u1 = sam.field.zeros_vector(mesh, "u1", n_components=2)
+    u2 = sam.field.zeros_vector(mesh, "u2", n_components=2)
 
     # Initialize
     init_hat(u)

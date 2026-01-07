@@ -86,8 +86,8 @@ def main():
 
     # Create mesh and fields
     mesh = sam.MRMesh2D(box, config)
-    u = sam.field.scalar(mesh, "u", init=0.0)      # Current solution
-    unp1 = sam.field.scalar(mesh, "unp1", init=0.0)  # Next time step
+    u = sam.field.zeros(mesh, "u")      # Current solution
+    unp1 = sam.field.zeros(mesh, "unp1")  # Next time step
 
     # ============================================================
     # Initialize with circular condition

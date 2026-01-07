@@ -106,10 +106,10 @@ def main():
     mesh = sam.MRMesh2D(box, config)
 
     # Create fields for TVD-RK3 time stepping
-    u = sam.field.scalar(mesh, "u", init=0.0)      # Current solution
-    u1 = sam.field.scalar(mesh, "u1", init=0.0)    # RK stage 1
-    u2 = sam.field.scalar(mesh, "u2", init=0.0)    # RK stage 2
-    unp1 = sam.field.scalar(mesh, "unp1", init=0.0)  # RK stage 3
+    u = sam.field.zeros(mesh, "u")      # Current solution
+    u1 = sam.field.zeros(mesh, "u1")    # RK stage 1
+    u2 = sam.field.zeros(mesh, "u2")    # RK stage 2
+    unp1 = sam.field.zeros(mesh, "unp1")  # RK stage 3
 
     # ============================================================
     # Initialize with rectangle condition

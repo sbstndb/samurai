@@ -11,6 +11,8 @@
 #include <samurai/box.hpp>
 #include <samurai/cell.hpp>
 #include <samurai/field.hpp>
+#include <samurai/io/hdf5.hpp>
+#include <samurai/io/restart.hpp>
 #include <samurai/mesh_config.hpp>
 #include <samurai/mr/mesh.hpp>
 
@@ -31,6 +33,201 @@ using VectorField = samurai::VectorField<MRMesh<dim>, double, n_comp, SOA>;
 
 template <std::size_t dim>
 using Cell = samurai::Cell<dim, default_interval>;
+
+// ============================================================
+// Reduction helpers for ScalarField
+// ============================================================
+
+template <std::size_t dim>
+double field_sum(const ScalarField<dim>& field)
+{
+    return xt::sum(field.array())();
+}
+
+template <std::size_t dim>
+double field_mean(const ScalarField<dim>& field)
+{
+    return xt::mean(field.array())();
+}
+
+template <std::size_t dim>
+double field_max(const ScalarField<dim>& field)
+{
+    return xt::amax(field.array())();
+}
+
+template <std::size_t dim>
+double field_min(const ScalarField<dim>& field)
+{
+    return xt::amin(field.array())();
+}
+
+// ============================================================
+// Reduction helpers for VectorField
+// ============================================================
+
+// Sum over all elements (all components)
+template <std::size_t dim, std::size_t n_comp>
+double vectorfield_sum_all(const VectorField<dim, n_comp, false>& field)
+{
+    return xt::sum(field.array())();
+}
+
+template <std::size_t dim, std::size_t n_comp>
+double vectorfield_sum_all(const VectorField<dim, n_comp, true>& field)
+{
+    return xt::sum(field.array())();
+}
+
+// Sum by component (returns numpy array)
+template <std::size_t dim, std::size_t n_comp>
+py::array_t<double> vectorfield_sum_by_component(const VectorField<dim, n_comp, false>& field)
+{
+    // AOS layout: shape (n_cells, n_components)
+    auto& arr = field.array();
+    std::size_t n_cells = arr.shape()[0];
+
+    // Create result array
+    py::array_t<double> result(std::vector<std::size_t>{n_comp});
+    auto res_buf = result.request();
+    double* res_ptr = static_cast<double*>(res_buf.ptr);
+
+    // Sum for each component
+    for (std::size_t c = 0; c < n_comp; ++c)
+    {
+        double sum = 0.0;
+        for (std::size_t i = 0; i < n_cells; ++i)
+        {
+            sum += arr(i, c);
+        }
+        res_ptr[c] = sum;
+    }
+
+    return result;
+}
+
+template <std::size_t dim, std::size_t n_comp>
+py::array_t<double> vectorfield_sum_by_component(const VectorField<dim, n_comp, true>& field)
+{
+    // SOA layout: shape (n_components, n_cells)
+    auto& arr = field.array();
+    std::size_t n_cells = arr.shape()[1];
+
+    // Create result array
+    py::array_t<double> result(std::vector<std::size_t>{n_comp});
+    auto res_buf = result.request();
+    double* res_ptr = static_cast<double*>(res_buf.ptr);
+
+    // Sum for each component
+    for (std::size_t c = 0; c < n_comp; ++c)
+    {
+        double sum = 0.0;
+        for (std::size_t i = 0; i < n_cells; ++i)
+        {
+            sum += arr(c, i);
+        }
+        res_ptr[c] = sum;
+    }
+
+    return result;
+}
+
+// Mean over all elements
+template <std::size_t dim, std::size_t n_comp>
+double vectorfield_mean(const VectorField<dim, n_comp, false>& field)
+{
+    return xt::mean(field.array())();
+}
+
+template <std::size_t dim, std::size_t n_comp>
+double vectorfield_mean(const VectorField<dim, n_comp, true>& field)
+{
+    return xt::mean(field.array())();
+}
+
+// Max over all elements
+template <std::size_t dim, std::size_t n_comp>
+double vectorfield_max(const VectorField<dim, n_comp, false>& field)
+{
+    return xt::amax(field.array())();
+}
+
+template <std::size_t dim, std::size_t n_comp>
+double vectorfield_max(const VectorField<dim, n_comp, true>& field)
+{
+    return xt::amax(field.array())();
+}
+
+// Min over all elements
+template <std::size_t dim, std::size_t n_comp>
+double vectorfield_min(const VectorField<dim, n_comp, false>& field)
+{
+    return xt::amin(field.array())();
+}
+
+template <std::size_t dim, std::size_t n_comp>
+double vectorfield_min(const VectorField<dim, n_comp, true>& field)
+{
+    return xt::amin(field.array())();
+}
+
+// ============================================================
+// Magnitude helpers for VectorField
+// ============================================================
+
+template <std::size_t dim, std::size_t n_comp>
+py::array_t<double> vectorfield_magnitude(const VectorField<dim, n_comp, false>& field)
+{
+    // AOS layout: shape (n_cells, n_components)
+    auto& arr = field.array();
+    std::size_t n_cells = arr.shape()[0];
+
+    // Create output array
+    py::array_t<double> result(std::vector<std::size_t>{n_cells});
+    auto res_buf = result.request();
+    double* res_ptr = static_cast<double*>(res_buf.ptr);
+
+    // Compute magnitude for each cell
+    for (std::size_t i = 0; i < n_cells; ++i)
+    {
+        double sum_sq = 0.0;
+        for (std::size_t c = 0; c < n_comp; ++c)
+        {
+            double val = arr(i, c);
+            sum_sq += val * val;
+        }
+        res_ptr[i] = std::sqrt(sum_sq);
+    }
+
+    return result;
+}
+
+template <std::size_t dim, std::size_t n_comp>
+py::array_t<double> vectorfield_magnitude(const VectorField<dim, n_comp, true>& field)
+{
+    // SOA layout: shape (n_components, n_cells)
+    auto& arr = field.array();
+    std::size_t n_cells = arr.shape()[1];
+
+    // Create output array
+    py::array_t<double> result(std::vector<std::size_t>{n_cells});
+    auto res_buf = result.request();
+    double* res_ptr = static_cast<double*>(res_buf.ptr);
+
+    // Compute magnitude for each cell
+    for (std::size_t i = 0; i < n_cells; ++i)
+    {
+        double sum_sq = 0.0;
+        for (std::size_t c = 0; c < n_comp; ++c)
+        {
+            double val = arr(c, i);
+            sum_sq += val * val;
+        }
+        res_ptr[i] = std::sqrt(sum_sq);
+    }
+
+    return result;
+}
 
 // ============================================================
 // Field arithmetic operation helpers
@@ -115,6 +312,96 @@ template <std::size_t dim>
 void field_copy_to(ScalarField<dim>& dest, const ScalarField<dim>& src)
 {
     dest = src; // Uses copy assignment operator
+}
+
+// ============================================================
+// I/O method helpers for Field classes
+// ============================================================
+
+// Helper to convert Python path to filesystem path
+inline std::filesystem::path to_fs_path(const py::object& path_obj)
+{
+    if (path_obj.is_none())
+    {
+        return std::filesystem::current_path();
+    }
+
+    // Try os.PathLike protocol first (supports pathlib.Path)
+    if (py::hasattr(path_obj, "__fspath__"))
+    {
+        auto fspath_result = path_obj.attr("__fspath__")();
+        return std::filesystem::path(py::str(fspath_result));
+    }
+
+    // Fallback to string conversion
+    return std::filesystem::path(py::str(path_obj));
+}
+
+// Parse unified filepath into directory and basename
+struct FilePathParts
+{
+    std::filesystem::path directory;
+    std::string basename;
+};
+
+inline FilePathParts parse_unified_filepath(const py::object& filepath_obj)
+{
+    std::filesystem::path filepath = to_fs_path(filepath_obj);
+
+    // Extract directory and basename
+    std::filesystem::path directory = filepath.parent_path();
+    std::string basename = filepath.stem().string();
+
+    // If no directory, use current directory
+    if (directory.empty())
+    {
+        directory = std::filesystem::current_path();
+    }
+
+    return {directory, basename};
+}
+
+// ============================================================
+// I/O method wrappers for ScalarField
+// ============================================================
+
+template <std::size_t dim>
+void field_method_save(const ScalarField<dim>& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::save(directory, basename, field.mesh(), field);
+}
+
+template <std::size_t dim>
+void field_method_dump(const ScalarField<dim>& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::dump(directory, basename, field.mesh(), field);
+}
+
+template <std::size_t dim>
+void field_method_load(ScalarField<dim>& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::load(directory, basename, field.mesh(), field);
+}
+
+// ============================================================
+// I/O method wrappers for VectorField
+// ============================================================
+
+template <std::size_t dim, std::size_t n_comp, bool SOA>
+void field_method_save_vector(const VectorField<dim, n_comp, SOA>& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::save(directory, basename, field.mesh(), field);
+}
+
+template <std::size_t dim, std::size_t n_comp, bool SOA>
+void field_method_dump_vector(const VectorField<dim, n_comp, SOA>& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::dump(directory, basename, field.mesh(), field);
 }
 
 // Helper to bind common Field methods
@@ -318,6 +605,46 @@ void bind_scalar_field(py::module_& m, const std::string& name)
         py::return_value_policy::take_ownership,
         "Returns zero-copy NumPy view of field data");
 
+    // ============================================================
+    // NumPy-like reduction methods
+    // ============================================================
+
+    cls.def(
+        "sum",
+        [](const Field& f) -> double
+        {
+            return field_sum<dim>(f);
+        },
+        "Return the sum of all field values.\n\n"
+        "Equivalent to np.sum(field.numpy_view()).");
+
+    cls.def(
+        "mean",
+        [](const Field& f) -> double
+        {
+            return field_mean<dim>(f);
+        },
+        "Return the mean (average) of all field values.\n\n"
+        "Equivalent to np.mean(field.numpy_view()).");
+
+    cls.def(
+        "max",
+        [](const Field& f) -> double
+        {
+            return field_max<dim>(f);
+        },
+        "Return the maximum value in the field.\n\n"
+        "Equivalent to np.max(field.numpy_view()).");
+
+    cls.def(
+        "min",
+        [](const Field& f) -> double
+        {
+            return field_min<dim>(f);
+        },
+        "Return the minimum value in the field.\n\n"
+        "Equivalent to np.min(field.numpy_view()).");
+
     // Integer-based indexing
     // Note: For CellWrapper-based indexing from for_each_cell, use field[cell.index]
     cls.def(
@@ -363,6 +690,121 @@ void bind_scalar_field(py::module_& m, const std::string& name)
     cls.def("clone", &field_clone<dim>, "Create a deep copy of this field");
 
     cls.def("copy_to", &field_copy_to<dim>, py::arg("dest"), "Copy this field's data to destination field");
+
+    // ============================================================
+    // I/O methods
+    // ============================================================
+
+    cls.def(
+        "save",
+        [](const Field& f, const py::object& filepath_obj)
+        {
+            field_method_save<dim>(f, filepath_obj);
+        },
+        py::arg("filepath"),
+        R"pbdoc(
+            Save field to HDF5 + XDMF for Paraview visualization.
+
+            Parameters
+            ----------
+            filepath : str or Path
+                Output file path (e.g., 'results/solution.h5')
+                The .h5 and .xdmf extensions are added automatically.
+
+            Creates
+            -------
+            {directory}/{basename}.h5 - HDF5 data file
+            {directory}/{basename}.xdmf - XDMF metadata file for Paraview
+
+            Examples
+            --------
+            >>> field.save('solution.h5')              # Current directory
+            >>> field.save('results/solution.h5')      # Subdirectory
+            >>> from pathlib import Path
+            >>> field.save(Path('results') / 'solution.h5')  # pathlib support
+
+            Notes
+            -----
+            - Creates both HDF5 data file and XDMF metadata file
+            - Use .dump() for checkpoint/restart (HDF5 only)
+            - Supports pathlib.Path objects
+
+            See Also
+            --------
+            dump : Save to HDF5 only for checkpoint/restart
+            load : Load field from HDF5 restart file
+            samurai.open_h5py : Open HDF5 file with h5py for direct access
+        )pbdoc");
+
+    cls.def(
+        "dump",
+        [](const Field& f, const py::object& filepath_obj)
+        {
+            field_method_dump<dim>(f, filepath_obj);
+        },
+        py::arg("filepath"),
+        R"pbdoc(
+            Dump field to HDF5 for checkpoint/restart (no XDMF metadata).
+
+            Parameters
+            ----------
+            filepath : str or Path
+                Output file path (e.g., 'checkpoints/restart.h5')
+                The .h5 extension is added automatically.
+
+            Creates
+            -------
+            {directory}/{basename}.h5 - HDF5 restart file only
+
+            Examples
+            --------
+            >>> field.dump('checkpoint.h5')             # Current directory
+            >>> field.dump('checkpoints/restart.h5')    # Subdirectory
+
+            Notes
+            -----
+            - Creates HDF5-only file (more efficient for checkpoints)
+            - Use .save() to create XDMF metadata for Paraview visualization
+            - Use .load() to restore from checkpoint file
+
+            See Also
+            --------
+            save : Save to HDF5 + XDMF for visualization
+            load : Load field from HDF5 restart file
+        )pbdoc");
+
+    cls.def(
+        "load",
+        [](Field& f, const py::object& filepath_obj)
+        {
+            field_method_load<dim>(f, filepath_obj);
+        },
+        py::arg("filepath"),
+        R"pbdoc(
+            Load field data from HDF5 restart file (modifies in place).
+
+            Parameters
+            ----------
+            filepath : str or Path
+                Input file path (e.g., 'checkpoints/restart.h5')
+                The .h5 extension is added automatically.
+
+            Examples
+            --------
+            >>> field.load('checkpoint.h5')             # Load from current directory
+            >>> field.load('checkpoints/restart.h5')    # Load from subdirectory
+
+            Notes
+            -----
+            - Modifies this field in-place (replaces data)
+            - Mesh structure is also loaded from the file
+            - Field name must match the name used when creating the checkpoint
+
+            See Also
+            --------
+            dump : Create checkpoint file
+            save : Save field with XDMF metadata
+        )pbdoc");
 
     // String representation
     cls.def("__repr__",
@@ -510,6 +952,84 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         py::return_value_policy::take_ownership,
         "Returns zero-copy NumPy view of vector field data");
 
+    // ============================================================
+    // NumPy-like reduction methods
+    // ============================================================
+
+    cls.def(
+        "sum",
+        [](const Field& f) -> double
+        {
+            return vectorfield_sum_all<Field::dim, n_comp>(f);
+        },
+        "Return the sum of all field values (all components).\n\n"
+        "Equivalent to np.sum(field.numpy_view()).");
+
+    cls.def(
+        "sum",
+        [](const Field& f, const std::string& axis) -> py::array_t<double>
+        {
+            if (axis == "components")
+            {
+                return vectorfield_sum_by_component<Field::dim, n_comp>(f);
+            }
+            else
+            {
+                throw std::runtime_error("Invalid axis: '" + axis + "'. Use 'components' for per-component sum.");
+            }
+        },
+        py::arg("axis"),
+        "Return sum by component.\n\n"
+        "Parameters\n"
+        "----------\n"
+        "axis : str\n"
+        "    'components' - return sum for each component separately\n\n"
+        "Returns\n"
+        "-------\n"
+        "numpy.ndarray\n"
+        "    Array of shape (n_components,) with sums");
+
+    cls.def(
+        "mean",
+        [](const Field& f) -> double
+        {
+            return vectorfield_mean<Field::dim, n_comp>(f);
+        },
+        "Return the mean (average) of all field values.\n\n"
+        "Equivalent to np.mean(field.numpy_view()).");
+
+    cls.def(
+        "max",
+        [](const Field& f) -> double
+        {
+            return vectorfield_max<Field::dim, n_comp>(f);
+        },
+        "Return the maximum value in the field.\n\n"
+        "Equivalent to np.max(field.numpy_view()).");
+
+    cls.def(
+        "min",
+        [](const Field& f) -> double
+        {
+            return vectorfield_min<Field::dim, n_comp>(f);
+        },
+        "Return the minimum value in the field.\n\n"
+        "Equivalent to np.min(field.numpy_view()).");
+
+    // Magnitude (Euclidean norm) for each cell
+    cls.def(
+        "magnitude",
+        [](const Field& f) -> py::array_t<double>
+        {
+            return vectorfield_magnitude<Field::dim, n_comp>(f);
+        },
+        "Return the Euclidean magnitude (norm) for each cell.\n\n"
+        "Returns a NumPy array of shape (n_cells,) with:\n"
+        "    sqrt(v0^2 + v1^2 + ...) for each cell\n\n"
+        "Example:\n"
+        "    >>> vel = sam.field.vector(mesh, 'velocity', n_components=2)\n"
+        "    >>> speed = vel.magnitude()  # Get speed at each cell");
+
     // Get component as scalar field (returns new field with extracted component)
     cls.def(
         "get_component",
@@ -545,6 +1065,67 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         },
         py::arg("component"),
         "Extract a single component as a new ScalarField");
+
+    // ============================================================
+    // I/O methods for VectorField
+    // ============================================================
+
+    cls.def(
+        "save",
+        [](const Field& f, const py::object& filepath_obj)
+        {
+            field_method_save_vector<Field::dim, n_comp, Field::is_soa>(f, filepath_obj);
+        },
+        py::arg("filepath"),
+        R"pbdoc(
+            Save vector field to HDF5 + XDMF for Paraview visualization.
+
+            Parameters
+            ----------
+            filepath : str or Path
+                Output file path (e.g., 'results/velocity.h5')
+                The .h5 and .xdmf extensions are added automatically.
+
+            Creates
+            -------
+            {directory}/{basename}.h5 - HDF5 data file
+            {directory}/{basename}.xdmf - XDMF metadata file for Paraview
+
+            Examples
+            --------
+            >>> velocity.save('velocity.h5')              # Current directory
+            >>> velocity.save('results/velocity.h5')      # Subdirectory
+
+            See Also
+            --------
+            dump : Save to HDF5 only for checkpoint/restart
+        )pbdoc");
+
+    cls.def(
+        "dump",
+        [](const Field& f, const py::object& filepath_obj)
+        {
+            field_method_dump_vector<Field::dim, n_comp, Field::is_soa>(f, filepath_obj);
+        },
+        py::arg("filepath"),
+        R"pbdoc(
+            Dump vector field to HDF5 for checkpoint/restart (no XDMF metadata).
+
+            Parameters
+            ----------
+            filepath : str or Path
+                Output file path (e.g., 'checkpoints/restart.h5')
+                The .h5 extension is added automatically.
+
+            Examples
+            --------
+            >>> velocity.dump('checkpoint.h5')             # Current directory
+            >>> velocity.dump('checkpoints/restart.h5')    # Subdirectory
+
+            See Also
+            --------
+            save : Save to HDF5 + XDMF for visualization
+        )pbdoc");
 
     // Integer-based indexing for VectorField
     // __getitem__ returns a list of component values
@@ -982,6 +1563,551 @@ void init_field_bindings(py::module_& m)
         py::arg("init") = 0.0,
         "Create a 3D vector field.\n\n"
         "See 1D version for detailed documentation.");
+
+    // ============================================================
+    // NumPy-style field creation helpers - Scalar Fields
+    // ============================================================
+
+    // === zeros() - create scalar field initialized to 0.0 ===
+    field.def("zeros",
+        [](MRMesh<1>& mesh, const std::string& name)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, 0.0);
+        },
+        py::arg("mesh"),
+        py::arg("name") = "zeros",
+        R"pbdoc(
+        Create a scalar field initialized to zeros.
+
+        Equivalent to sam.field.scalar(mesh, name, init=0.0).
+
+        Parameters
+        ----------
+        mesh : MRMesh1D
+            Mesh to define field on
+        name : str, optional
+            Field name (default: "zeros")
+
+        Returns
+        -------
+        ScalarField1D
+            Field with all values set to 0.0
+
+        Examples
+        --------
+        >>> u = sam.field.zeros(mesh, "u")
+        )pbdoc");
+
+    field.def("zeros",
+        [](MRMesh<2>& mesh, const std::string& name)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, 0.0);
+        },
+        py::arg("mesh"),
+        py::arg("name") = "zeros",
+        "Create a 2D scalar field initialized to zeros");
+
+    field.def("zeros",
+        [](MRMesh<3>& mesh, const std::string& name)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, 0.0);
+        },
+        py::arg("mesh"),
+        py::arg("name") = "zeros",
+        "Create a 3D scalar field initialized to zeros");
+
+    // === ones() - create scalar field initialized to 1.0 ===
+    field.def("ones",
+        [](MRMesh<1>& mesh, const std::string& name)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, 1.0);
+        },
+        py::arg("mesh"),
+        py::arg("name") = "ones",
+        "Create a 1D scalar field initialized to ones");
+
+    field.def("ones",
+        [](MRMesh<2>& mesh, const std::string& name)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, 1.0);
+        },
+        py::arg("mesh"),
+        py::arg("name") = "ones",
+        "Create a 2D scalar field initialized to ones");
+
+    field.def("ones",
+        [](MRMesh<3>& mesh, const std::string& name)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, 1.0);
+        },
+        py::arg("mesh"),
+        py::arg("name") = "ones",
+        "Create a 3D scalar field initialized to ones");
+
+    // === full() - create scalar field filled with specified value ===
+    field.def("full",
+        [](MRMesh<1>& mesh, double fill_value, const std::string& name)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, fill_value);
+        },
+        py::arg("mesh"),
+        py::arg("fill_value"),
+        py::arg("name") = "full",
+        "Create a 1D scalar field filled with specified value");
+
+    field.def("full",
+        [](MRMesh<2>& mesh, double fill_value, const std::string& name)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, fill_value);
+        },
+        py::arg("mesh"),
+        py::arg("fill_value"),
+        py::arg("name") = "full",
+        "Create a 2D scalar field filled with specified value");
+
+    field.def("full",
+        [](MRMesh<3>& mesh, double fill_value, const std::string& name)
+        {
+            return samurai::make_scalar_field<double>(name, mesh, fill_value);
+        },
+        py::arg("mesh"),
+        py::arg("fill_value"),
+        py::arg("name") = "full",
+        "Create a 3D scalar field filled with specified value");
+
+    // === zeros_like() - create scalar field like another but with zeros ===
+    field.def("zeros_like",
+        [](const ScalarField<1>& other, const std::string& name)
+        {
+            auto& mesh = const_cast<MRMesh<1>&>(other.mesh());
+            return samurai::make_scalar_field<double>(name, mesh, 0.0);
+        },
+        py::arg("other"),
+        py::arg("name") = "zeros_like",
+        "Create a 1D scalar field like another but initialized to 0.0");
+
+    field.def("zeros_like",
+        [](const ScalarField<2>& other, const std::string& name)
+        {
+            auto& mesh = const_cast<MRMesh<2>&>(other.mesh());
+            return samurai::make_scalar_field<double>(name, mesh, 0.0);
+        },
+        py::arg("other"),
+        py::arg("name") = "zeros_like",
+        "Create a 2D scalar field like another but initialized to 0.0");
+
+    field.def("zeros_like",
+        [](const ScalarField<3>& other, const std::string& name)
+        {
+            auto& mesh = const_cast<MRMesh<3>&>(other.mesh());
+            return samurai::make_scalar_field<double>(name, mesh, 0.0);
+        },
+        py::arg("other"),
+        py::arg("name") = "zeros_like",
+        "Create a 3D scalar field like another but initialized to 0.0");
+
+    // === ones_like() - create scalar field like another but with ones ===
+    field.def("ones_like",
+        [](const ScalarField<1>& other, const std::string& name)
+        {
+            auto& mesh = const_cast<MRMesh<1>&>(other.mesh());
+            return samurai::make_scalar_field<double>(name, mesh, 1.0);
+        },
+        py::arg("other"),
+        py::arg("name") = "ones_like",
+        "Create a 1D scalar field like another but initialized to 1.0");
+
+    field.def("ones_like",
+        [](const ScalarField<2>& other, const std::string& name)
+        {
+            auto& mesh = const_cast<MRMesh<2>&>(other.mesh());
+            return samurai::make_scalar_field<double>(name, mesh, 1.0);
+        },
+        py::arg("other"),
+        py::arg("name") = "ones_like",
+        "Create a 2D scalar field like another but initialized to 1.0");
+
+    field.def("ones_like",
+        [](const ScalarField<3>& other, const std::string& name)
+        {
+            auto& mesh = const_cast<MRMesh<3>&>(other.mesh());
+            return samurai::make_scalar_field<double>(name, mesh, 1.0);
+        },
+        py::arg("other"),
+        py::arg("name") = "ones_like",
+        "Create a 3D scalar field like another but initialized to 1.0");
+
+    // === full_like() - create scalar field like another with specified value ===
+    field.def("full_like",
+        [](const ScalarField<1>& other, double fill_value, const std::string& name)
+        {
+            auto& mesh = const_cast<MRMesh<1>&>(other.mesh());
+            return samurai::make_scalar_field<double>(name, mesh, fill_value);
+        },
+        py::arg("other"),
+        py::arg("fill_value"),
+        py::arg("name") = "full_like",
+        "Create a 1D scalar field like another with specified value");
+
+    field.def("full_like",
+        [](const ScalarField<2>& other, double fill_value, const std::string& name)
+        {
+            auto& mesh = const_cast<MRMesh<2>&>(other.mesh());
+            return samurai::make_scalar_field<double>(name, mesh, fill_value);
+        },
+        py::arg("other"),
+        py::arg("fill_value"),
+        py::arg("name") = "full_like",
+        "Create a 2D scalar field like another with specified value");
+
+    field.def("full_like",
+        [](const ScalarField<3>& other, double fill_value, const std::string& name)
+        {
+            auto& mesh = const_cast<MRMesh<3>&>(other.mesh());
+            return samurai::make_scalar_field<double>(name, mesh, fill_value);
+        },
+        py::arg("other"),
+        py::arg("fill_value"),
+        py::arg("name") = "full_like",
+        "Create a 3D scalar field like another with specified value");
+
+    // ============================================================
+    // NumPy-style field creation helpers - Vector Fields
+    // ============================================================
+
+    // Helper lambda to create vector field (returns py::object for type erasure)
+    auto make_zeros_vector_1d = [](MRMesh<1>& mesh, const std::string& name, std::size_t n_components) -> py::object
+    {
+        if (n_components == 2)
+        {
+            auto field = samurai::make_vector_field<double, 2, false>(name, mesh, 0.0);
+            return py::cast(std::move(field));
+        }
+        else if (n_components == 3)
+        {
+            auto field = samurai::make_vector_field<double, 3, false>(name, mesh, 0.0);
+            return py::cast(std::move(field));
+        }
+        else
+        {
+            throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+        }
+    };
+
+    auto make_zeros_vector_2d = [](MRMesh<2>& mesh, const std::string& name, std::size_t n_components) -> py::object
+    {
+        if (n_components == 2)
+        {
+            auto field = samurai::make_vector_field<double, 2, false>(name, mesh, 0.0);
+            return py::cast(std::move(field));
+        }
+        else if (n_components == 3)
+        {
+            auto field = samurai::make_vector_field<double, 3, false>(name, mesh, 0.0);
+            return py::cast(std::move(field));
+        }
+        else
+        {
+            throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+        }
+    };
+
+    auto make_zeros_vector_3d = [](MRMesh<3>& mesh, const std::string& name, std::size_t n_components) -> py::object
+    {
+        if (n_components == 2)
+        {
+            auto field = samurai::make_vector_field<double, 2, false>(name, mesh, 0.0);
+            return py::cast(std::move(field));
+        }
+        else if (n_components == 3)
+        {
+            auto field = samurai::make_vector_field<double, 3, false>(name, mesh, 0.0);
+            return py::cast(std::move(field));
+        }
+        else
+        {
+            throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+        }
+    };
+
+    // === zeros_vector() - create vector field with zeros ===
+    field.def("zeros_vector",
+        make_zeros_vector_1d,
+        py::arg("mesh"),
+        py::arg("name") = "vel",
+        py::arg("n_components") = 2,
+        R"pbdoc(
+        Create a vector field filled with zeros.
+
+        Parameters
+        ----------
+        mesh : MRMesh
+            Mesh to define field on
+        name : str, optional
+            Field name (default: "vel")
+        n_components : int, optional
+            Number of components (2 or 3, default: 2)
+
+        Returns
+        -------
+        VectorField
+            Vector field with all components set to 0.0
+
+        Examples
+        --------
+        >>> vel = sam.field.zeros_vector(mesh, n_components=2)
+        >>> B = sam.field.zeros_vector(mesh, "B", n_components=3)
+        )pbdoc");
+
+    field.def("zeros_vector",
+        make_zeros_vector_2d,
+        py::arg("mesh"),
+        py::arg("name") = "vel",
+        py::arg("n_components") = 2,
+        "Create a 2D vector field filled with zeros");
+
+    field.def("zeros_vector",
+        make_zeros_vector_3d,
+        py::arg("mesh"),
+        py::arg("name") = "vel",
+        py::arg("n_components") = 2,
+        "Create a 3D vector field filled with zeros");
+
+    // === ones_vector() - create vector field with ones ===
+    auto make_ones_vector_1d = [](MRMesh<1>& mesh, const std::string& name, std::size_t n_components) -> py::object
+    {
+        if (n_components == 2)
+        {
+            auto field = samurai::make_vector_field<double, 2, false>(name, mesh, 1.0);
+            return py::cast(std::move(field));
+        }
+        else if (n_components == 3)
+        {
+            auto field = samurai::make_vector_field<double, 3, false>(name, mesh, 1.0);
+            return py::cast(std::move(field));
+        }
+        else
+        {
+            throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+        }
+    };
+
+    auto make_ones_vector_2d = [](MRMesh<2>& mesh, const std::string& name, std::size_t n_components) -> py::object
+    {
+        if (n_components == 2)
+        {
+            auto field = samurai::make_vector_field<double, 2, false>(name, mesh, 1.0);
+            return py::cast(std::move(field));
+        }
+        else if (n_components == 3)
+        {
+            auto field = samurai::make_vector_field<double, 3, false>(name, mesh, 1.0);
+            return py::cast(std::move(field));
+        }
+        else
+        {
+            throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+        }
+    };
+
+    auto make_ones_vector_3d = [](MRMesh<3>& mesh, const std::string& name, std::size_t n_components) -> py::object
+    {
+        if (n_components == 2)
+        {
+            auto field = samurai::make_vector_field<double, 2, false>(name, mesh, 1.0);
+            return py::cast(std::move(field));
+        }
+        else if (n_components == 3)
+        {
+            auto field = samurai::make_vector_field<double, 3, false>(name, mesh, 1.0);
+            return py::cast(std::move(field));
+        }
+        else
+        {
+            throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+        }
+    };
+
+    field.def("ones_vector",
+        make_ones_vector_1d,
+        py::arg("mesh"),
+        py::arg("name") = "vel",
+        py::arg("n_components") = 2,
+        "Create a 1D vector field filled with ones");
+
+    field.def("ones_vector",
+        make_ones_vector_2d,
+        py::arg("mesh"),
+        py::arg("name") = "vel",
+        py::arg("n_components") = 2,
+        "Create a 2D vector field filled with ones");
+
+    field.def("ones_vector",
+        make_ones_vector_3d,
+        py::arg("mesh"),
+        py::arg("name") = "vel",
+        py::arg("n_components") = 2,
+        "Create a 3D vector field filled with ones");
+
+    // === full_vector() - create vector field filled with specified value ===
+    auto make_full_vector_1d = [](MRMesh<1>& mesh, double fill_value, const std::string& name, std::size_t n_components) -> py::object
+    {
+        if (n_components == 2)
+        {
+            auto field = samurai::make_vector_field<double, 2, false>(name, mesh, fill_value);
+            return py::cast(std::move(field));
+        }
+        else if (n_components == 3)
+        {
+            auto field = samurai::make_vector_field<double, 3, false>(name, mesh, fill_value);
+            return py::cast(std::move(field));
+        }
+        else
+        {
+            throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+        }
+    };
+
+    auto make_full_vector_2d = [](MRMesh<2>& mesh, double fill_value, const std::string& name, std::size_t n_components) -> py::object
+    {
+        if (n_components == 2)
+        {
+            auto field = samurai::make_vector_field<double, 2, false>(name, mesh, fill_value);
+            return py::cast(std::move(field));
+        }
+        else if (n_components == 3)
+        {
+            auto field = samurai::make_vector_field<double, 3, false>(name, mesh, fill_value);
+            return py::cast(std::move(field));
+        }
+        else
+        {
+            throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+        }
+    };
+
+    auto make_full_vector_3d = [](MRMesh<3>& mesh, double fill_value, const std::string& name, std::size_t n_components) -> py::object
+    {
+        if (n_components == 2)
+        {
+            auto field = samurai::make_vector_field<double, 2, false>(name, mesh, fill_value);
+            return py::cast(std::move(field));
+        }
+        else if (n_components == 3)
+        {
+            auto field = samurai::make_vector_field<double, 3, false>(name, mesh, fill_value);
+            return py::cast(std::move(field));
+        }
+        else
+        {
+            throw std::runtime_error("n_components must be 2 or 3, got: " + std::to_string(n_components));
+        }
+    };
+
+    field.def("full_vector",
+        make_full_vector_1d,
+        py::arg("mesh"),
+        py::arg("fill_value"),
+        py::arg("name") = "vel",
+        py::arg("n_components") = 2,
+        "Create a 1D vector field filled with specified value");
+
+    field.def("full_vector",
+        make_full_vector_2d,
+        py::arg("mesh"),
+        py::arg("fill_value"),
+        py::arg("name") = "vel",
+        py::arg("n_components") = 2,
+        "Create a 2D vector field filled with specified value");
+
+    field.def("full_vector",
+        make_full_vector_3d,
+        py::arg("mesh"),
+        py::arg("fill_value"),
+        py::arg("name") = "vel",
+        py::arg("n_components") = 2,
+        "Create a 3D vector field filled with specified value");
+
+    // === zeros_like_vector() - create vector field like another but with zeros ===
+    // Use type erasure pattern to handle different VectorField types
+    field.def("zeros_like_vector",
+        [](const py::object& other, const std::string& name) -> py::object
+        {
+            // For VectorField2D_2
+            if (py::isinstance<VectorField<2, 2, false>>(other))
+            {
+                auto& field_obj = other.cast<VectorField<2, 2, false>&>();
+                auto& mesh = const_cast<MRMesh<2>&>(field_obj.mesh());
+                auto new_field = samurai::make_vector_field<double, 2, false>(name, mesh, 0.0);
+                return py::cast(std::move(new_field));
+            }
+            // For VectorField2D_3
+            else if (py::isinstance<VectorField<2, 3, false>>(other))
+            {
+                auto& field_obj = other.cast<VectorField<2, 3, false>&>();
+                auto& mesh = const_cast<MRMesh<2>&>(field_obj.mesh());
+                auto new_field = samurai::make_vector_field<double, 3, false>(name, mesh, 0.0);
+                return py::cast(std::move(new_field));
+            }
+            // For VectorField3D_2
+            else if (py::isinstance<VectorField<3, 2, false>>(other))
+            {
+                auto& field_obj = other.cast<VectorField<3, 2, false>&>();
+                auto& mesh = const_cast<MRMesh<3>&>(field_obj.mesh());
+                auto new_field = samurai::make_vector_field<double, 2, false>(name, mesh, 0.0);
+                return py::cast(std::move(new_field));
+            }
+            // For VectorField3D_3
+            else if (py::isinstance<VectorField<3, 3, false>>(other))
+            {
+                auto& field_obj = other.cast<VectorField<3, 3, false>&>();
+                auto& mesh = const_cast<MRMesh<3>&>(field_obj.mesh());
+                auto new_field = samurai::make_vector_field<double, 3, false>(name, mesh, 0.0);
+                return py::cast(std::move(new_field));
+            }
+            // For VectorField1D_2
+            else if (py::isinstance<VectorField<1, 2, false>>(other))
+            {
+                auto& field_obj = other.cast<VectorField<1, 2, false>&>();
+                auto& mesh = const_cast<MRMesh<1>&>(field_obj.mesh());
+                auto new_field = samurai::make_vector_field<double, 2, false>(name, mesh, 0.0);
+                return py::cast(std::move(new_field));
+            }
+            // For VectorField1D_3
+            else if (py::isinstance<VectorField<1, 3, false>>(other))
+            {
+                auto& field_obj = other.cast<VectorField<1, 3, false>&>();
+                auto& mesh = const_cast<MRMesh<1>&>(field_obj.mesh());
+                auto new_field = samurai::make_vector_field<double, 3, false>(name, mesh, 0.0);
+                return py::cast(std::move(new_field));
+            }
+            else
+            {
+                throw std::runtime_error("zeros_like_vector: argument must be a VectorField");
+            }
+        },
+        py::arg("other"),
+        py::arg("name") = "vel2",
+        R"pbdoc(
+        Create a vector field like another but filled with zeros.
+
+        Parameters
+        ----------
+        other : VectorField
+            Template field to copy mesh and component count from
+        name : str, optional
+            Name for the new field (default: "vel2")
+
+        Returns
+        -------
+        VectorField
+            New vector field with same mesh and components as other, but with zeros
+
+        Examples
+        --------
+        >>> vel = sam.field.zeros_vector(mesh, n_components=2)
+        >>> vel2 = sam.field.zeros_like_vector(vel, "vel2")
+        )pbdoc");
 
     // ============================================================
     // Array swap utilities for efficient time stepping

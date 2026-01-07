@@ -36,6 +36,7 @@ using VectorField3D_3 = VectorField<3, 3, false>;
 
 // ============================================================
 // Helper to convert Python path/string to fs::path
+// Supports pathlib.Path objects and PathLike protocol
 // ============================================================
 
 inline std::filesystem::path to_fs_path(const py::object& path_obj)
@@ -44,6 +45,15 @@ inline std::filesystem::path to_fs_path(const py::object& path_obj)
     {
         return std::filesystem::current_path();
     }
+
+    // Try os.PathLike protocol first (supports pathlib.Path)
+    if (py::hasattr(path_obj, "__fspath__"))
+    {
+        auto fspath_result = path_obj.attr("__fspath__")();
+        return std::filesystem::path(py::str(fspath_result));
+    }
+
+    // Fallback to string conversion
     return std::filesystem::path(py::str(path_obj));
 }
 
@@ -326,6 +336,116 @@ void load_3d_path(const py::object& path_obj, const std::string& filename, Scala
 void load_3d_file(const std::string& filename, ScalarField<3>& field)
 {
     samurai::load(filename, field.mesh(), field);
+}
+
+// ============================================================
+// open_h5py() helper function - Open HDF5 files with h5py
+// ============================================================
+
+py::object open_h5py_wrapper(const py::object& filename_obj, const std::string& mode)
+{
+    // Convert filename to string, add .h5 extension if needed
+    std::string filename = py::str(filename_obj);
+    if (filename.size() < 3 || filename.substr(filename.size() - 3) != ".h5")
+    {
+        filename = filename + ".h5";
+    }
+
+    // Import h5py
+    auto h5py = py::module_::import("h5py");
+    auto File = h5py.attr("File");
+
+    // Return h5py.File object
+    return File(filename, mode);
+}
+
+// ============================================================
+// Field method helpers - Unified path parsing
+// ============================================================
+
+// Parse unified filepath into directory and filename
+struct FilePathParts
+{
+    std::filesystem::path directory;
+    std::string basename;
+};
+
+inline FilePathParts parse_unified_filepath(const py::object& filepath_obj)
+{
+    std::filesystem::path filepath = to_fs_path(filepath_obj);
+
+    // Extract directory and basename
+    std::filesystem::path directory = filepath.parent_path();
+    std::string basename = filepath.stem().string();
+
+    // If no directory, use current directory
+    if (directory.empty())
+    {
+        directory = std::filesystem::current_path();
+    }
+
+    return {directory, basename};
+}
+
+// ============================================================
+// Field method wrappers for save()
+// ============================================================
+
+template <std::size_t dim>
+void field_method_save(const ScalarField<dim>& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::save(directory, basename, field.mesh(), field);
+}
+
+template <std::size_t dim>
+void field_method_save_vector(const VectorField2D_2& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::save(directory, basename, field.mesh(), field);
+}
+
+template <std::size_t dim>
+void field_method_save_vector3d(const VectorField3D_3& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::save(directory, basename, field.mesh(), field);
+}
+
+// ============================================================
+// Field method wrappers for dump()
+// ============================================================
+
+template <std::size_t dim>
+void field_method_dump(const ScalarField<dim>& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::dump(directory, basename, field.mesh(), field);
+}
+
+template <std::size_t dim>
+void field_method_dump_vector(const VectorField2D_2& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::dump(directory, basename, field.mesh(), field);
+}
+
+template <std::size_t dim>
+void field_method_dump_vector3d(const VectorField3D_3& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::dump(directory, basename, field.mesh(), field);
+}
+
+// ============================================================
+// Field method wrappers for load()
+// ============================================================
+
+template <std::size_t dim>
+void field_method_load(ScalarField<dim>& field, const py::object& filepath_obj)
+{
+    auto [directory, basename] = parse_unified_filepath(filepath_obj);
+    samurai::load(directory, basename, field.mesh(), field);
 }
 
 // ============================================================
@@ -630,4 +750,59 @@ void init_io_bindings(py::module_& m)
     m.def("load", &load_3d_path, py::arg("path"), py::arg("filename"), py::arg("field"), "Load 3D field mesh and data from HDF5 restart file");
 
     m.def("load", &load_3d_file, py::arg("filename"), py::arg("field"), "Load 3D field from HDF5 restart file (current directory)");
+
+    // ============================================================
+    // open_h5py() function binding
+    // ============================================================
+
+    m.def("open_h5py",
+          &open_h5py_wrapper,
+          py::arg("filename"),
+          py::arg("mode") = "r",
+          R"pbdoc(
+            Open HDF5 file created by Samurai using h5py.
+
+            This function opens an HDF5 file created by Samurai's save() or dump()
+            functions and returns an h5py.File object for direct data access.
+
+            Parameters
+            ----------
+            filename : str or Path
+                File path to open (with or without .h5 extension)
+            mode : str, default: 'r'
+                File access mode:
+                - 'r': Read-only (default)
+                - 'r+': Read and write
+                - 'w': Write (truncate existing file)
+
+            Returns
+            -------
+            h5py.File
+                h5py File object for direct HDF5 data access
+
+            Examples
+            --------
+            >>> import samurai_python as sam
+            >>> # Save a field
+            >>> field.save("results/solution.h5")
+            >>> # Open with h5py
+            >>> with samurai.open_h5py("results/solution.h5") as f:
+            ...     data = f["mesh/fields/u"][:]
+            ...     points = f["mesh/points"][:]
+            ...     print(f"Field min: {data.min()}, max: {data.max()}")
+
+            Notes
+            -----
+            Requires h5py to be installed (pip install h5py).
+
+            The HDF5 file structure is:
+            /mesh/points - Cell coordinates (N x 3)
+            /mesh/connectivity - Cell connectivity (N_cells x 2^dim)
+            /mesh/fields/{field_name} - Field data
+
+            See Also
+            --------
+            Field.save : Save field to HDF5
+            Field.load : Load field from HDF5
+        )pbdoc");
 }

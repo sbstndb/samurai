@@ -265,9 +265,37 @@ void init_box_bindings(py::module_& m)
     bind_box<2>(m, "Box2D");
     bind_box<3>(m, "Box3D");
 
-    // Also expose them in a submodule for better organization
-    py::module_ geometry   = m.def_submodule("geometry", "Geometric primitives");
+    // ============================================================
+    // Create geometry submodule for organized API access
+    // ============================================================
+    py::module_ geometry = m.def_submodule("geometry",
+        "Geometric primitives for Samurai AMR simulations\n\n"
+        "This submodule provides organized access to geometric classes.\n"
+        "Both sam.geometry.Box2D and sam.Box2D reference the same class.\n\n"
+        "Examples:\n"
+        "    >>> import samurai_python as sam\n"
+        "    >>> # New organized API (recommended)\n"
+        "    >>> box = sam.geometry.Box2D([0., 0.], [1., 1.])\n"
+        "    >>> # Old API (still works)\n"
+        "    >>> box = sam.Box2D([0., 0.], [1., 1.])\n");
+
+    // Reference existing Box classes in the submodule
     geometry.attr("Box1D") = m.attr("Box1D");
     geometry.attr("Box2D") = m.attr("Box2D");
     geometry.attr("Box3D") = m.attr("Box3D");
+
+    // Also include Interval if it's bound in the main module
+    // (interval_bindings.cpp may be initialized before or after this file)
+    try
+    {
+        py::object interval = m.attr("Interval");
+        geometry.attr("Interval") = interval;
+    }
+    catch (const py::error_already_set&)
+    {
+        // Interval not yet bound, will be added later by interval_bindings.cpp
+    }
+
+    // Note: DomainBuilder classes are added by domain_builder_bindings.cpp
+    // They will be available as geometry.DomainBuilder1D, etc.
 }

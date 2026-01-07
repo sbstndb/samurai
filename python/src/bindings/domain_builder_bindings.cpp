@@ -245,8 +245,12 @@ void init_domain_builder_bindings(py::module_& m)
     bind_domain_builder<2>(m, "DomainBuilder2D");
     bind_domain_builder<3>(m, "DomainBuilder3D");
 
-    // Also expose them in a submodule for better organization
-    py::module_ geometry = m.def_submodule("geometry", "Geometric primitives");
+    // ============================================================
+    // Contribute to geometry submodule for organized API access
+    // ============================================================
+    // Note: The geometry submodule is created by box_bindings.cpp
+    // We retrieve it here and add DomainBuilder classes to it
+    py::module_ geometry = m.def_submodule("geometry");
     geometry.attr("DomainBuilder1D") = m.attr("DomainBuilder1D");
     geometry.attr("DomainBuilder2D") = m.attr("DomainBuilder2D");
     geometry.attr("DomainBuilder3D") = m.attr("DomainBuilder3D");

@@ -32,6 +32,7 @@ if os.path.exists(viz_dir):
 import matplotlib.pyplot as plt
 import samurai_python as sam
 import samplotlib as svmpl  # matplotlib visualization
+from samurai.utils import progress
 
 
 def init_circular(u, center=(0.3, 0.3), radius=0.2):
@@ -50,7 +51,7 @@ def init_circular(u, center=(0.3, 0.3), radius=0.2):
         else:
             u[cell.index] = 0.0
 
-    sam.for_each_cell(u.mesh, init_cell)
+    sam.algorithms.for_each_cell(u.mesh, init_cell)
 
 
 def main():
@@ -63,7 +64,7 @@ def main():
     # ============================================================
 
     # Domain: [0, 1] x [0, 1]
-    box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
+    box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
 
     # Velocity: a = (1, 1)
     velocity = [1.0, 1.0]
@@ -90,13 +91,13 @@ def main():
     # Mesh configuration
     # ============================================================
 
-    config = sam.MeshConfig2D()
+    config = sam.config.MeshConfig2D()
     config.min_level = 4      # Minimum refinement level
     config.max_level = 10     # Maximum refinement level
     config.disable_minimal_ghost_width()  # Required for proper ghost cell handling
 
     # Create mesh and fields
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
     u = sam.field.zeros(mesh, "u")      # Current solution
     unp1 = sam.field.zeros(mesh, "unp1")  # Next time step
 
@@ -108,14 +109,14 @@ def main():
     init_circular(u, center=(0.3, 0.3), radius=0.2)
 
     # Apply boundary conditions
-    sam.make_dirichlet_bc(u, 0.0)
+    sam.boundary.dirichlet(u, 0.0)
 
     # ============================================================
     # Initial mesh adaptation
     # ============================================================
 
-    MRadaptation = sam.make_MRAdapt(u)
-    mra_config = sam.MRAConfig()
+    MRadaptation = sam.adaptation.make_MRAdapt(u)
+    mra_config = sam.config.MRAConfig()
     mra_config.epsilon = 2e-4
     mra_config.regularity = 1.0
 
@@ -143,8 +144,6 @@ def main():
     print(f"Min cell length: {min_cell_length:.6e}")
     print(f"Time step: {dt:.6e}")
 
-    t = 0.0
-    nt = 0
     save_interval = int(Tf / (dt * 10))  # Save ~10 times
     if save_interval < 1:
         save_interval = 1
@@ -158,56 +157,41 @@ def main():
         plt.pause(0.01)
 
     print(f"Starting time stepping...\n")
-    print(f"{'Iter':>6} {'Time':>12} {'Cells':>10} {'Min Level':>10} {'Max Level':>10}")
-    print("-" * 54)
 
-    while t < Tf:
-        # 1. Adapt mesh FIRST (as in C++ version)
-        MRadaptation(mra_config)
+    with progress.time_loop(Tf, dt, desc="Advection 2D") as pbar:
+        while True:
+            # 1. Adapt mesh FIRST (as in C++ version)
+            with pbar.mesh_adaptation(mesh):
+                MRadaptation(mra_config)
 
-        # 2. Resize unp1 field after mesh adaptation (CRITICAL!)
-        unp1.resize()
+            # 2. Resize unp1 field after mesh adaptation (CRITICAL!)
+            unp1.resize()
 
-        # 3. Update BCs and ghost cells BEFORE computing fluxes
-        sam.update_ghost_mr(u)
+            # 3. Update BCs and ghost cells BEFORE computing fluxes
+            sam.adaptation.update_ghost_mr(u)
 
-        # 4. Update time
-        t += dt
-        nt += 1
+            # 4. Advance time and check if simulation is complete
+            if not pbar.advance(dt, mesh=mesh):
+                break
 
-        # 5. Apply upwind operator with FRESH ghost values
-        upwind_result = sam.operators.upwind(velocity, u)
+            # 5. Apply upwind operator with FRESH ghost values
+            upwind_result = sam.operators.upwind(velocity, u)
 
-        # 6. Euler time step: unp1 = u - dt * upwind(a, u)
-        unp1.assign(u - dt * upwind_result)  # In-place to avoid stale mesh references
+            # 6. Euler time step: unp1 = u - dt * upwind(a, u)
+            unp1.assign(u - dt * upwind_result)  # In-place to avoid stale mesh references
 
-        # 7. Swap arrays (efficient: no memory allocation)
-        sam.swap_field_arrays_2d(u, unp1)
+            # 7. Swap arrays (efficient: no memory allocation)
+            sam.swap_field_arrays_2d(u, unp1)
 
-        # Print progress and save
-        if nt % save_interval == 0 or t >= Tf:
-            # Count cells by level
-            level_counts = {}
-            def count_by_level(cell):
-                level = cell.level
-                if level not in level_counts:
-                    level_counts[level] = 0
-                level_counts[level] += 1
-            sam.for_each_cell(mesh, count_by_level)
+            # Save and visualize at intervals
+            if pbar.iteration % save_interval == 0:
+                # Update real-time visualization
+                if enable_realtime_viz and plotter is not None:
+                    plotter.update(u, title=f"Advection 2D - t={pbar.current_time:.3f}, cells={mesh.nb_cells}")
+                    plt.pause(0.001)  # Small pause to allow GUI update
 
-            min_level = min(level_counts.keys()) if level_counts else 0
-            max_level = max(level_counts.keys()) if level_counts else 0
-            n_cells = sum(level_counts.values())
-
-            print(f"{nt:6d} {t:12.6e} {n_cells:10d} {min_level:10d} {max_level:10d}")
-
-            # Update real-time visualization
-            if enable_realtime_viz and plotter is not None:
-                plotter.update(u, title=f"Advection 2D - t={t:.3f}, cells={n_cells}")
-                plt.pause(0.001)  # Small pause to allow GUI update
-
-            # Save state
-            sam.save(str(output_path), f"{filename}_{nt:05d}", u)
+                # Save state
+                sam.save(str(output_path), f"{filename}_{pbar.iteration:05d}", u)
 
     # ============================================================
     # Summary
@@ -216,9 +200,9 @@ def main():
     print("\n" + "=" * 54)
     print(f"Simulation complete!")
     print(f"\nStatistics:")
-    print(f"  Final time: {t:.6e}")
-    print(f"  Time steps: {nt}")
-    print(f"  Output files: {nt // save_interval + 2}")
+    print(f"  Final time: {Tf:.6e}")
+    print(f"  Time steps: {pbar.iteration}")
+    print(f"  Output files: {pbar.iteration // save_interval + 2}")
     print(f"\nGenerated files in {output_path}:")
     print(f"  - {filename}_*.h5/.xdmf     (time series)")
     print(f"\nTo visualize in Paraview:")

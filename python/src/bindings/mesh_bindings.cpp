@@ -219,9 +219,22 @@ void init_mesh_bindings(py::module_& m)
     bind_mr_mesh<2>(m, "MRMesh2D");
     bind_mr_mesh<3>(m, "MRMesh3D");
 
-    // Also expose them in a submodule for better organization
-    py::module_ mesh      = m.def_submodule("mesh", "Mesh classes");
-    mesh.attr("MRMesh1D") = m.attr("MRMesh1D");
-    mesh.attr("MRMesh2D") = m.attr("MRMesh2D");
-    mesh.attr("MRMesh3D") = m.attr("MRMesh3D");
+    // ============================================================
+    // Create mesh submodule for organized API access
+    // ============================================================
+    py::module_ mesh_module = m.def_submodule("mesh",
+        "Mesh classes for Samurai AMR simulations\n\n"
+        "This submodule provides organized access to mesh data structures.\n"
+        "Both sam.mesh.MRMesh2D and sam.MRMesh2D reference the same class.\n\n"
+        "Examples:\n"
+        "    >>> import samurai_python as sam\n"
+        "    >>> # New organized API (recommended)\n"
+        "    >>> mesh = sam.mesh.MRMesh2D(box, config)\n"
+        "    >>> # Old API (still works)\n"
+        "    >>> mesh = sam.MRMesh2D(box, config)\n");
+
+    // Reference existing mesh classes (shared ownership, not copies)
+    mesh_module.attr("MRMesh1D") = m.attr("MRMesh1D");
+    mesh_module.attr("MRMesh2D") = m.attr("MRMesh2D");
+    mesh_module.attr("MRMesh3D") = m.attr("MRMesh3D");
 }

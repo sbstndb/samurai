@@ -254,4 +254,22 @@ void init_algorithm_bindings(py::module_& m)
 
     // Bind 3D overload
     m.def("for_each_cell", &for_each_cell_3d, py::arg("mesh"), py::arg("function"), "Iterate over all cells in the 3D mesh.");
+
+    // ============================================================
+    // Create algorithms submodule for organized API access
+    // ============================================================
+    py::module_ algorithms = m.def_submodule("algorithms",
+        "Algorithmic primitives for mesh traversal and field operations\n\n"
+        "This submodule provides organized access to iteration algorithms.\n"
+        "Both sam.algorithms.for_each_cell() and sam.for_each_cell() reference the same function.\n\n"
+        "Examples:\n"
+        "    >>> import samurai_python as sam\n"
+        "    >>> # New organized API (recommended)\n"
+        "    >>> sam.algorithms.for_each_cell(mesh, lambda cell: print(cell.center()))\n"
+        "    >>> # Old API (still works)\n"
+        "    >>> sam.for_each_cell(mesh, lambda cell: print(cell.center()))\n");
+
+    // Reference existing algorithm functions in the submodule
+    algorithms.attr("for_each_cell") = m.attr("for_each_cell");
+    algorithms.attr("for_each_interval") = m.attr("for_each_interval");
 }

@@ -24,19 +24,19 @@ def init_hat(u):
         else:
             value = 0.0
         u[cell.index] = [value, value]
-    sam.for_each_cell(u.mesh, init_cell)
+    sam.algorithms.for_each_cell(u.mesh, init_cell)
 
 
 def main():
     # Parameters - use fixed mesh (no adaptation)
-    box = sam.Box2D([-1.0, -1.0], [1.0, 1.0])
+    box = sam.geometry.Box2D([-1.0, -1.0], [1.0, 1.0])
 
-    config = sam.MeshConfig2D()
+    config = sam.config.MeshConfig2D()
     config.min_level = 6  # Fixed level, no adaptation
     config.max_level = 6
     config.max_stencil_size = 6
 
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
 
     # Fields
     u = sam.field.zeros_vector(mesh, "u", n_components=2)
@@ -45,9 +45,9 @@ def main():
 
     # Initialize
     init_hat(u)
-    sam.make_dirichlet_bc(u, [0.0, 0.0], order=3)
-    sam.make_dirichlet_bc(u1, [0.0, 0.0], order=3)
-    sam.make_dirichlet_bc(u2, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(u, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(u1, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(u2, [0.0, 0.0], order=3)
 
     # Time stepping
     Tf = 0.2

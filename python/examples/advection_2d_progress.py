@@ -68,7 +68,7 @@ def init_circular(u, center=(0.3, 0.3), radius=0.2):
         else:
             u[cell.index] = 0.0
 
-    sam.for_each_cell(u.mesh, init_cell)
+    sam.algorithms.for_each_cell(u.mesh, init_cell)
 
 
 def get_mesh_stats(mesh):
@@ -91,7 +91,7 @@ def get_mesh_stats(mesh):
             level_counts[level] = 0
         level_counts[level] += 1
 
-    sam.for_each_cell(mesh, count_by_level)
+    sam.algorithms.for_each_cell(mesh, count_by_level)
 
     stats['cells'] = sum(level_counts.values())
     stats['min_level'] = min(level_counts.keys()) if level_counts else 0
@@ -110,7 +110,7 @@ def main():
     # ============================================================
 
     # Domain: [0, 1] x [0, 1]
-    box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
+    box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
 
     # Velocity: a = (1, 1)
     velocity = [1.0, 1.0]
@@ -139,13 +139,13 @@ def main():
     # Mesh configuration
     # ============================================================
 
-    config = sam.MeshConfig2D()
+    config = sam.config.MeshConfig2D()
     config.min_level = 4      # Minimum refinement level
     config.max_level = 10     # Maximum refinement level
     config.disable_minimal_ghost_width()  # Required for proper ghost cell handling
 
     # Create mesh and fields
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
     u = sam.field.zeros(mesh, "u")      # Current solution
     unp1 = sam.field.zeros(mesh, "unp1")  # Next time step
 
@@ -157,14 +157,14 @@ def main():
     init_circular(u, center=(0.3, 0.3), radius=0.2)
 
     # Apply boundary conditions
-    sam.make_dirichlet_bc(u, 0.0)
+    sam.boundary.dirichlet(u, 0.0)
 
     # ============================================================
     # Initial mesh adaptation
     # ============================================================
 
-    MRadaptation = sam.make_MRAdapt(u)
-    mra_config = sam.MRAConfig()
+    MRadaptation = sam.adaptation.make_MRAdapt(u)
+    mra_config = sam.config.MRAConfig()
     mra_config.epsilon = 2e-4
     mra_config.regularity = 1.0
 
@@ -235,7 +235,7 @@ def main():
         unp1.resize()
 
         # 3. Update BCs and ghost cells BEFORE computing fluxes
-        sam.update_ghost_mr(u)
+        sam.adaptation.update_ghost_mr(u)
 
         # 4. Update time
         t += dt
@@ -269,7 +269,7 @@ def main():
                 if level not in level_counts:
                     level_counts[level] = 0
                 level_counts[level] += 1
-            sam.for_each_cell(mesh, count_by_level)
+            sam.algorithms.for_each_cell(mesh, count_by_level)
 
             min_level = min(level_counts.keys()) if level_counts else 0
             max_level = max(level_counts.keys()) if level_counts else 0

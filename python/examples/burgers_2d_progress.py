@@ -81,7 +81,7 @@ def init_hat(u):
         # Set both components to same value
         u[cell.index] = [value, value]
 
-    sam.for_each_cell(u.mesh, init_cell)
+    sam.algorithms.for_each_cell(u.mesh, init_cell)
 
 
 def init_bands(u):
@@ -117,7 +117,7 @@ def init_bands(u):
 
         u[cell.index] = [u_val, v_val]
 
-    sam.for_each_cell(u.mesh, init_cell)
+    sam.algorithms.for_each_cell(u.mesh, init_cell)
 
 
 def compute_magnitude(vector_field, scalar_field):
@@ -132,7 +132,7 @@ def compute_magnitude(vector_field, scalar_field):
         magnitude = math.sqrt(val[0]**2 + val[1]**2)
         scalar_field[cell.index] = magnitude
 
-    sam.for_each_cell(vector_field.mesh, compute_cell)
+    sam.algorithms.for_each_cell(vector_field.mesh, compute_cell)
 
 
 def get_max_velocity(u):
@@ -152,7 +152,7 @@ def get_max_velocity(u):
         magnitude = math.sqrt(val[0]**2 + val[1]**2)
         max_vel = max(max_vel, magnitude)
 
-    sam.for_each_cell(u.mesh, compute_max)
+    sam.algorithms.for_each_cell(u.mesh, compute_max)
     return max_vel
 
 
@@ -198,14 +198,14 @@ def main():
     # ============================================================
     # Mesh and field creation
     # ============================================================
-    box = sam.Box2D(box_corner1, box_corner2)
+    box = sam.geometry.Box2D(box_corner1, box_corner2)
 
-    config = sam.MeshConfig2D()
+    config = sam.config.MeshConfig2D()
     config.min_level = min_level
     config.max_level = max_level
     config.max_stencil_size = 6  # Required for WENO5
 
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
 
     # Create VectorFields for RK3 time stepping
     u = sam.field.zeros_vector(mesh, "u", n_components=2)
@@ -228,16 +228,16 @@ def main():
         raise ValueError(f"Unknown initial solution: {init_sol}")
 
     # Boundary conditions (Dirichlet with value 0 for both components)
-    sam.make_dirichlet_bc(u, [0.0, 0.0], order=3)
-    sam.make_dirichlet_bc(u1, [0.0, 0.0], order=3)
-    sam.make_dirichlet_bc(u2, [0.0, 0.0], order=3)
-    sam.make_dirichlet_bc(unp1, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(u, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(u1, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(u2, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(unp1, [0.0, 0.0], order=3)
 
     # ============================================================
     # Mesh adaptation setup
     # ============================================================
-    MRadaptation = sam.make_MRAdapt(u)
-    mra_config = sam.MRAConfig()
+    MRadaptation = sam.adaptation.make_MRAdapt(u)
+    mra_config = sam.config.MRAConfig()
     mra_config.epsilon = 2e-4
     mra_config.regularity = 1.0
 

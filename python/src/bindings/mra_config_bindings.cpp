@@ -216,4 +216,17 @@ void bind_mra_config(py::module_& m, const std::string& name)
 void init_mra_config_bindings(py::module_& m)
 {
     bind_mra_config(m, "MRAConfig");
+
+    // Add MRAConfig to the config submodule
+    // The submodule is created in init_mesh_config_bindings()
+    try
+    {
+        py::module_ config = m.attr("config");
+        config.attr("MRAConfig") = m.attr("MRAConfig");
+    }
+    catch (const py::error_already_set&)
+    {
+        // config submodule not yet available - this should not happen
+        // since init_mesh_config_bindings is called before this function
+    }
 }

@@ -43,7 +43,7 @@ def init_rectangle(u):
         else:
             u[cell.index] = 0.0
 
-    sam.for_each_cell(u.mesh, init_cell)
+    sam.algorithms.for_each_cell(u.mesh, init_cell)
 
 
 def main():
@@ -94,7 +94,7 @@ def main():
     # ============================================================
 
     # Create a domain builder with an initial box
-    domain = sam.DomainBuilder2D([-1.0, -1.0], [1.0, 1.0])
+    domain = sam.geometry.DomainBuilder2D([-1.0, -1.0], [1.0, 1.0])
 
     # Remove a rectangular region to create an obstacle
     # Obstacle: [0.0, 0.4] x [0.0, 0.4] (in the flow path)
@@ -109,14 +109,14 @@ def main():
     # Mesh configuration
     # ============================================================
 
-    config = sam.MeshConfig2D()
+    config = sam.config.MeshConfig2D()
     config.min_level = min_level
     config.max_level = max_level
     config.max_stencil_size = max_stencil_size
     # Note: Periodic BC is NOT supported with DomainBuilder
 
     # Create mesh from DomainBuilder
-    mesh = sam.MRMesh2D(domain, config)
+    mesh = sam.mesh.MRMesh2D(domain, config)
 
     # Create fields for TVD-RK3 time stepping
     u = sam.field.zeros(mesh, "u")      # Current solution
@@ -135,8 +135,8 @@ def main():
     # Mesh adaptation setup
     # ============================================================
 
-    MRadaptation = sam.make_MRAdapt(u)
-    mra_config = sam.MRAConfig()
+    MRadaptation = sam.adaptation.make_MRAdapt(u)
+    mra_config = sam.config.MRAConfig()
     mra_config.epsilon = epsilon
     mra_config.regularity = regularity
 

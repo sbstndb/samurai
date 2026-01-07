@@ -18,6 +18,7 @@ if os.path.exists(viz_dir):
 import matplotlib.pyplot as plt
 import samurai_python as sam
 import samplotlib as svmpl
+from samurai.utils import progress
 
 
 def init_hat(u):
@@ -43,7 +44,7 @@ def init_hat(u):
         # Set both components to same value
         u[cell.index] = [value, value]
 
-    sam.for_each_cell(u.mesh, init_cell)
+    sam.algorithms.for_each_cell(u.mesh, init_cell)
 
 
 def init_bands(u):
@@ -79,7 +80,7 @@ def init_bands(u):
 
         u[cell.index] = [u_val, v_val]
 
-    sam.for_each_cell(u.mesh, init_cell)
+    sam.algorithms.for_each_cell(u.mesh, init_cell)
 
 
 def compute_magnitude(vector_field, scalar_field):
@@ -94,7 +95,7 @@ def compute_magnitude(vector_field, scalar_field):
         magnitude = math.sqrt(val[0]**2 + val[1]**2)
         scalar_field[cell.index] = magnitude
 
-    sam.for_each_cell(vector_field.mesh, compute_cell)
+    sam.algorithms.for_each_cell(vector_field.mesh, compute_cell)
 
 
 def main():
@@ -127,14 +128,14 @@ def main():
     # ============================================================
     # Mesh and field creation
     # ============================================================
-    box = sam.Box2D(box_corner1, box_corner2)
+    box = sam.geometry.Box2D(box_corner1, box_corner2)
 
-    config = sam.MeshConfig2D()
+    config = sam.config.MeshConfig2D()
     config.min_level = min_level
     config.max_level = max_level
     config.max_stencil_size = 6  # Required for WENO5
 
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
 
     # Create VectorFields for RK3 time stepping
     u = sam.field.zeros_vector(mesh, "u", n_components=2)
@@ -157,16 +158,16 @@ def main():
         raise ValueError(f"Unknown initial solution: {init_sol}")
 
     # Boundary conditions (Dirichlet with value 0 for both components)
-    sam.make_dirichlet_bc(u, [0.0, 0.0], order=3)
-    sam.make_dirichlet_bc(u1, [0.0, 0.0], order=3)
-    sam.make_dirichlet_bc(u2, [0.0, 0.0], order=3)
-    sam.make_dirichlet_bc(unp1, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(u, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(u1, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(u2, [0.0, 0.0], order=3)
+    sam.boundary.dirichlet(unp1, [0.0, 0.0], order=3)
 
     # ============================================================
     # Mesh adaptation setup
     # ============================================================
-    MRadaptation = sam.make_MRAdapt(u)
-    mra_config = sam.MRAConfig()
+    MRadaptation = sam.adaptation.make_MRAdapt(u)
+    mra_config = sam.config.MRAConfig()
     mra_config.epsilon = 2e-4
     mra_config.regularity = 1.0
 
@@ -207,8 +208,6 @@ def main():
     # ============================================================
     # Main time loop
     # ============================================================
-    t = 0.0
-    nt = 0
 
     print(f"\nStarting time integration:")
     print(f"  Tf = {Tf}, dt = {dt:.6f}, CFL = {cfl}")
@@ -216,66 +215,60 @@ def main():
     print(f"  epsilon = {mra_config.epsilon}")
     print()
 
-    while t < Tf:
-        # Adapt mesh FIRST (before computing fluxes)
-        MRadaptation(mra_config)
+    with progress.time_loop(Tf, dt, desc="Burgers 2D") as pbar:
+        while True:
+            # Adapt mesh FIRST (before computing fluxes)
+            with pbar.mesh_adaptation(mesh):
+                MRadaptation(mra_config)
 
-        # Update time
-        t += dt
-        if t > Tf:
-            dt += Tf - t  # Adjust dt to exactly reach Tf
-            t = Tf
+            # Advance time and check if simulation is complete
+            if not pbar.advance(dt, mesh=mesh):
+                break
 
-        nt += 1
+            # Resize temporary fields after mesh adaptation
+            u1.resize()
+            u2.resize()
+            unp1.resize()
 
-        # Print progress
-        print(f"\riteration {nt:4d}: t = {t:.4f}, dt = {dt:.6f}, cells = {mesh.nb_cells:6d}", end="")
+            # ========================================================
+            # RK3 time scheme
+            # ========================================================
+            # Stage 1: u1 = u - dt * conv(u)
+            flux1 = sam.operators.convection_weno5(u)
+            u1.assign(u - dt * flux1)  # In-place assignment to avoid stale mesh references
 
-        # Resize temporary fields after mesh adaptation
-        u1.resize()
-        u2.resize()
-        unp1.resize()
+            # Stage 2: u2 = 3/4*u + 1/4*(u1 - dt*conv(u1))
+            flux2 = sam.operators.convection_weno5(u1)
+            u2.assign((3.0 / 4.0) * u + (1.0 / 4.0) * (u1 - dt * flux2))
 
-        # ========================================================
-        # RK3 time scheme
-        # ========================================================
-        # Stage 1: u1 = u - dt * conv(u)
-        flux1 = sam.operators.convection_weno5(u)
-        u1.assign(u - dt * flux1)  # In-place assignment to avoid stale mesh references
+            # Stage 3: unp1 = 1/3*u + 2/3*(u2 - dt*conv(u2))
+            flux3 = sam.operators.convection_weno5(u2)
+            unp1.assign((1.0 / 3.0) * u + (2.0 / 3.0) * (u2 - dt * flux3))
 
-        # Stage 2: u2 = 3/4*u + 1/4*(u1 - dt*conv(u1))
-        flux2 = sam.operators.convection_weno5(u1)
-        u2.assign((3.0 / 4.0) * u + (1.0 / 4.0) * (u1 - dt * flux2))
+            # Swap u and unp1 (u becomes the new solution)
+            u, unp1 = unp1, u
+            u.name = "u"      # Rename to ensure consistent field names in output
 
-        # Stage 3: unp1 = 1/3*u + 2/3*(u2 - dt*conv(u2))
-        flux3 = sam.operators.convection_weno5(u2)
-        unp1.assign((1.0 / 3.0) * u + (2.0 / 3.0) * (u2 - dt * flux3))
+            # ========================================================
+            # Update visualization
+            # ========================================================
+            if enable_realtime_viz and plotter is not None and pbar.iteration % plot_interval == 0:
+                u_mag.resize()  # Ensure magnitude field matches current mesh
+                compute_magnitude(u, u_mag)
+                plotter.update(u_mag, title=f"Burgers 2D - t={pbar.current_time:.3f}, cells={mesh.nb_cells}")
+                plt.pause(0.001)  # Small pause to allow GUI update
 
-        # Swap u and unp1 (u becomes the new solution)
-        u, unp1 = unp1, u
-        u.name = "u"      # Rename to ensure consistent field names in output
+            # ========================================================
+            # Save output
+            # ========================================================
+            if pbar.current_time >= (nsave + 1) * dt_save:
+                suffix = f"_ite_{nsave}" if nfiles > 1 else ""
+                sam.save(str(output_path), f"{filename}{suffix}", u)
+                nsave += 1
 
-        # ========================================================
-        # Update visualization
-        # ========================================================
-        if enable_realtime_viz and plotter is not None and nt % plot_interval == 0:
-            u_mag.resize()  # Ensure magnitude field matches current mesh
-            compute_magnitude(u, u_mag)
-            plotter.update(u_mag, title=f"Burgers 2D - t={t:.3f}, cells={mesh.nb_cells}")
-            plt.pause(0.001)  # Small pause to allow GUI update
-
-        # ========================================================
-        # Save output
-        # ========================================================
-        if t >= (nsave + 1) * dt_save or t == Tf:
-            suffix = f"_ite_{nsave}" if nfiles > 1 else ""
-            sam.save(str(output_path), f"{filename}{suffix}", u)
-            nsave += 1
-
-    print()
     print(f"\nSimulation complete!")
-    print(f"  Total iterations: {nt}")
-    print(f"  Final time: {t}")
+    print(f"  Total iterations: {pbar.iteration}")
+    print(f"  Final time: {Tf}")
     print(f"  Output saved to: {output_path.absolute()}")
     print(f"\nTo visualize in Paraview:")
     print(f"  paraview {output_path.absolute() / filename}{suffix}.xdmf")

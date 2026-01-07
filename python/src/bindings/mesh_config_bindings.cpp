@@ -382,9 +382,29 @@ void init_mesh_config_bindings(py::module_& m)
     bind_mesh_config<2>(m, "MeshConfig2D");
     bind_mesh_config<3>(m, "MeshConfig3D");
 
-    // Also expose them in a submodule for better organization
-    py::module_ config          = m.def_submodule("config", "Mesh configuration classes");
+    // ============================================================
+    // Create config submodule for organized API access
+    // ============================================================
+    py::module_ config = m.def_submodule(
+        "config",
+        "Configuration classes for Samurai AMR simulations\n\n"
+        "This submodule provides organized access to mesh and adaptation configuration.\n"
+        "Both sam.config.MeshConfig2D and sam.MeshConfig2D reference the same class.\n\n"
+        "Examples:\n"
+        "    >>> import samurai_python as sam\n"
+        "    >>> # New organized API (recommended)\n"
+        "    >>> cfg = sam.config.MeshConfig2D(min_level=2, max_level=8)\n"
+        "    >>> # Old API (still works)\n"
+        "    >>> cfg = sam.MeshConfig2D(min_level=2, max_level=8)\n\n"
+        "Available classes:\n"
+        "    - MeshConfig1D, MeshConfig2D, MeshConfig3D: Mesh configuration\n"
+        "    - MRAConfig: Multiresolution adaptation configuration");
+
+    // Reference existing MeshConfig classes to the submodule
     config.attr("MeshConfig1D") = m.attr("MeshConfig1D");
     config.attr("MeshConfig2D") = m.attr("MeshConfig2D");
     config.attr("MeshConfig3D") = m.attr("MeshConfig3D");
+
+    // Note: MRAConfig will be added in init_mra_config_bindings()
+    // since it's initialized after this function
 }

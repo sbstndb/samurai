@@ -356,4 +356,23 @@ void init_adapt_bindings(py::module_& m)
     m.def("make_MRAdapt", &make_mr_adapt_vector_2d_2, py::arg("field"), "Create multiresolution adaptation object for 2D vector field (2 components)");
 
     m.def("make_MRAdapt", &make_mr_adapt_vector_3d_3, py::arg("field"), "Create multiresolution adaptation object for 3D vector field (3 components)");
+
+    // ============================================================
+    // Create adaptation submodule for organized API access
+    // ============================================================
+    py::module_ adapt = m.def_submodule("adaptation",
+        "Mesh adaptation functions for Samurai AMR simulations\n\n"
+        "This submodule provides organized access to AMR/MR adaptation functionality.\n"
+        "Both sam.adaptation.MRAdapt and sam.MRAdapt reference the same class.\n\n"
+        "Examples:\n"
+        "    >>> import samurai_python as sam\n"
+        "    >>> # New organized API (recommended)\n"
+        "    >>> MRadapt = sam.adaptation.MRAdapt(u)\n"
+        "    >>> # Old API (still works)\n"
+        "    >>> MRadapt = sam.MRAdapt(u)\n");
+
+    // Reference existing adaptation classes/functions
+    adapt.attr("MRAdapt") = m.attr("MRAdapt");
+    adapt.attr("make_MRAdapt") = m.attr("make_MRAdapt");
+    adapt.attr("update_ghost_mr") = m.attr("update_ghost_mr");
 }

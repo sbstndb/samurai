@@ -48,7 +48,7 @@ def init_circular(u, center=(0.0, 0.0), radius=0.3):
         else:
             u[cell.index] = 0.0
 
-    sam.for_each_cell(u.mesh, init_cell)
+    sam.algorithms.for_each_cell(u.mesh, init_cell)
 
 
 def demo_static_scalar_field():
@@ -58,21 +58,21 @@ def demo_static_scalar_field():
     print("=" * 70)
 
     # Create mesh
-    box = sam.Box2D([-1.0, -1.0], [1.0, 1.0])
-    config = sam.MeshConfig2D()
+    box = sam.geometry.Box2D([-1.0, -1.0], [1.0, 1.0])
+    config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 6
     config.max_stencil_size = 6
 
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
     u = sam.field.zeros(mesh, "u")
 
     # Initialize with circular pattern
     init_circular(u, center=(0.0, 0.0), radius=0.5)
 
     # Apply mesh adaptation
-    MRadaptation = sam.make_MRAdapt(u)
-    mra_config = sam.MRAConfig()
+    MRadaptation = sam.adaptation.make_MRAdapt(u)
+    mra_config = sam.config.MRAConfig()
     mra_config.epsilon = 1e-3
     mra_config.regularity = 1.0
     MRadaptation(mra_config)
@@ -112,13 +112,13 @@ def demo_vector_field():
     print("=" * 70)
 
     # Create mesh
-    box = sam.Box2D([-1.0, -1.0], [1.0, 1.0])
-    config = sam.MeshConfig2D()
+    box = sam.geometry.Box2D([-1.0, -1.0], [1.0, 1.0])
+    config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 5
     config.max_stencil_size = 6
 
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
 
     # Create vector field with rotational velocity
     vel = sam.field.zeros_vector(mesh, "velocity", n_components=2)
@@ -128,11 +128,11 @@ def demo_vector_field():
         # Rotational velocity: v = (-y, x)
         vel[cell.index] = [-cy, cx]
 
-    sam.for_each_cell(mesh, init_velocity)
+    sam.algorithms.for_each_cell(mesh, init_velocity)
 
     # Apply mesh adaptation
-    MRadaptation = sam.make_MRAdapt(vel)
-    mra_config = sam.MRAConfig()
+    MRadaptation = sam.adaptation.make_MRAdapt(vel)
+    mra_config = sam.config.MRAConfig()
     mra_config.epsilon = 1e-3
     mra_config.regularity = 1.0
     MRadaptation(mra_config)
@@ -166,14 +166,14 @@ def demo_realtime_plotting():
     print("=" * 70)
 
     # Create mesh
-    box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
-    config = sam.MeshConfig2D()
+    box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+    config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 6
     config.max_stencil_size = 6
     config.disable_minimal_ghost_width()
 
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
 
     # Create fields
     u = sam.field.zeros(mesh, "u")
@@ -183,11 +183,11 @@ def demo_realtime_plotting():
     init_circular(u, center=(0.3, 0.3), radius=0.2)
 
     # Boundary conditions
-    sam.make_dirichlet_bc(u, 0.0)
+    sam.boundary.dirichlet(u, 0.0)
 
     # Initial adaptation
-    MRadaptation = sam.make_MRAdapt(u)
-    mra_config = sam.MRAConfig()
+    MRadaptation = sam.adaptation.make_MRAdapt(u)
+    mra_config = sam.config.MRAConfig()
     mra_config.epsilon = 2e-4
     mra_config.regularity = 1.0
     MRadaptation(mra_config)
@@ -227,7 +227,7 @@ def demo_realtime_plotting():
         nt += 1
 
         # Update ghost cells
-        sam.update_ghost_mr(u)
+        sam.adaptation.update_ghost_mr(u)
 
         # Compute flux and update
         upwind_result = sam.operators.upwind(velocity, u)
@@ -264,13 +264,13 @@ def demo_multiple_initial_conditions():
     print("=" * 70)
 
     # Create mesh
-    box = sam.Box2D([-1.0, -1.0], [1.0, 1.0])
-    config = sam.MeshConfig2D()
+    box = sam.geometry.Box2D([-1.0, -1.0], [1.0, 1.0])
+    config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 6
     config.max_stencil_size = 6
 
-    mesh = sam.MRMesh2D(box, config)
+    mesh = sam.mesh.MRMesh2D(box, config)
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 12))
 
@@ -307,7 +307,7 @@ def demo_multiple_initial_conditions():
             u3[cell.index] = 1.0
         else:
             u3[cell.index] = 0.0
-    sam.for_each_cell(mesh, init_two_circles)
+    sam.algorithms.for_each_cell(mesh, init_two_circles)
     MRadapt3 = sam.make_MRAdapt(u3)
     MRadapt3(mra_config)
     svmpl.plot_field(u3, ax=axes[1, 0], cmap='coolwarm')

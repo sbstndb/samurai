@@ -69,7 +69,7 @@ def _extract_cell_data(field) -> Tuple[List, List, List, List]:
         values.append(val)
         levels.append(cell.level)
 
-    sam.for_each_cell(field.mesh, collect_cell)
+    sam.algorithms.for_each_cell(field.mesh, collect_cell)
 
     return x_corners, y_corners, values, levels
 
@@ -101,7 +101,7 @@ def _extract_vector_data(vector_field) -> Tuple[np.ndarray, np.ndarray, np.ndarr
         v_comp.append(val[1])
         levels.append(cell.level)
 
-    sam.for_each_cell(vector_field.mesh, collect_cell)
+    sam.algorithms.for_each_cell(vector_field.mesh, collect_cell)
 
     return (np.array(x_centers), np.array(y_centers),
             np.array(u_comp), np.array(v_comp), levels)

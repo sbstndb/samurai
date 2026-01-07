@@ -125,7 +125,7 @@ def main():
     # Save initial state
     it = 0
     print(f"Saving initial state to {output_path}/{filename}_init.h5")
-    sam.save(str(output_path), f"{filename}_{it:05d}", u)
+    sam.save(str(output_path / f"{filename}_{it:05d}"), u)
 
     # ============================================================
     # Time stepping
@@ -156,7 +156,7 @@ def main():
     with progress.time_loop(Tf, dt, desc="Advection 2D") as pbar:
         while True:
             # 1. Adapt mesh FIRST (as in C++ version)
-            with pbar.mesh_adaptation(mesh):
+            with progress.mesh_adaptation(mesh):
                 MRadaptation(mra_config)
 
             # 2. Resize unp1 field after mesh adaptation (CRITICAL!)
@@ -166,7 +166,9 @@ def main():
             sam.adaptation.update_ghost_mr(u)
 
             # 4. Advance time and check if simulation is complete
-            if not pbar.advance(dt, mesh=mesh):
+            pbar.advance_time(dt)
+            pbar.update_stats(mesh=mesh)
+            if not pbar.continue_loop():
                 break
 
             # 5. Apply upwind operator with FRESH ghost values
@@ -182,11 +184,11 @@ def main():
             if pbar.iteration % save_interval == 0:
                 # Update real-time visualization
                 if enable_realtime_viz and plotter is not None:
-                    plotter.update(u, title=f"Advection 2D - t={pbar.current_time:.3f}, cells={mesh.nb_cells}")
+                    plotter.update(u, title=f"Advection 2D - t={pbar.t:.3f}, cells={mesh.nb_cells}")
                     plt.pause(0.001)  # Small pause to allow GUI update
 
                 # Save state
-                sam.save(str(output_path), f"{filename}_{pbar.iteration:05d}", u)
+                sam.save(str(output_path / f"{filename}_{pbar.iteration:05d}"), u)
 
     # ============================================================
     # Summary

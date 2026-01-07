@@ -218,11 +218,13 @@ def main():
     with progress.time_loop(Tf, dt, desc="Burgers 2D") as pbar:
         while True:
             # Adapt mesh FIRST (before computing fluxes)
-            with pbar.mesh_adaptation(mesh):
+            with progress.mesh_adaptation(mesh):
                 MRadaptation(mra_config)
 
             # Advance time and check if simulation is complete
-            if not pbar.advance(dt, mesh=mesh):
+            pbar.advance_time(dt)
+            pbar.update_stats(mesh=mesh)
+            if not pbar.continue_loop():
                 break
 
             # Resize temporary fields after mesh adaptation
@@ -255,13 +257,13 @@ def main():
             if enable_realtime_viz and plotter is not None and pbar.iteration % plot_interval == 0:
                 u_mag.resize()  # Ensure magnitude field matches current mesh
                 compute_magnitude(u, u_mag)
-                plotter.update(u_mag, title=f"Burgers 2D - t={pbar.current_time:.3f}, cells={mesh.nb_cells}")
+                plotter.update(u_mag, title=f"Burgers 2D - t={pbar.t:.3f}, cells={mesh.nb_cells}")
                 plt.pause(0.001)  # Small pause to allow GUI update
 
             # ========================================================
             # Save output
             # ========================================================
-            if pbar.current_time >= (nsave + 1) * dt_save:
+            if pbar.t >= (nsave + 1) * dt_save:
                 suffix = f"_ite_{nsave}" if nfiles > 1 else ""
                 sam.save(f"{output_path}/{filename}{suffix}", u)
                 nsave += 1

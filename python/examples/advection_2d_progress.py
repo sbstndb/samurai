@@ -178,7 +178,7 @@ def main():
     # Save initial state
     it = 0
     print(f"Saving initial state to {output_path}/{filename}_init.h5")
-    sam.save(str(output_path), f"{filename}_{it:05d}", u)
+    sam.save(str(output_path / f"{filename}_{it:05d}"), u)
 
     # ============================================================
     # Time stepping
@@ -285,7 +285,7 @@ def main():
                 plt.pause(0.001)  # Small pause to allow GUI update
 
             # Save state
-            sam.save(str(output_path), f"{filename}_{nt:05d}", u)
+            sam.save(str(output_path / f"{filename}_{nt:05d}"), u)
 
     # Close progress bar
     if pbar is not None:

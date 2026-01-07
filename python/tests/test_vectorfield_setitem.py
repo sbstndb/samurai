@@ -29,7 +29,7 @@ print("-" * 60)
 try:
     # Setup 2D mesh
     box = sam.geometry.box([-1., -1.], [1., 1.])
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = 3
     config.max_level = 5
     config.max_stencil_size = 6
@@ -72,7 +72,7 @@ print("-" * 60)
 try:
     # Setup 3D mesh
     box = sam.geometry.box([-1., -1., -1.], [1., 1., 1.])
-    config = sam.config.MeshConfig3D()
+    config = sam.config.make(3)
     config.min_level = 2
     config.max_level = 3
     config.max_stencil_size = 6

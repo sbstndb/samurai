@@ -34,7 +34,7 @@ import samurai_python as sam
 def mesh_1d():
     """Create a simple 1D mesh for testing."""
     box = sam.geometry.box([0.0], [1.0])
-    config = sam.config.MeshConfig1D()
+    config = sam.config.make(1)
     config.min_level = 4
     config.max_level = 4
     return sam.mesh.MRMesh1D(box, config)
@@ -44,7 +44,7 @@ def mesh_1d():
 def mesh_2d():
     """Create a simple 2D mesh for testing."""
     box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = 4
     config.max_level = 4
     return sam.mesh.MRMesh2D(box, config)
@@ -54,7 +54,7 @@ def mesh_2d():
 def mesh_2d_adaptive():
     """Create a 2D mesh configured for adaptation testing."""
     box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = 2
     config.max_level = 6
     return sam.mesh.MRMesh2D(box, config)

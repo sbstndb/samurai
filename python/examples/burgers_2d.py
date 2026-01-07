@@ -130,7 +130,7 @@ def main():
     # ============================================================
     box = sam.geometry.box(box_corner1, box_corner2)
 
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = min_level
     config.max_level = max_level
     config.max_stencil_size = 6  # Required for WENO5

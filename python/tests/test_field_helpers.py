@@ -21,7 +21,7 @@ import numpy as np
 
 class TestFieldZeros:
     def test_zeros_1d(self):
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         box = sam.geometry.box([0.0], [1.0])
         mesh = sam.mesh.MRMesh1D(box, config)
@@ -30,7 +30,7 @@ class TestFieldZeros:
         assert np.allclose(u.numpy_view(), 0.0)
 
     def test_zeros_2d(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)
@@ -39,7 +39,7 @@ class TestFieldZeros:
         assert np.allclose(u.numpy_view(), 0.0)
 
     def test_zeros_3d(self):
-        config = sam.config.MeshConfig3D()
+        config = sam.config.make(3)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         mesh = sam.mesh.MRMesh3D(box, config)
@@ -50,7 +50,7 @@ class TestFieldZeros:
 
 class TestFieldOnes:
     def test_ones_2d(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)
@@ -61,7 +61,7 @@ class TestFieldOnes:
 
 class TestFieldFull:
     def test_full_2d(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)
@@ -72,7 +72,7 @@ class TestFieldFull:
 
 class TestFieldLike:
     def test_zeros_like_2d(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)
@@ -87,7 +87,7 @@ class TestFieldLike:
         assert np.allclose(v.numpy_view(), 0.0)
 
     def test_ones_like_2d(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)
@@ -98,7 +98,7 @@ class TestFieldLike:
         assert np.allclose(v.numpy_view(), 1.0)
 
     def test_full_like_2d(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)
@@ -111,7 +111,7 @@ class TestFieldLike:
 
 class TestVectorFieldHelpers:
     def test_zeros_vector_2d(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)
@@ -122,7 +122,7 @@ class TestVectorFieldHelpers:
         assert vel.name == "vel"
 
     def test_zeros_vector_3d(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)
@@ -131,7 +131,7 @@ class TestVectorFieldHelpers:
         assert B.name == "B"
 
     def test_ones_vector_2d(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)
@@ -140,7 +140,7 @@ class TestVectorFieldHelpers:
         assert vel.name == "vel"
 
     def test_full_vector_2d(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)
@@ -149,7 +149,7 @@ class TestVectorFieldHelpers:
         assert vel.name == "vel"
 
     def test_zeros_like_vector(self):
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         mesh = sam.mesh.MRMesh2D(box, config)

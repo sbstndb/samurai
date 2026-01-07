@@ -433,9 +433,12 @@ samurai::mesh_config<dim> create_mesh_config_helper(
 void init_mesh_config_bindings(py::module_& m)
 {
     // ============================================================
-    // BREAKING CHANGE: No longer bind MeshConfig classes to main module
-    // Users must use sam.config.MeshConfig1D, sam.config.MeshConfig2D, etc.
-    // Or use the new factory: sam.config.make(dim, min_level=0, max_level=6, ...)
+    // BREAKING CHANGE (v0.30.0): Explicit MeshConfig classes removed from public API
+    // Users must use the factory: sam.config.make(dim, min_level, max_level, ...)
+    //
+    // NOTE: We still register the MeshConfig types with pybind11 (as _MeshConfig1D, etc.)
+    // because the factory function needs to return these types. The underscore prefix
+    // indicates they are internal implementation details, not public API.
     // ============================================================
 
     // ============================================================
@@ -446,20 +449,15 @@ void init_mesh_config_bindings(py::module_& m)
         "Configuration classes for Samurai AMR simulations\n\n"
         "Factory Functions:\n"
         "  make(dim, min_level=0, max_level=6, ...) - Create MeshConfig with explicit dimension\n\n"
-        "Classes:\n"
-        "  MeshConfig1D, MeshConfig2D, MeshConfig3D - Dimension-specific MeshConfig\n"
-        "  MRAConfig - Multiresolution adaptation configuration\n\n"
         "Examples:\n"
         "    >>> import samurai_python as sam\n"
-        "    >>> # Factory function (recommended)\n"
-        "    >>> cfg = sam.config.make(2, min_level=4, max_level=8)\n"
-        "    >>> # Direct class access\n"
-        "    >>> cfg = sam.config.MeshConfig2D(min_level=2, max_level=8)\n");
+        "    >>> # Factory function\n"
+        "    >>> cfg = sam.config.make(2, min_level=4, max_level=8)\n");
 
-    // Bind MeshConfig classes ONLY to config submodule (not to main module)
-    bind_mesh_config<1>(config, "MeshConfig1D");
-    bind_mesh_config<2>(config, "MeshConfig2D");
-    bind_mesh_config<3>(config, "MeshConfig3D");
+    // Register MeshConfig types (internal, with _ prefix) for factory function return types
+    bind_mesh_config<1>(config, "_MeshConfig1D");
+    bind_mesh_config<2>(config, "_MeshConfig2D");
+    bind_mesh_config<3>(config, "_MeshConfig3D");
 
     // ============================================================
     // Factory function: sam.config.make(dim, min_level, max_level, ...)
@@ -542,7 +540,7 @@ void init_mesh_config_bindings(py::module_& m)
         Returns
         -------
         MeshConfig
-            Dimension-specific MeshConfig object (MeshConfig1D, MeshConfig2D, or MeshConfig3D)
+            Dimension-specific MeshConfig object
 
         Examples
         --------

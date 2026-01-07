@@ -26,7 +26,7 @@ class TestSaveFunction:
 
     def test_save_1d_single_field(self):
         """Test saving 1D field with current directory."""
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
 
@@ -47,7 +47,7 @@ class TestSaveFunction:
 
     def test_save_1d_none_path(self):
         """Test saving 1D field with None path (current directory)."""
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
 
@@ -73,7 +73,7 @@ class TestSaveFunction:
 
     def test_save_2d_single_field(self):
         """Test saving 2D field."""
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 4
 
@@ -91,7 +91,7 @@ class TestSaveFunction:
 
     def test_save_3d_single_field(self):
         """Test saving 3D field."""
-        config = sam.config.MeshConfig3D()
+        config = sam.config.make(3)
         config.min_level = 2
         config.max_level = 3
 
@@ -109,7 +109,7 @@ class TestSaveFunction:
 
     def test_save_1d_two_fields(self):
         """Test saving 1D mesh with two fields."""
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
 
@@ -128,7 +128,7 @@ class TestSaveFunction:
 
     def test_save_1d_three_fields(self):
         """Test saving 1D mesh with three fields."""
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
 
@@ -148,7 +148,7 @@ class TestSaveFunction:
 
     def test_save_filename_only_1d(self):
         """Test saving 1D field with filename only (current directory)."""
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
 
@@ -176,7 +176,7 @@ class TestDumpFunction:
 
     def test_dump_1d_field(self):
         """Test dumping 1D field."""
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
 
@@ -195,7 +195,7 @@ class TestDumpFunction:
 
     def test_dump_2d_field(self):
         """Test dumping 2D field."""
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 4
 
@@ -211,7 +211,7 @@ class TestDumpFunction:
 
     def test_dump_3d_field(self):
         """Test dumping 3D field."""
-        config = sam.config.MeshConfig3D()
+        config = sam.config.make(3)
         config.min_level = 2
         config.max_level = 3
 
@@ -227,7 +227,7 @@ class TestDumpFunction:
 
     def test_dump_filename_only_1d(self):
         """Test dumping 1D field with filename only (current directory)."""
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
 
@@ -252,7 +252,7 @@ class TestLoadFunction:
 
     def test_dump_load_1d_field(self):
         """Test dumping and loading 1D field."""
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
 
@@ -277,7 +277,7 @@ class TestLoadFunction:
 
     def test_dump_load_2d_field(self):
         """Test dumping and loading 2D field."""
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 4
 
@@ -301,7 +301,7 @@ class TestLoadFunction:
 
     def test_dump_load_3d_field(self):
         """Test dumping and loading 3D field."""
-        config = sam.config.MeshConfig3D()
+        config = sam.config.make(3)
         config.min_level = 2
         config.max_level = 3
 
@@ -325,7 +325,7 @@ class TestLoadFunction:
 
     def test_load_filename_only_1d(self):
         """Test loading 1D field with filename only (current directory)."""
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 4
 
@@ -359,7 +359,7 @@ class TestIoIntegration:
 
     def test_adapt_save_pipeline_1d(self):
         """Test full pipeline: adapt + save (1D)."""
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 5
 
@@ -389,7 +389,7 @@ class TestIoIntegration:
 
     def test_adapt_save_pipeline_2d(self):
         """Test full pipeline: adapt + save (2D)."""
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 5
 

@@ -26,7 +26,7 @@ class TestMRAdaptCreation:
     def test_create_mr_adapt_1d(self):
         """Test creating MRAdapt for 1D field."""
         # Create mesh and field
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 5
 
@@ -42,7 +42,7 @@ class TestMRAdaptCreation:
     def test_create_mr_adapt_2d(self):
         """Test creating MRAdapt for 2D field."""
         # Create mesh and field
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 5
 
@@ -58,7 +58,7 @@ class TestMRAdaptCreation:
     def test_create_mr_adapt_3d(self):
         """Test creating MRAdapt for 3D field."""
         # Create mesh and field
-        config = sam.config.MeshConfig3D()
+        config = sam.config.make(3)
         config.min_level = 2
         config.max_level = 4
 
@@ -78,7 +78,7 @@ class TestMRAdaptCallable:
     def test_mr_adapt_call_with_config_1d(self):
         """Test calling MRAdapt with config (1D)."""
         # Setup
-        config_mesh = sam.config.MeshConfig1D()
+        config_mesh = sam.config.make(1)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
@@ -98,7 +98,7 @@ class TestMRAdaptCallable:
     def test_mr_adapt_call_with_config_2d(self):
         """Test calling MRAdapt with config (2D)."""
         # Setup
-        config_mesh = sam.config.MeshConfig2D()
+        config_mesh = sam.config.make(2)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
@@ -116,7 +116,7 @@ class TestMRAdaptCallable:
 
     def test_mr_adapt_reusability(self):
         """Test that MRAdapt can be called multiple times."""
-        config_mesh = sam.config.MeshConfig1D()
+        config_mesh = sam.config.make(1)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
@@ -140,7 +140,7 @@ class TestUpdateGhostMr:
 
     def test_update_ghost_mr_1d(self):
         """Test update_ghost_mr for 1D field."""
-        config_mesh = sam.config.MeshConfig1D()
+        config_mesh = sam.config.make(1)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
@@ -153,7 +153,7 @@ class TestUpdateGhostMr:
 
     def test_update_ghost_mr_2d(self):
         """Test update_ghost_mr for 2D field."""
-        config_mesh = sam.config.MeshConfig2D()
+        config_mesh = sam.config.make(2)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
@@ -166,7 +166,7 @@ class TestUpdateGhostMr:
 
     def test_update_ghost_mr_3d(self):
         """Test update_ghost_mr for 3D field."""
-        config_mesh = sam.config.MeshConfig3D()
+        config_mesh = sam.config.make(3)
         config_mesh.min_level = 2
         config_mesh.max_level = 4
 
@@ -184,7 +184,7 @@ class TestAdaptationPipeline:
     def test_full_pipeline_1d(self):
         """Test complete pipeline: adapt + update ghosts (1D)."""
         # Setup
-        config_mesh = sam.config.MeshConfig1D()
+        config_mesh = sam.config.make(1)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
@@ -209,7 +209,7 @@ class TestAdaptationPipeline:
     def test_full_pipeline_2d(self):
         """Test complete pipeline: adapt + update ghosts (2D)."""
         # Setup
-        config_mesh = sam.config.MeshConfig2D()
+        config_mesh = sam.config.make(2)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
@@ -233,7 +233,7 @@ class TestAdaptationPipeline:
 
     def test_iterative_adaptation(self):
         """Test multiple adaptation iterations."""
-        config_mesh = sam.config.MeshConfig1D()
+        config_mesh = sam.config.make(1)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
@@ -258,7 +258,7 @@ class TestMRAConfigIntegration:
 
     def test_config_with_different_epsilon(self):
         """Test adaptation with different epsilon values."""
-        config_mesh = sam.config.MeshConfig1D()
+        config_mesh = sam.config.make(1)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
@@ -276,7 +276,7 @@ class TestMRAConfigIntegration:
 
     def test_config_with_different_regularity(self):
         """Test adaptation with different regularity values."""
-        config_mesh = sam.config.MeshConfig1D()
+        config_mesh = sam.config.make(1)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 
@@ -294,7 +294,7 @@ class TestMRAConfigIntegration:
 
     def test_config_with_relative_detail(self):
         """Test adaptation with relative_detail flag."""
-        config_mesh = sam.config.MeshConfig1D()
+        config_mesh = sam.config.make(1)
         config_mesh.min_level = 2
         config_mesh.max_level = 5
 

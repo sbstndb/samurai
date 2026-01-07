@@ -59,7 +59,7 @@ def demo_static_scalar_field():
 
     # Create mesh
     box = sam.geometry.box([-1.0, -1.0], [1.0, 1.0])
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = 3
     config.max_level = 6
     config.max_stencil_size = 6
@@ -113,7 +113,7 @@ def demo_vector_field():
 
     # Create mesh
     box = sam.geometry.box([-1.0, -1.0], [1.0, 1.0])
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = 3
     config.max_level = 5
     config.max_stencil_size = 6
@@ -167,7 +167,7 @@ def demo_realtime_plotting():
 
     # Create mesh
     box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = 3
     config.max_level = 6
     config.max_stencil_size = 6
@@ -265,7 +265,7 @@ def demo_multiple_initial_conditions():
 
     # Create mesh
     box = sam.geometry.box([-1.0, -1.0], [1.0, 1.0])
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = 3
     config.max_level = 6
     config.max_stencil_size = 6

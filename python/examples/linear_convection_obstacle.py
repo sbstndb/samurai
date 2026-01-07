@@ -109,7 +109,7 @@ def main():
     # Mesh configuration
     # ============================================================
 
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = min_level
     config.max_level = max_level
     config.max_stencil_size = max_stencil_size

@@ -139,7 +139,7 @@ def main():
     # Mesh configuration
     # ============================================================
 
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = 4      # Minimum refinement level
     config.max_level = 10     # Maximum refinement level
     config.disable_minimal_ghost_width()  # Required for proper ghost cell handling

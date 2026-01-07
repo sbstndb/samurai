@@ -32,7 +32,7 @@ print("-" * 60)
 try:
     # Setup 2D mesh
     box = sam.geometry.box([-1., -1.], [1., 1.])
-    config2d = sam.config.MeshConfig2D()
+    config2d = sam.config.make(2)
     config2d.min_level = 3
     config2d.max_level = 5
     config2d.max_stencil_size = 6  # Required for WENO5
@@ -74,7 +74,7 @@ print("-" * 60)
 try:
     # Setup 3D mesh (smaller for memory)
     box = sam.geometry.box([-1., -1., -1.], [1., 1., 1.])
-    config3d = sam.config.MeshConfig3D()
+    config3d = sam.config.make(3)
     config3d.min_level = 2
     config3d.max_level = 3
     config3d.max_stencil_size = 6  # Required for WENO5
@@ -116,7 +116,7 @@ print("-" * 60)
 try:
     # Setup 2D mesh
     box = sam.geometry.box([-1., -1.], [1., 1.])
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = 3
     config.max_level = 5
     config.max_stencil_size = 6

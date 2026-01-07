@@ -31,7 +31,7 @@ def main():
     # Parameters - use fixed mesh (no adaptation)
     box = sam.geometry.box([-1.0, -1.0], [1.0, 1.0])
 
-    config = sam.config.MeshConfig2D()
+    config = sam.config.make(2)
     config.min_level = 6  # Fixed level, no adaptation
     config.max_level = 6
     config.max_stencil_size = 6

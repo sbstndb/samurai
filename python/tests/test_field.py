@@ -26,7 +26,7 @@ class TestScalarField1D:
     def test_creation(self):
         """Test creating ScalarField1D from mesh."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -41,7 +41,7 @@ class TestScalarField1D:
     def test_creation_with_init_value(self):
         """Test creating ScalarField with initial value."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -55,7 +55,7 @@ class TestScalarField1D:
     def test_name_property(self):
         """Test field name getter/setter."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -70,7 +70,7 @@ class TestScalarField1D:
     def test_mesh_property(self):
         """Test mesh property returns correct mesh."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -82,7 +82,7 @@ class TestScalarField1D:
     def test_fill(self):
         """Test filling field with constant value."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -96,7 +96,7 @@ class TestScalarField1D:
     def test_numpy_view(self):
         """Test zero-copy NumPy view."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -118,7 +118,7 @@ class TestScalarField1D:
     def test_numpy_memory_sharing(self):
         """Test that NumPy view shares memory with field."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -141,7 +141,7 @@ class TestScalarField1D:
     def test_integer_indexing(self):
         """Test indexing field by integer index."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -157,7 +157,7 @@ class TestScalarField1D:
     def test_ghosts_updated_flag(self):
         """Test ghosts_updated property."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -174,7 +174,7 @@ class TestScalarField1D:
     def test_string_representation(self):
         """Test __repr__ and __str__."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -196,7 +196,7 @@ class TestScalarField2D:
     def test_creation(self):
         """Test creating ScalarField2D from mesh."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -211,7 +211,7 @@ class TestScalarField2D:
     def test_fill(self):
         """Test filling 2D field with constant value."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -225,7 +225,7 @@ class TestScalarField2D:
     def test_numpy_vectorized_operations(self):
         """Test vectorized NumPy operations on field."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -248,7 +248,7 @@ class TestVectorField2D_2:
     def test_creation(self):
         """Test creating VectorField2D_2 from mesh."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -264,7 +264,7 @@ class TestVectorField2D_2:
     def test_fill(self):
         """Test filling vector field with scalar value."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -279,7 +279,7 @@ class TestVectorField2D_2:
     def test_numpy_view_shape(self):
         """Test NumPy view has correct shape."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -297,7 +297,7 @@ class TestVectorField2D_2:
     def test_get_component(self):
         """Test extracting individual components."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -319,7 +319,7 @@ class TestVectorField2D_2:
     def test_string_representation(self):
         """Test __repr__ and __str__ for VectorField."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -340,7 +340,7 @@ class TestVectorField2D_3:
     def test_creation(self):
         """Test creating VectorField2D_3 from mesh."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -357,7 +357,7 @@ class TestFactoryFunctions:
     def test_make_scalar_field_1d(self):
         """Test make_scalar_field for 1D mesh."""
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 
@@ -372,7 +372,7 @@ class TestFactoryFunctions:
     def test_make_scalar_field_2d(self):
         """Test make_scalar_field for 2D mesh."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -384,7 +384,7 @@ class TestFactoryFunctions:
     def test_make_vector_field_2_components(self):
         """Test make_vector_field with 2 components."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -397,7 +397,7 @@ class TestFactoryFunctions:
     def test_make_vector_field_3_components(self):
         """Test make_vector_field with 3 components."""
         box = sam.geometry.box([0., 0.], [1., 1.])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 1
 
@@ -431,7 +431,7 @@ class TestFieldSubmodule:
         """Test creating field from submodule."""
         ScalarField1D = sam.field.ScalarField1D
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 1
 

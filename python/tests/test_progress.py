@@ -91,7 +91,7 @@ def real_mesh_1d():
     """Create a real 1D mesh for integration tests."""
     try:
         box = sam.geometry.box([0.], [1.])
-        config = sam.config.MeshConfig1D()
+        config = sam.config.make(1)
         config.min_level = 0
         config.max_level = 2
         mesh = sam.mesh.MRMesh1D(box, config)
@@ -105,7 +105,7 @@ def real_mesh_2d():
     """Create a real 2D mesh for integration tests."""
     try:
         box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
-        config = sam.config.MeshConfig2D()
+        config = sam.config.make(2)
         config.min_level = 0
         config.max_level = 2
         mesh = sam.mesh.MRMesh2D(box, config)

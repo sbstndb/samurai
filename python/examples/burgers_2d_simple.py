@@ -29,7 +29,7 @@ def init_hat(u):
 
 def main():
     # Parameters - use fixed mesh (no adaptation)
-    box = sam.geometry.Box2D([-1.0, -1.0], [1.0, 1.0])
+    box = sam.geometry.box([-1.0, -1.0], [1.0, 1.0])
 
     config = sam.config.MeshConfig2D()
     config.min_level = 6  # Fixed level, no adaptation

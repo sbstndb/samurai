@@ -58,7 +58,7 @@ def demo_static_scalar_field():
     print("=" * 70)
 
     # Create mesh
-    box = sam.geometry.Box2D([-1.0, -1.0], [1.0, 1.0])
+    box = sam.geometry.box([-1.0, -1.0], [1.0, 1.0])
     config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 6
@@ -112,7 +112,7 @@ def demo_vector_field():
     print("=" * 70)
 
     # Create mesh
-    box = sam.geometry.Box2D([-1.0, -1.0], [1.0, 1.0])
+    box = sam.geometry.box([-1.0, -1.0], [1.0, 1.0])
     config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 5
@@ -166,7 +166,7 @@ def demo_realtime_plotting():
     print("=" * 70)
 
     # Create mesh
-    box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+    box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
     config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 6
@@ -264,7 +264,7 @@ def demo_multiple_initial_conditions():
     print("=" * 70)
 
     # Create mesh
-    box = sam.geometry.Box2D([-1.0, -1.0], [1.0, 1.0])
+    box = sam.geometry.box([-1.0, -1.0], [1.0, 1.0])
     config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 6

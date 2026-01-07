@@ -24,7 +24,7 @@ class TestMRMesh1D:
 
     def test_creation(self):
         """Test creating MRMesh1D from Box and MeshConfig."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1  # Keep small for testing
@@ -34,7 +34,7 @@ class TestMRMesh1D:
 
     def test_nb_cells(self):
         """Test nb_cells property and method."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
@@ -49,7 +49,7 @@ class TestMRMesh1D:
 
     def test_level_properties(self):
         """Test min_level and max_level properties."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
@@ -60,7 +60,7 @@ class TestMRMesh1D:
 
     def test_graduation_width(self):
         """Test graduation_width property."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.graduation_width = 2
 
@@ -69,7 +69,7 @@ class TestMRMesh1D:
 
     def test_ghost_width(self):
         """Test ghost_width property."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.max_stencil_radius = 2
 
@@ -78,7 +78,7 @@ class TestMRMesh1D:
 
     def test_max_stencil_radius(self):
         """Test max_stencil_radius property."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.max_stencil_radius = 3
 
@@ -87,7 +87,7 @@ class TestMRMesh1D:
 
     def test_cell_length(self):
         """Test cell_length method."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 2
@@ -103,7 +103,7 @@ class TestMRMesh1D:
 
     def test_min_cell_length(self):
         """Test min_cell_length property."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 2
@@ -115,7 +115,7 @@ class TestMRMesh1D:
 
     def test_periodicity_default(self):
         """Test default periodicity (non-periodic)."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
 
         mesh = sam.mesh.MRMesh1D(box, config)
@@ -125,7 +125,7 @@ class TestMRMesh1D:
 
     def test_periodic_configuration(self):
         """Test setting periodic configuration."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.set_periodic(True)
 
@@ -135,7 +135,7 @@ class TestMRMesh1D:
 
     def test_string_representation(self):
         """Test __repr__ and __str__."""
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1
@@ -155,7 +155,7 @@ class TestMRMesh2D:
 
     def test_creation(self):
         """Test creating MRMesh2D from Box and MeshConfig."""
-        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        box = sam.geometry.box([0., 0.], [1., 1.])
         config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1  # Keep small for testing
@@ -165,7 +165,7 @@ class TestMRMesh2D:
 
     def test_nb_cells(self):
         """Test nb_cells property and method."""
-        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        box = sam.geometry.box([0., 0.], [1., 1.])
         config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
@@ -178,7 +178,7 @@ class TestMRMesh2D:
 
     def test_cell_length(self):
         """Test cell_length method in 2D."""
-        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        box = sam.geometry.box([0., 0.], [1., 1.])
         config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 1
@@ -191,7 +191,7 @@ class TestMRMesh2D:
 
     def test_periodicity_per_direction(self):
         """Test periodicity in each direction."""
-        box = sam.geometry.Box2D([0., 0.], [1., 1.])
+        box = sam.geometry.box([0., 0.], [1., 1.])
         config = sam.config.MeshConfig2D()
         config.set_periodic_per_direction([True, False])
 
@@ -206,7 +206,7 @@ class TestMRMesh3D:
 
     def test_creation(self):
         """Test creating MRMesh3D from Box and MeshConfig."""
-        box = sam.geometry.Box3D([0., 0., 0.], [1., 1., 1.])
+        box = sam.geometry.box([0., 0., 0.], [1., 1., 1.])
         config = sam.config.MeshConfig3D()
         config.min_level = 0
         config.max_level = 1  # Keep small for testing
@@ -216,7 +216,7 @@ class TestMRMesh3D:
 
     def test_nb_cells(self):
         """Test nb_cells for 3D mesh."""
-        box = sam.geometry.Box3D([0., 0., 0.], [1., 1., 1.])
+        box = sam.geometry.box([0., 0., 0.], [1., 1., 1.])
         config = sam.config.MeshConfig3D()
         config.min_level = 0
         config.max_level = 0  # Single level only
@@ -243,7 +243,7 @@ class TestMRMeshSubmodule:
     def test_mesh_from_submodule(self):
         """Test creating mesh from submodule."""
         MRMesh1D = sam.mesh.MRMesh1D
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 1

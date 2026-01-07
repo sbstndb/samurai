@@ -21,7 +21,7 @@ import time
 print("=== Testing apply_upwind_* in-place operators ===\n")
 
 # Setup mesh
-box = sam.Box2D([0.0, 0.0], [1.0, 1.0])
+box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
 config = sam.MeshConfig2D()
 config.min_level = 4
 config.max_level = 8

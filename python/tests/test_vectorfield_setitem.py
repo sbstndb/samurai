@@ -28,7 +28,7 @@ print("-" * 60)
 
 try:
     # Setup 2D mesh
-    box = sam.geometry.Box2D([-1., -1.], [1., 1.])
+    box = sam.geometry.box([-1., -1.], [1., 1.])
     config = sam.config.MeshConfig2D()
     config.min_level = 3
     config.max_level = 5
@@ -71,7 +71,7 @@ print("-" * 60)
 
 try:
     # Setup 3D mesh
-    box = sam.geometry.Box3D([-1., -1., -1.], [1., 1., 1.])
+    box = sam.geometry.box([-1., -1., -1.], [1., 1., 1.])
     config = sam.config.MeshConfig3D()
     config.min_level = 2
     config.max_level = 3

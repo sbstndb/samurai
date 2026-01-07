@@ -128,7 +128,7 @@ def main():
     # ============================================================
     # Mesh and field creation
     # ============================================================
-    box = sam.geometry.Box2D(box_corner1, box_corner2)
+    box = sam.geometry.box(box_corner1, box_corner2)
 
     config = sam.config.MeshConfig2D()
     config.min_level = min_level

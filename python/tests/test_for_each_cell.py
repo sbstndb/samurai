@@ -24,7 +24,7 @@ class TestForEachCell1D:
 
     def test_1d_basic_iteration(self):
         """Test basic cell iteration in 1D."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
@@ -54,7 +54,7 @@ class TestForEachCell1D:
 
     def test_1d_cell_properties(self):
         """Test that cells have correct properties."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
@@ -83,7 +83,7 @@ class TestForEachCell1D:
 
     def test_1d_field_indexing(self):
         """Test that cell.index works for field indexing."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
@@ -107,7 +107,7 @@ class TestForEachCell1D:
 
     def test_1d_center_values(self):
         """Test that center values are within domain bounds."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
@@ -131,7 +131,7 @@ class TestForEachCell2D:
 
     def test_2d_center_structure(self):
         """Test that 2D cell centers are 2-element tuples."""
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 3
@@ -153,7 +153,7 @@ class TestForEachCell2D:
 
     def test_2d_cell_count(self):
         """Test that we get the expected number of cells."""
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 2
@@ -173,7 +173,7 @@ class TestForEachCell2D:
 
     def test_2d_center_bounds(self):
         """Test that cell centers are within domain bounds."""
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 2
@@ -193,7 +193,7 @@ class TestForEachCell2D:
 
     def test_2d_circular_initialization(self):
         """Test the circular initialization pattern from advection_2d."""
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 4
         config.max_level = 4
@@ -231,7 +231,7 @@ class TestForEachCell3D:
 
     def test_3d_center_structure(self):
         """Test that 3D cell centers are 3-element tuples."""
-        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         config = sam.config.MeshConfig3D()
         config.min_level = 1
         config.max_level = 1
@@ -251,7 +251,7 @@ class TestForEachCell3D:
 
     def test_3d_corner_structure(self):
         """Test that corner() also returns 3-element tuples."""
-        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         config = sam.config.MeshConfig3D()
         config.min_level = 1
         config.max_level = 1
@@ -271,7 +271,7 @@ class TestForEachCell3D:
 
     def test_3d_cell_count(self):
         """Test that we get cells in 3D."""
-        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         config = sam.config.MeshConfig3D()
         config.min_level = 1
         config.max_level = 1
@@ -293,7 +293,7 @@ class TestForEachCellIntegration:
 
     def test_cell_type_match(self):
         """Test that cells passed to callback are Cell instances."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
@@ -311,7 +311,7 @@ class TestForEachCellIntegration:
 
     def test_cell_repr(self):
         """Test that Cell has a string representation."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
@@ -331,7 +331,7 @@ class TestForEachCellIntegration:
 
     def test_field_integration(self):
         """Test that for_each_cell works with field operations."""
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 2

@@ -90,7 +90,7 @@ def mock_mesh_2d():
 def real_mesh_1d():
     """Create a real 1D mesh for integration tests."""
     try:
-        box = sam.geometry.Box1D([0.], [1.])
+        box = sam.geometry.box([0.], [1.])
         config = sam.config.MeshConfig1D()
         config.min_level = 0
         config.max_level = 2
@@ -104,7 +104,7 @@ def real_mesh_1d():
 def real_mesh_2d():
     """Create a real 2D mesh for integration tests."""
     try:
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 0
         config.max_level = 2

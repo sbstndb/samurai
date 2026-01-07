@@ -33,7 +33,7 @@ import samurai_python as sam
 @pytest.fixture
 def mesh_1d():
     """Create a simple 1D mesh for testing."""
-    box = sam.geometry.Box1D([0.0], [1.0])
+    box = sam.geometry.box([0.0], [1.0])
     config = sam.config.MeshConfig1D()
     config.min_level = 4
     config.max_level = 4
@@ -43,7 +43,7 @@ def mesh_1d():
 @pytest.fixture
 def mesh_2d():
     """Create a simple 2D mesh for testing."""
-    box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+    box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
     config = sam.config.MeshConfig2D()
     config.min_level = 4
     config.max_level = 4
@@ -53,7 +53,7 @@ def mesh_2d():
 @pytest.fixture
 def mesh_2d_adaptive():
     """Create a 2D mesh configured for adaptation testing."""
-    box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+    box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
     config = sam.config.MeshConfig2D()
     config.min_level = 2
     config.max_level = 6

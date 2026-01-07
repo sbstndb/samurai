@@ -24,7 +24,7 @@ class TestForEachInterval1D:
 
     def test_1d_basic_iteration(self):
         """Test basic interval iteration in 1D."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
@@ -49,7 +49,7 @@ class TestForEachInterval1D:
 
     def test_1d_interval_properties(self):
         """Test that intervals have correct properties."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
@@ -80,7 +80,7 @@ class TestForEachInterval1D:
 
     def test_1d_level_coverage(self):
         """Test that we iterate over expected levels."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 4
@@ -99,7 +99,7 @@ class TestForEachInterval1D:
 
     def test_1d_interval_contains(self):
         """Test using interval.contains in callback."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
@@ -128,7 +128,7 @@ class TestForEachInterval1D:
 
     def test_1d_multiple_intervals_per_level(self):
         """Test that there can be multiple intervals at the same level."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 4
         config.max_level = 4
@@ -159,7 +159,7 @@ class TestForEachInterval2D:
 
     def test_2d_index_structure(self):
         """Test that 2D indices are single-element tuples."""
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 3
@@ -179,7 +179,7 @@ class TestForEachInterval2D:
 
     def test_2d_y_values_non_negative(self):
         """Test that y-index values are non-negative."""
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 3
@@ -199,7 +199,7 @@ class TestForEachInterval2D:
 
     def test_2d_interval_count(self):
         """Test that 2D mesh generates intervals."""
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 2
@@ -217,7 +217,7 @@ class TestForEachInterval2D:
 
     def test_2d_index_types(self):
         """Test that index values are integers."""
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 2
@@ -239,7 +239,7 @@ class TestForEachInterval3D:
 
     def test_3d_index_structure(self):
         """Test that 3D indices are two-element tuples."""
-        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         config = sam.config.MeshConfig3D()
         config.min_level = 1
         config.max_level = 2
@@ -259,7 +259,7 @@ class TestForEachInterval3D:
 
     def test_3d_y_z_non_negative(self):
         """Test that y and z indices are non-negative."""
-        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         config = sam.config.MeshConfig3D()
         config.min_level = 1
         config.max_level = 1
@@ -280,7 +280,7 @@ class TestForEachInterval3D:
 
     def test_3d_interval_count(self):
         """Test that 3D mesh generates intervals."""
-        box = sam.geometry.Box3D([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         config = sam.config.MeshConfig3D()
         config.min_level = 1
         config.max_level = 1
@@ -302,7 +302,7 @@ class TestForEachIntervalIntegration:
 
     def test_interval_type_match(self):
         """Test that intervals passed to callback are Interval instances."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
@@ -320,7 +320,7 @@ class TestForEachIntervalIntegration:
 
     def test_level_type(self):
         """Test that level parameter is integer."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 3
@@ -338,7 +338,7 @@ class TestForEachIntervalIntegration:
 
     def test_callback_execution_order(self):
         """Test that callbacks are actually executed."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 3
@@ -356,7 +356,7 @@ class TestForEachIntervalIntegration:
 
     def test_with_factory_interval(self):
         """Test for_each_interval with intervals created via factory."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 2
@@ -378,7 +378,7 @@ class TestForEachIntervalIntegration:
 
     def test_mesh_properties_unchanged(self):
         """Test that for_each_interval doesn't modify mesh properties."""
-        box = sam.geometry.Box2D([0.0, 0.0], [1.0, 1.0])
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
         config = sam.config.MeshConfig2D()
         config.min_level = 2
         config.max_level = 3
@@ -405,7 +405,7 @@ class TestForEachIntervalEdgeCases:
 
     def test_single_level_mesh(self):
         """Test with mesh having only one level."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 3
         config.max_level = 3
@@ -423,7 +423,7 @@ class TestForEachIntervalEdgeCases:
 
     def test_empty_callback(self):
         """Test that callback with empty body doesn't crash."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 3
@@ -437,7 +437,7 @@ class TestForEachIntervalEdgeCases:
 
     def test_callback_can_capture_variables(self):
         """Test that callbacks can capture outer variables (Python closure)."""
-        box = sam.geometry.Box1D([0.0], [1.0])
+        box = sam.geometry.box([0.0], [1.0])
         config = sam.config.MeshConfig1D()
         config.min_level = 2
         config.max_level = 3

@@ -74,6 +74,14 @@ set_target_properties(samurai_python PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python
 )
 
+# Copy Python utilities to build directory
+add_custom_command(TARGET samurai_python POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/samurai_python
+        ${CMAKE_BINARY_DIR}/python/samurai_python
+    COMMENT "Copying Python utilities to build directory"
+)
+
 # Optional: Create test target
 if(BUILD_TESTING)
     enable_testing()
@@ -87,6 +95,12 @@ endif()
 include(GNUInstallDirs)
 install(TARGETS samurai_python
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+# Install Python utilities
+install(DIRECTORY src/samurai_python/
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/samurai_python
+    FILES_MATCHING PATTERN "*.py"
 )
 
 # Print configuration summary

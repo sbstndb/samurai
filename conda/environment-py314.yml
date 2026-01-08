@@ -1,0 +1,31 @@
+name: samurai-py314
+channels:
+  - conda-forge
+dependencies:
+  # Python - version fixee
+  - python=3.14.2
+
+  # Outils de build
+  - cmake=4.2.1
+  - ninja=1.13.2
+  - cxx-compiler=1.11.0
+
+  # Dependences principales Samurai
+  - xtensor=0.27.1
+  - highfive=3.2.0
+  - fmt=12.1.0
+  - pugixml=1.15
+  - cli11=2.6.0
+
+  # Tests
+  - pytest=9.0.2
+  - pytest-cov
+  - h5py=3.15.1
+
+  # Python dependencies
+  - numpy
+  - pip
+
+  # Optionnel: PETSc pour solveurs
+  - petsc=3.24.3
+  - pkg-config

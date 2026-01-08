@@ -6,9 +6,9 @@ This package provides the Python bindings for Samurai, combining:
 - Python utility modules (progress bars, visualization helpers)
 """
 
-import ctypes
-import ctypes.util
+import importlib.util
 import os
+import sys
 
 # Get the build/python directory (parent of samurai_python package)
 _package_dir = os.path.dirname(__file__)
@@ -28,26 +28,20 @@ else:
         "Please build the project first."
     )
 
-# Load the .so file using ctypes and call PyInit_samurai_python directly
-# This bypasses the Python import machinery that requires module name matching
-_so = ctypes.PyDLL(_so_path)
-# Call the module init function - it returns a PyObject* which we convert to Python object
-init_func_name = "PyInit_samurai_python"
-if not hasattr(_so, init_func_name):
-    raise ImportError(f"Cannot find {init_func_name} in {_so_path}")
-
-# Get the init function and call it - it returns a Python module object
-PyInit_samurai_python = getattr(_so, init_func_name)
-PyInit_samurai_python.restype = ctypes.py_object
-_compiled_module = PyInit_samurai_python()
-
-if _compiled_module is None:
-    raise ImportError(f"Failed to initialize module from {_so_path}")
+# Load the compiled module using importlib
+spec = importlib.util.spec_from_file_location("samurai_python", _so_path)
+_compiled_module = importlib.util.module_from_spec(spec)
+sys.modules["samurai_python_compiled"] = _compiled_module
+spec.loader.exec_module(_compiled_module)
 
 # Copy all public symbols from compiled module to this package namespace
 for attr_name in dir(_compiled_module):
     if not attr_name.startswith('_'):
         globals()[attr_name] = getattr(_compiled_module, attr_name)
+
+# Copy __version__ even though it starts with __
+if hasattr(_compiled_module, "__version__"):
+    __version__ = _compiled_module.__version__
 
 # Import the Python utility submodules
 from . import utils  # noqa: E402

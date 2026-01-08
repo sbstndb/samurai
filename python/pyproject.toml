@@ -78,8 +78,8 @@ Repository = "https://github.com/hpc-maths/samurai"
 Issues = "https://github.com/hpc-maths/samurai/issues"
 
 [tool.scikit-build]
-cmake_minimum-version = "3.16"
-cmake-source-dir = "."
+minimum-version = "build-system"
+cmake.source-dir = "."
 build-dir = "build/{wheel_tag}"
 wheel.py-api = "py3"
 # Ninja is faster than make for parallel builds
@@ -87,11 +87,12 @@ cmake.args = ["-GNinja"]
 # Optimize for release
 cmake.build-type = "Release"
 # Build in parallel
-jobs = 4
+jobs = 6
 
-[tool.scikit-build.metadata]
-version-provider = "scikit_build_core.metadata.regex"
-# Read version from version.txt in parent directory
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "../version.txt"
+regex = "(?P<version>.+)"
 
 [tool.black]
 line-length = 100

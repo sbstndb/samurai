@@ -10,6 +10,12 @@ include(FetchContent)
 # Try to find pybind11 locally first
 find_package(pybind11 2.10 CONFIG)
 
+# Force use of conda pybind11 if available
+if(DEFINED ENV{CONDA_PREFIX})
+    set(pybind11_INCLUDE_DIR "$ENV{CONDA_PREFIX}/include" CACHE PATH "Pybind11 include dir from conda")
+    message(STATUS "Using conda pybind11 from: ${pybind11_INCLUDE_DIR}")
+endif()
+
 if(NOT pybind11_FOUND)
     message(STATUS "pybind11 not found, fetching from GitHub...")
     FetchContent_Declare(

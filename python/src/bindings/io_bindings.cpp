@@ -84,7 +84,7 @@ inline FilePathParts parse_unified_filepath(const py::object& filepath_obj)
 
     // Extract directory and basename
     std::filesystem::path directory = filepath.parent_path();
-    std::string basename = filepath.stem().string();
+    std::string basename            = filepath.stem().string();
 
     // If no directory, use current directory
     if (directory.empty())
@@ -114,10 +114,7 @@ void save_1d_2fields(const py::object& filepath_obj, const ScalarField<1>& field
 }
 
 // Save three fields (1D) - unified filepath
-void save_1d_3fields(const py::object& filepath_obj,
-                     const ScalarField<1>& field1,
-                     const ScalarField<1>& field2,
-                     const ScalarField<1>& field3)
+void save_1d_3fields(const py::object& filepath_obj, const ScalarField<1>& field1, const ScalarField<1>& field2, const ScalarField<1>& field3)
 {
     auto [directory, basename] = parse_unified_filepath(filepath_obj);
     samurai::save(directory, basename, field1.mesh(), field1, field2, field3);
@@ -139,10 +136,7 @@ void save_2d_2fields(const py::object& filepath_obj, const ScalarField<2>& field
     samurai::save(directory, basename, field1.mesh(), field1, field2);
 }
 
-void save_2d_3fields(const py::object& filepath_obj,
-                     const ScalarField<2>& field1,
-                     const ScalarField<2>& field2,
-                     const ScalarField<2>& field3)
+void save_2d_3fields(const py::object& filepath_obj, const ScalarField<2>& field1, const ScalarField<2>& field2, const ScalarField<2>& field3)
 {
     auto [directory, basename] = parse_unified_filepath(filepath_obj);
     samurai::save(directory, basename, field1.mesh(), field1, field2, field3);
@@ -164,10 +158,7 @@ void save_3d_2fields(const py::object& filepath_obj, const ScalarField<3>& field
     samurai::save(directory, basename, field1.mesh(), field1, field2);
 }
 
-void save_3d_3fields(const py::object& filepath_obj,
-                     const ScalarField<3>& field1,
-                     const ScalarField<3>& field2,
-                     const ScalarField<3>& field3)
+void save_3d_3fields(const py::object& filepath_obj, const ScalarField<3>& field1, const ScalarField<3>& field2, const ScalarField<3>& field3)
 {
     auto [directory, basename] = parse_unified_filepath(filepath_obj);
     samurai::save(directory, basename, field1.mesh(), field1, field2, field3);

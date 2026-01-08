@@ -312,19 +312,19 @@ void init_interval_bindings(py::module_& m)
     // Create interval submodule for organized API access
     // ============================================================
     py::module_ interval = m.def_submodule("interval",
-        "Interval class for Samurai AMR simulations\n\n"
-        "An Interval represents a half-open range [start, end) with optional\n"
-        "storage index, used internally by the mesh data structure.\n\n"
-        "Factory Functions:\n"
-        "  make_interval(start, end, index=0) - Create an Interval\n\n"
-        "Classes:\n"
-        "  Interval - Half-open interval [start, end) with storage index\n\n"
-        "Examples:\n"
-        "    >>> import samurai_python as sam\n"
-        "    >>> # Factory function\n"
-        "    >>> interval = sam.interval.make_interval(0, 10)\n"
-        "    >>> # Direct class access\n"
-        "    >>> interval = sam.interval.Interval(0, 10, index=0)\n");
+                                           "Interval class for Samurai AMR simulations\n\n"
+                                           "An Interval represents a half-open range [start, end) with optional\n"
+                                           "storage index, used internally by the mesh data structure.\n\n"
+                                           "Factory Functions:\n"
+                                           "  make_interval(start, end, index=0) - Create an Interval\n\n"
+                                           "Classes:\n"
+                                           "  Interval - Half-open interval [start, end) with storage index\n\n"
+                                           "Examples:\n"
+                                           "    >>> import samurai_python as sam\n"
+                                           "    >>> # Factory function\n"
+                                           "    >>> interval = sam.interval.make_interval(0, 10)\n"
+                                           "    >>> # Direct class access\n"
+                                           "    >>> interval = sam.interval.Interval(0, 10, index=0)\n");
 
     // Bind Interval class ONLY to interval submodule (not to main module)
     bind_interval_class<int, long long int>(interval, "Interval");

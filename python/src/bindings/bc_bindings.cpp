@@ -361,18 +361,18 @@ void init_bc_bindings(py::module_& m)
     // Create boundary submodule for organized API access
     // ============================================================
     py::module_ boundary = m.def_submodule("boundary",
-        "Boundary condition functions for Samurai AMR simulations\n\n"
-        "This submodule provides organized access to boundary condition functions.\n"
-        "Both sam.boundary.dirichlet() and sam.make_dirichlet_bc() reference the same function.\n\n"
-        "Examples:\n"
-        "    >>> import samurai_python as sam\n"
-        "    >>> # New organized API (recommended)\n"
-        "    >>> sam.boundary.dirichlet(u, 0.0)\n"
-        "    >>> # Old API (still works)\n"
-        "    >>> sam.make_dirichlet_bc(u, 0.0)\n");
+                                           "Boundary condition functions for Samurai AMR simulations\n\n"
+                                           "This submodule provides organized access to boundary condition functions.\n"
+                                           "Both sam.boundary.dirichlet() and sam.make_dirichlet_bc() reference the same function.\n\n"
+                                           "Examples:\n"
+                                           "    >>> import samurai_python as sam\n"
+                                           "    >>> # New organized API (recommended)\n"
+                                           "    >>> sam.boundary.dirichlet(u, 0.0)\n"
+                                           "    >>> # Old API (still works)\n"
+                                           "    >>> sam.make_dirichlet_bc(u, 0.0)\n");
 
     // Reference existing BC functions in the submodule
     // Both paths reference the SAME function object
     boundary.attr("dirichlet") = m.attr("make_dirichlet_bc");
-    boundary.attr("neumann") = m.attr("make_neumann_bc");
+    boundary.attr("neumann")   = m.attr("make_neumann_bc");
 }

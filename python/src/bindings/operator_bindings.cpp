@@ -37,7 +37,8 @@ template <std::size_t dim>
 using ScalarField = samurai::ScalarField<samurai::MRMesh<samurai::complete_mesh_config<samurai::mesh_config<dim>, samurai::MRMeshId>>, double>;
 
 template <std::size_t dim, std::size_t n_comp, bool SOA = false>
-using VectorField = samurai::VectorField<samurai::MRMesh<samurai::complete_mesh_config<samurai::mesh_config<dim>, samurai::MRMeshId>>, double, n_comp, SOA>;
+using VectorField = samurai::
+    VectorField<samurai::MRMesh<samurai::complete_mesh_config<samurai::mesh_config<dim>, samurai::MRMeshId>>, double, n_comp, SOA>;
 
 // Specific VectorField types for Burgers equation (n_comp == dim)
 using VectorField1D_2 = VectorField<1, 2, false>;
@@ -236,7 +237,7 @@ py::object convection_weno5_nonlin_1d(ScalarField<1>& field)
 
     // Get the expression and evaluate it
     auto conv_expr = conv(field);
-    result = conv_expr;
+    result         = conv_expr;
 
     return py::cast(result);
 }
@@ -254,7 +255,7 @@ py::object convection_weno5_nonlin_2d(ScalarField<2>& field)
 
     // Get the expression and evaluate it
     auto conv_expr = conv(field);
-    result = conv_expr;
+    result         = conv_expr;
 
     return py::cast(result);
 }
@@ -272,7 +273,7 @@ py::object convection_weno5_nonlin_3d(ScalarField<3>& field)
 
     // Get the expression and evaluate it
     auto conv_expr = conv(field);
-    result = conv_expr;
+    result         = conv_expr;
 
     return py::cast(result);
 }
@@ -285,7 +286,7 @@ py::object convection_weno5_nonlin_3d(ScalarField<3>& field)
 py::object convection_weno5_linear_1d(ScalarField<1>& field, double velocity)
 {
     using VelocityVector = samurai::VelocityVector<1>;
-    auto& mesh = field.mesh();
+    auto& mesh           = field.mesh();
 
     // Create output field with same mesh
     auto result = samurai::make_scalar_field<double>(field.name() + "_conv", mesh);
@@ -299,7 +300,7 @@ py::object convection_weno5_linear_1d(ScalarField<1>& field, double velocity)
 
     // Get the expression and evaluate it
     auto conv_expr = conv(field);
-    result = conv_expr;
+    result         = conv_expr;
 
     return py::cast(result);
 }
@@ -308,7 +309,7 @@ py::object convection_weno5_linear_1d(ScalarField<1>& field, double velocity)
 py::object convection_weno5_linear_2d(ScalarField<2>& field, const std::array<double, 2>& velocity)
 {
     using VelocityVector = samurai::VelocityVector<2>;
-    auto& mesh = field.mesh();
+    auto& mesh           = field.mesh();
 
     // Create output field with same mesh
     auto result = samurai::make_scalar_field<double>(field.name() + "_conv", mesh);
@@ -323,7 +324,7 @@ py::object convection_weno5_linear_2d(ScalarField<2>& field, const std::array<do
 
     // Get the expression and evaluate it
     auto conv_expr = conv(field);
-    result = conv_expr;
+    result         = conv_expr;
 
     return py::cast(result);
 }
@@ -347,7 +348,7 @@ py::object convection_weno5_linear_2d_py(ScalarField<2>& field, py::sequence vel
 py::object convection_weno5_linear_3d(ScalarField<3>& field, const std::array<double, 3>& velocity)
 {
     using VelocityVector = samurai::VelocityVector<3>;
-    auto& mesh = field.mesh();
+    auto& mesh           = field.mesh();
 
     // Create output field with same mesh
     auto result = samurai::make_scalar_field<double>(field.name() + "_conv", mesh);
@@ -363,7 +364,7 @@ py::object convection_weno5_linear_3d(ScalarField<3>& field, const std::array<do
 
     // Get the expression and evaluate it
     auto conv_expr = conv(field);
-    result = conv_expr;
+    result         = conv_expr;
 
     return py::cast(result);
 }
@@ -401,7 +402,7 @@ py::object convection_weno5_nonlin_vector_2d(VectorField2D_2& field)
 
     // Get the expression and evaluate it
     auto conv_expr = conv(field);
-    result = conv_expr;
+    result         = conv_expr;
 
     return py::cast(result);
 }
@@ -419,7 +420,7 @@ py::object convection_weno5_nonlin_vector_3d(VectorField3D_3& field)
 
     // Get the expression and evaluate it
     auto conv_expr = conv(field);
-    result = conv_expr;
+    result         = conv_expr;
 
     return py::cast(result);
 }
@@ -443,7 +444,7 @@ py::object convection_weno5_vectorfield_2d(ScalarField<2>& field, VectorField2D_
 
     // Get the expression and evaluate it
     auto conv_expr = conv(field);
-    result = conv_expr;
+    result         = conv_expr;
 
     return py::cast(result);
 }
@@ -461,7 +462,7 @@ py::object convection_weno5_vectorfield_3d(ScalarField<3>& field, VectorField3D_
 
     // Get the expression and evaluate it
     auto conv_expr = conv(field);
-    result = conv_expr;
+    result         = conv_expr;
 
     return py::cast(result);
 }

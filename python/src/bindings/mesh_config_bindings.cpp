@@ -263,68 +263,84 @@ void bind_mesh_config(py::module_& m, const std::string& name)
 
     // Constructor with keyword arguments (Pythonic API)
     cls.def(py::init(
-            [](std::size_t min_level, std::size_t max_level,
-               std::size_t start_level, std::size_t graduation_width,
-               int max_stencil_radius, double scaling_factor,
-               double approx_box_tol, bool periodic,
-               py::object periodic_per_direction,
-               bool disable_minimal_ghost) -> Config
-            {
-                Config cfg;
+                [](std::size_t min_level,
+                   std::size_t max_level,
+                   std::size_t start_level,
+                   std::size_t graduation_width,
+                   int max_stencil_radius,
+                   double scaling_factor,
+                   double approx_box_tol,
+                   bool periodic,
+                   py::object periodic_per_direction,
+                   bool disable_minimal_ghost) -> Config
+                {
+                    Config cfg;
 
-                // Always set min_level (now has default of 0)
-                cfg.min_level(min_level);
+                    // Always set min_level (now has default of 0)
+                    cfg.min_level(min_level);
 
-                // Always set max_level (has default of 6)
-                cfg.max_level(max_level);
+                    // Always set max_level (has default of 6)
+                    cfg.max_level(max_level);
 
-                // Only set if provided (use sentinel values)
-                if (start_level != std::numeric_limits<std::size_t>::max()) {
-                    cfg.start_level(start_level);
-                }
-                if (graduation_width != std::numeric_limits<std::size_t>::max()) {
-                    cfg.graduation_width(graduation_width);
-                }
-                if (max_stencil_radius >= 0) {
-                    cfg.max_stencil_radius(max_stencil_radius);
-                }
-                if (scaling_factor >= 0.0) {
-                    cfg.scaling_factor(scaling_factor);
-                }
-                if (approx_box_tol >= 0.0) {
-                    cfg.approx_box_tol(approx_box_tol);
-                }
-
-                // Handle periodicity
-                if (!periodic_per_direction.is_none()) {
-                    if constexpr (dim == 1) {
-                        cfg.periodic(periodic);
-                    } else {
-                        auto per = periodic_per_direction.cast<std::array<bool, dim>>();
-                        cfg.periodic(per);
+                    // Only set if provided (use sentinel values)
+                    if (start_level != std::numeric_limits<std::size_t>::max())
+                    {
+                        cfg.start_level(start_level);
                     }
-                } else if (periodic) {
-                    cfg.periodic(periodic);
-                }
+                    if (graduation_width != std::numeric_limits<std::size_t>::max())
+                    {
+                        cfg.graduation_width(graduation_width);
+                    }
+                    if (max_stencil_radius >= 0)
+                    {
+                        cfg.max_stencil_radius(max_stencil_radius);
+                    }
+                    if (scaling_factor >= 0.0)
+                    {
+                        cfg.scaling_factor(scaling_factor);
+                    }
+                    if (approx_box_tol >= 0.0)
+                    {
+                        cfg.approx_box_tol(approx_box_tol);
+                    }
 
-                // Handle ghost width
-                if (disable_minimal_ghost) {
-                    cfg.disable_minimal_ghost_width();
-                }
+                    // Handle periodicity
+                    if (!periodic_per_direction.is_none())
+                    {
+                        if constexpr (dim == 1)
+                        {
+                            cfg.periodic(periodic);
+                        }
+                        else
+                        {
+                            auto per = periodic_per_direction.cast<std::array<bool, dim>>();
+                            cfg.periodic(per);
+                        }
+                    }
+                    else if (periodic)
+                    {
+                        cfg.periodic(periodic);
+                    }
 
-                return cfg;
-            }),
-        py::arg("min_level") = 0,
-        py::arg("max_level") = 6,
-        py::arg("start_level") = std::numeric_limits<std::size_t>::max(),
-        py::arg("graduation_width") = std::numeric_limits<std::size_t>::max(),
-        py::arg("max_stencil_radius") = -1,
-        py::arg("scaling_factor") = -1.0,
-        py::arg("approx_box_tol") = -1.0,
-        py::arg("periodic") = false,
-        py::arg("periodic_per_direction") = py::none(),
-        py::arg("disable_minimal_ghost_width") = false,
-        R"pbdoc(
+                    // Handle ghost width
+                    if (disable_minimal_ghost)
+                    {
+                        cfg.disable_minimal_ghost_width();
+                    }
+
+                    return cfg;
+                }),
+            py::arg("min_level")                   = 0,
+            py::arg("max_level")                   = 6,
+            py::arg("start_level")                 = std::numeric_limits<std::size_t>::max(),
+            py::arg("graduation_width")            = std::numeric_limits<std::size_t>::max(),
+            py::arg("max_stencil_radius")          = -1,
+            py::arg("scaling_factor")              = -1.0,
+            py::arg("approx_box_tol")              = -1.0,
+            py::arg("periodic")                    = false,
+            py::arg("periodic_per_direction")      = py::none(),
+            py::arg("disable_minimal_ghost_width") = false,
+            R"pbdoc(
         Create mesh configuration with optional parameters.
 
         Parameters
@@ -378,51 +394,62 @@ void bind_mesh_config(py::module_& m, const std::string& name)
 
 // Helper template function to create MeshConfig with parameters
 template <std::size_t dim>
-samurai::mesh_config<dim> create_mesh_config_helper(
-    std::size_t min_level,
-    std::size_t max_level,
-    std::size_t start_level,
-    std::size_t graduation_width,
-    int max_stencil_radius,
-    double scaling_factor,
-    double approx_box_tol,
-    bool periodic,
-    py::object periodic_per_direction,
-    bool disable_minimal_ghost)
+samurai::mesh_config<dim> create_mesh_config_helper(std::size_t min_level,
+                                                    std::size_t max_level,
+                                                    std::size_t start_level,
+                                                    std::size_t graduation_width,
+                                                    int max_stencil_radius,
+                                                    double scaling_factor,
+                                                    double approx_box_tol,
+                                                    bool periodic,
+                                                    py::object periodic_per_direction,
+                                                    bool disable_minimal_ghost)
 {
     samurai::mesh_config<dim> cfg;
 
     cfg.min_level(min_level);
     cfg.max_level(max_level);
 
-    if (start_level != std::numeric_limits<std::size_t>::max()) {
+    if (start_level != std::numeric_limits<std::size_t>::max())
+    {
         cfg.start_level(start_level);
     }
-    if (graduation_width != std::numeric_limits<std::size_t>::max()) {
+    if (graduation_width != std::numeric_limits<std::size_t>::max())
+    {
         cfg.graduation_width(graduation_width);
     }
-    if (max_stencil_radius >= 0) {
+    if (max_stencil_radius >= 0)
+    {
         cfg.max_stencil_radius(max_stencil_radius);
     }
-    if (scaling_factor >= 0.0) {
+    if (scaling_factor >= 0.0)
+    {
         cfg.scaling_factor(scaling_factor);
     }
-    if (approx_box_tol >= 0.0) {
+    if (approx_box_tol >= 0.0)
+    {
         cfg.approx_box_tol(approx_box_tol);
     }
 
-    if (!periodic_per_direction.is_none()) {
-        if constexpr (dim == 1) {
+    if (!periodic_per_direction.is_none())
+    {
+        if constexpr (dim == 1)
+        {
             cfg.periodic(periodic);
-        } else {
+        }
+        else
+        {
             auto per = periodic_per_direction.cast<std::array<bool, dim>>();
             cfg.periodic(per);
         }
-    } else if (periodic) {
+    }
+    else if (periodic)
+    {
         cfg.periodic(periodic);
     }
 
-    if (disable_minimal_ghost) {
+    if (disable_minimal_ghost)
+    {
         cfg.disable_minimal_ghost_width();
     }
 
@@ -444,15 +471,14 @@ void init_mesh_config_bindings(py::module_& m)
     // ============================================================
     // Create config submodule for organized API access
     // ============================================================
-    py::module_ config = m.def_submodule(
-        "config",
-        "Configuration classes for Samurai AMR simulations\n\n"
-        "Factory Functions:\n"
-        "  make(dim, min_level=0, max_level=6, ...) - Create MeshConfig with explicit dimension\n\n"
-        "Examples:\n"
-        "    >>> import samurai_python as sam\n"
-        "    >>> # Factory function\n"
-        "    >>> cfg = sam.config.make(2, min_level=4, max_level=8)\n");
+    py::module_ config = m.def_submodule("config",
+                                         "Configuration classes for Samurai AMR simulations\n\n"
+                                         "Factory Functions:\n"
+                                         "  make(dim, min_level=0, max_level=6, ...) - Create MeshConfig with explicit dimension\n\n"
+                                         "Examples:\n"
+                                         "    >>> import samurai_python as sam\n"
+                                         "    >>> # Factory function\n"
+                                         "    >>> cfg = sam.config.make(2, min_level=4, max_level=8)\n");
 
     // Register MeshConfig types (internal, with _ prefix) for factory function return types
     bind_mesh_config<1>(config, "_MeshConfig1D");
@@ -463,7 +489,8 @@ void init_mesh_config_bindings(py::module_& m)
     // Factory function: sam.config.make(dim, min_level, max_level, ...)
     // Creates MeshConfig with explicit dimension parameter
     // ============================================================
-    config.def("make",
+    config.def(
+        "make",
         [](int dim,
            std::size_t min_level,
            std::size_t max_level,
@@ -476,38 +503,63 @@ void init_mesh_config_bindings(py::module_& m)
            py::object periodic_per_direction,
            bool disable_minimal_ghost_width) -> py::object
         {
-            if (dim == 1) {
-                auto cfg = create_mesh_config_helper<1>(
-                    min_level, max_level, start_level, graduation_width,
-                    max_stencil_radius, scaling_factor, approx_box_tol,
-                    periodic, periodic_per_direction, disable_minimal_ghost_width);
+            if (dim == 1)
+            {
+                auto cfg = create_mesh_config_helper<1>(min_level,
+                                                        max_level,
+                                                        start_level,
+                                                        graduation_width,
+                                                        max_stencil_radius,
+                                                        scaling_factor,
+                                                        approx_box_tol,
+                                                        periodic,
+                                                        periodic_per_direction,
+                                                        disable_minimal_ghost_width);
                 return py::cast(cfg);
-            } else if (dim == 2) {
-                auto cfg = create_mesh_config_helper<2>(
-                    min_level, max_level, start_level, graduation_width,
-                    max_stencil_radius, scaling_factor, approx_box_tol,
-                    periodic, periodic_per_direction, disable_minimal_ghost_width);
+            }
+            else if (dim == 2)
+            {
+                auto cfg = create_mesh_config_helper<2>(min_level,
+                                                        max_level,
+                                                        start_level,
+                                                        graduation_width,
+                                                        max_stencil_radius,
+                                                        scaling_factor,
+                                                        approx_box_tol,
+                                                        periodic,
+                                                        periodic_per_direction,
+                                                        disable_minimal_ghost_width);
                 return py::cast(cfg);
-            } else if (dim == 3) {
-                auto cfg = create_mesh_config_helper<3>(
-                    min_level, max_level, start_level, graduation_width,
-                    max_stencil_radius, scaling_factor, approx_box_tol,
-                    periodic, periodic_per_direction, disable_minimal_ghost_width);
+            }
+            else if (dim == 3)
+            {
+                auto cfg = create_mesh_config_helper<3>(min_level,
+                                                        max_level,
+                                                        start_level,
+                                                        graduation_width,
+                                                        max_stencil_radius,
+                                                        scaling_factor,
+                                                        approx_box_tol,
+                                                        periodic,
+                                                        periodic_per_direction,
+                                                        disable_minimal_ghost_width);
                 return py::cast(cfg);
-            } else {
+            }
+            else
+            {
                 throw std::runtime_error("Unsupported dimension: " + std::to_string(dim) + " (must be 1, 2, or 3)");
             }
         },
         py::arg("dim"),
-        py::arg("min_level") = 0,
-        py::arg("max_level") = 6,
-        py::arg("start_level") = std::numeric_limits<std::size_t>::max(),
-        py::arg("graduation_width") = std::numeric_limits<std::size_t>::max(),
-        py::arg("max_stencil_radius") = -1,
-        py::arg("scaling_factor") = -1.0,
-        py::arg("approx_box_tol") = -1.0,
-        py::arg("periodic") = false,
-        py::arg("periodic_per_direction") = py::none(),
+        py::arg("min_level")                   = 0,
+        py::arg("max_level")                   = 6,
+        py::arg("start_level")                 = std::numeric_limits<std::size_t>::max(),
+        py::arg("graduation_width")            = std::numeric_limits<std::size_t>::max(),
+        py::arg("max_stencil_radius")          = -1,
+        py::arg("scaling_factor")              = -1.0,
+        py::arg("approx_box_tol")              = -1.0,
+        py::arg("periodic")                    = false,
+        py::arg("periodic_per_direction")      = py::none(),
         py::arg("disable_minimal_ghost_width") = false,
         R"pbdoc(
         Create a MeshConfig by specifying dimension explicitly.

@@ -298,15 +298,15 @@ void init_box_bindings(py::module_& m)
     // Create geometry submodule for organized API access
     // ============================================================
     py::module_ geometry = m.def_submodule("geometry",
-        "Geometric primitives for Samurai AMR simulations\n\n"
-        "Factory Functions:\n"
-        "  box(min_corner, max_corner) - Create Box with inferred dimension\n\n"
-        "Examples:\n"
-        "    >>> import samurai_python as sam\n"
-        "    >>> # Factory function (auto-detects dimension)\n"
-        "    >>> box = sam.geometry.box([0., 0.], [1., 1.])\n"
-        "    >>> box_1d = sam.geometry.box([0.0], [1.0])\n"
-        "    >>> box_3d = sam.geometry.box([0., 0., 0.], [1., 1., 1.])\n");
+                                           "Geometric primitives for Samurai AMR simulations\n\n"
+                                           "Factory Functions:\n"
+                                           "  box(min_corner, max_corner) - Create Box with inferred dimension\n\n"
+                                           "Examples:\n"
+                                           "    >>> import samurai_python as sam\n"
+                                           "    >>> # Factory function (auto-detects dimension)\n"
+                                           "    >>> box = sam.geometry.box([0., 0.], [1., 1.])\n"
+                                           "    >>> box_1d = sam.geometry.box([0.0], [1.0])\n"
+                                           "    >>> box_3d = sam.geometry.box([0., 0., 0.], [1., 1., 1.])\n");
 
     // Register Box types (internal, with _ prefix) for factory function return types
     bind_box<1>(geometry, "_Box1D");
@@ -317,7 +317,8 @@ void init_box_bindings(py::module_& m)
     // Factory function: sam.geometry.box(min_corner, max_corner)
     // Infers dimension from array length
     // ============================================================
-    geometry.def("box",
+    geometry.def(
+        "box",
         [](const py::object& min_obj, const py::object& max_obj) -> py::object
         {
             // Detect dimension from input
@@ -386,7 +387,7 @@ void init_box_bindings(py::module_& m)
     // (interval_bindings.cpp may be initialized before or after this file)
     try
     {
-        py::object interval = m.attr("Interval");
+        py::object interval       = m.attr("Interval");
         geometry.attr("Interval") = interval;
     }
     catch (const py::error_already_set&)

@@ -40,8 +40,8 @@ class PyAdaptBase
 {
   public:
 
-    virtual ~PyAdaptBase()                                = default;
-    virtual void call(samurai::mra_config& config)        = 0;
+    virtual ~PyAdaptBase()                                                                     = default;
+    virtual void call(samurai::mra_config& config)                                             = 0;
     virtual void call_with_velocity_2d(samurai::mra_config& config, VectorField2D_2& velocity) = 0;
     virtual void call_with_velocity_3d(samurai::mra_config& config, VectorField3D_3& velocity) = 0;
 };
@@ -292,17 +292,17 @@ void init_adapt_bindings(py::module_& m)
     // Create adaptation submodule for organized API access
     // ============================================================
     py::module_ adapt = m.def_submodule("adaptation",
-        "Mesh adaptation functions for Samurai AMR simulations\n\n"
-        "Factory Functions:\n"
-        "  make_MRAdapt(field) - Create multiresolution adaptation object\n"
-        "  update_ghost_mr(field) - Update ghost cells for MR analysis\n\n"
-        "Classes:\n"
-        "  MRAdapt - Multiresolution mesh adaptation callable\n\n"
-        "Examples:\n"
-        "    >>> import samurai_python as sam\n"
-        "    >>> MRadapt = sam.adaptation.make_MRAdapt(field)\n"
-        "    >>> MRadapt(sam.config.MRAConfig(epsilon=1e-4))\n"
-        "    >>> sam.adaptation.update_ghost_mr(field)\n");
+                                        "Mesh adaptation functions for Samurai AMR simulations\n\n"
+                                        "Factory Functions:\n"
+                                        "  make_MRAdapt(field) - Create multiresolution adaptation object\n"
+                                        "  update_ghost_mr(field) - Update ghost cells for MR analysis\n\n"
+                                        "Classes:\n"
+                                        "  MRAdapt - Multiresolution mesh adaptation callable\n\n"
+                                        "Examples:\n"
+                                        "    >>> import samurai_python as sam\n"
+                                        "    >>> MRadapt = sam.adaptation.make_MRAdapt(field)\n"
+                                        "    >>> MRadapt(sam.config.MRAConfig(epsilon=1e-4))\n"
+                                        "    >>> sam.adaptation.update_ghost_mr(field)\n");
 
     // Bind MRAdapt class ONLY to adaptation submodule (not to main module)
     py::class_<PyAdaptVariant>(adapt, "MRAdapt", R"pbdoc(
@@ -358,8 +358,10 @@ void init_adapt_bindings(py::module_& m)
             "Perform mesh adaptation with 3D velocity field (required for obstacle BC).");
 
     // Bind update_ghost_mr for all dimensions ONLY to adaptation submodule (not to main module)
-    adapt.def("update_ghost_mr", &update_ghost_mr_1d, py::arg("field"),
-        R"pbdoc(
+    adapt.def("update_ghost_mr",
+              &update_ghost_mr_1d,
+              py::arg("field"),
+              R"pbdoc(
         Update ghost cells for multiresolution analysis (1D).
 
         Parameters
@@ -377,8 +379,10 @@ void init_adapt_bindings(py::module_& m)
         >>> sam.adaptation.update_ghost_mr(u).resize()
         )pbdoc");
 
-    adapt.def("update_ghost_mr", &update_ghost_mr_2d, py::arg("field"),
-        R"pbdoc(
+    adapt.def("update_ghost_mr",
+              &update_ghost_mr_2d,
+              py::arg("field"),
+              R"pbdoc(
         Update ghost cells for multiresolution analysis (2D).
 
         Parameters
@@ -396,8 +400,10 @@ void init_adapt_bindings(py::module_& m)
         >>> sam.adaptation.update_ghost_mr(u).resize()
         )pbdoc");
 
-    adapt.def("update_ghost_mr", &update_ghost_mr_3d, py::arg("field"),
-        R"pbdoc(
+    adapt.def("update_ghost_mr",
+              &update_ghost_mr_3d,
+              py::arg("field"),
+              R"pbdoc(
         Update ghost cells for multiresolution analysis (3D).
 
         Parameters
@@ -416,8 +422,10 @@ void init_adapt_bindings(py::module_& m)
         )pbdoc");
 
     // Bind update_ghost_mr for VectorField types ONLY to adaptation submodule (not to main module)
-    adapt.def("update_ghost_mr", &update_ghost_mr_vector_2d_2, py::arg("field"),
-        R"pbdoc(
+    adapt.def("update_ghost_mr",
+              &update_ghost_mr_vector_2d_2,
+              py::arg("field"),
+              R"pbdoc(
         Update ghost cells for 2D vector field (2 components).
 
         Parameters
@@ -435,8 +443,10 @@ void init_adapt_bindings(py::module_& m)
         >>> sam.adaptation.update_ghost_mr(velocity).resize()
         )pbdoc");
 
-    adapt.def("update_ghost_mr", &update_ghost_mr_vector_3d_3, py::arg("field"),
-        R"pbdoc(
+    adapt.def("update_ghost_mr",
+              &update_ghost_mr_vector_3d_3,
+              py::arg("field"),
+              R"pbdoc(
         Update ghost cells for 3D vector field (3 components).
 
         Parameters
@@ -455,8 +465,10 @@ void init_adapt_bindings(py::module_& m)
         )pbdoc");
 
     // Bind make_MRAdapt for all dimensions ONLY to adaptation submodule (not to main module)
-    adapt.def("make_MRAdapt", &make_mr_adapt_1d, py::arg("field"),
-        R"pbdoc(
+    adapt.def("make_MRAdapt",
+              &make_mr_adapt_1d,
+              py::arg("field"),
+              R"pbdoc(
         Create multiresolution adaptation object (1D).
 
         Parameters
@@ -474,16 +486,24 @@ void init_adapt_bindings(py::module_& m)
         >>> MRadapt = sam.adaptation.make_MRAdapt(field)
         )pbdoc");
 
-    adapt.def("make_MRAdapt", &make_mr_adapt_2d, py::arg("field"),
-        "Create multiresolution adaptation object (2D). See 1D version for documentation.");
+    adapt.def("make_MRAdapt",
+              &make_mr_adapt_2d,
+              py::arg("field"),
+              "Create multiresolution adaptation object (2D). See 1D version for documentation.");
 
-    adapt.def("make_MRAdapt", &make_mr_adapt_3d, py::arg("field"),
-        "Create multiresolution adaptation object (3D). See 1D version for documentation.");
+    adapt.def("make_MRAdapt",
+              &make_mr_adapt_3d,
+              py::arg("field"),
+              "Create multiresolution adaptation object (3D). See 1D version for documentation.");
 
     // Bind make_MRAdapt for VectorField types ONLY to adaptation submodule (not to main module)
-    adapt.def("make_MRAdapt", &make_mr_adapt_vector_2d_2, py::arg("field"),
-        "Create multiresolution adaptation object for 2D vector field (2 components). See 1D version for documentation.");
+    adapt.def("make_MRAdapt",
+              &make_mr_adapt_vector_2d_2,
+              py::arg("field"),
+              "Create multiresolution adaptation object for 2D vector field (2 components). See 1D version for documentation.");
 
-    adapt.def("make_MRAdapt", &make_mr_adapt_vector_3d_3, py::arg("field"),
-        "Create multiresolution adaptation object for 3D vector field (3 components). See 1D version for documentation.");
+    adapt.def("make_MRAdapt",
+              &make_mr_adapt_vector_3d_3,
+              py::arg("field"),
+              "Create multiresolution adaptation object for 3D vector field (3 components). See 1D version for documentation.");
 }

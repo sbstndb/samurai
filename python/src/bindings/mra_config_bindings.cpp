@@ -128,18 +128,18 @@ void bind_mra_config(py::module_& m, const std::string& name)
 
     // Constructor with keyword arguments (Pythonic API)
     cls.def(py::init(
-            [](double epsilon, double regularity, bool relative_detail)
-            {
-                mra_config cfg;
-                cfg.epsilon(epsilon);
-                cfg.regularity(regularity);
-                cfg.relative_detail(relative_detail);
-                return cfg;
-            }),
-        py::arg("epsilon") = 1e-4,
-        py::arg("regularity") = 1.0,
-        py::arg("relative_detail") = false,
-        R"pbdoc(
+                [](double epsilon, double regularity, bool relative_detail)
+                {
+                    mra_config cfg;
+                    cfg.epsilon(epsilon);
+                    cfg.regularity(regularity);
+                    cfg.relative_detail(relative_detail);
+                    return cfg;
+                }),
+            py::arg("epsilon")         = 1e-4,
+            py::arg("regularity")      = 1.0,
+            py::arg("relative_detail") = false,
+            R"pbdoc(
         Create MRA configuration with optional parameters.
 
         Parameters

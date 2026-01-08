@@ -227,17 +227,17 @@ void init_mesh_bindings(py::module_& m)
     // Create mesh submodule for organized API access
     // ============================================================
     py::module_ mesh_module = m.def_submodule("mesh",
-        "Mesh classes for Samurai AMR simulations\n\n"
-        "Factory Functions:\n"
-        "  make(box_or_domain, config=None, min_level=None, max_level=None, ...) - Create MRMesh\n\n"
-        "Examples:\n"
-        "    >>> import samurai_python as sam\n"
-        "    >>> # Factory function with inline config (recommended)\n"
-        "    >>> box = sam.geometry.box([0., 0.], [1., 1.])\n"
-        "    >>> mesh = sam.mesh.make(box, min_level=4, max_level=8)\n"
-        "    >>> # Factory function with explicit config\n"
-        "    >>> config = sam.config.make(2, min_level=4, max_level=8)\n"
-        "    >>> mesh = sam.mesh.make(box, config)\n");
+                                              "Mesh classes for Samurai AMR simulations\n\n"
+                                              "Factory Functions:\n"
+                                              "  make(box_or_domain, config=None, min_level=None, max_level=None, ...) - Create MRMesh\n\n"
+                                              "Examples:\n"
+                                              "    >>> import samurai_python as sam\n"
+                                              "    >>> # Factory function with inline config (recommended)\n"
+                                              "    >>> box = sam.geometry.box([0., 0.], [1., 1.])\n"
+                                              "    >>> mesh = sam.mesh.make(box, min_level=4, max_level=8)\n"
+                                              "    >>> # Factory function with explicit config\n"
+                                              "    >>> config = sam.config.make(2, min_level=4, max_level=8)\n"
+                                              "    >>> mesh = sam.mesh.make(box, config)\n");
 
     // Register MRMesh types (internal, with _ prefix) for factory function return types
     bind_mr_mesh<1>(mesh_module, "_MRMesh1D");
@@ -247,102 +247,162 @@ void init_mesh_bindings(py::module_& m)
     // ============================================================
     // Helper template to create MRMesh with inline config parameters
     // ============================================================
-    auto make_mesh_with_config_1d = [](
-        const samurai::Box<double, 1>& box,
-        std::size_t min_level,
-        std::size_t max_level,
-        std::size_t start_level,
-        std::size_t graduation_width,
-        int max_stencil_radius,
-        double scaling_factor,
-        double approx_box_tol,
-        bool periodic,
-        py::object periodic_per_direction,
-        bool disable_minimal_ghost_width) -> py::object
+    auto make_mesh_with_config_1d = [](const samurai::Box<double, 1>& box,
+                                       std::size_t min_level,
+                                       std::size_t max_level,
+                                       std::size_t start_level,
+                                       std::size_t graduation_width,
+                                       int max_stencil_radius,
+                                       double scaling_factor,
+                                       double approx_box_tol,
+                                       bool periodic,
+                                       py::object periodic_per_direction,
+                                       bool disable_minimal_ghost_width) -> py::object
     {
         using Config = samurai::mesh_config<1>;
         Config cfg;
         cfg.min_level(min_level);
         cfg.max_level(max_level);
-        if (start_level != std::numeric_limits<std::size_t>::max()) cfg.start_level(start_level);
-        if (graduation_width != std::numeric_limits<std::size_t>::max()) cfg.graduation_width(graduation_width);
-        if (max_stencil_radius >= 0) cfg.max_stencil_radius(max_stencil_radius);
-        if (scaling_factor >= 0.0) cfg.scaling_factor(scaling_factor);
-        if (approx_box_tol >= 0.0) cfg.approx_box_tol(approx_box_tol);
-        if (!periodic_per_direction.is_none()) {
-            cfg.periodic(periodic);  // 1D only uses scalar
-        } else if (periodic) {
+        if (start_level != std::numeric_limits<std::size_t>::max())
+        {
+            cfg.start_level(start_level);
+        }
+        if (graduation_width != std::numeric_limits<std::size_t>::max())
+        {
+            cfg.graduation_width(graduation_width);
+        }
+        if (max_stencil_radius >= 0)
+        {
+            cfg.max_stencil_radius(max_stencil_radius);
+        }
+        if (scaling_factor >= 0.0)
+        {
+            cfg.scaling_factor(scaling_factor);
+        }
+        if (approx_box_tol >= 0.0)
+        {
+            cfg.approx_box_tol(approx_box_tol);
+        }
+        if (!periodic_per_direction.is_none())
+        {
+            cfg.periodic(periodic); // 1D only uses scalar
+        }
+        else if (periodic)
+        {
             cfg.periodic(periodic);
         }
-        if (disable_minimal_ghost_width) cfg.disable_minimal_ghost_width();
+        if (disable_minimal_ghost_width)
+        {
+            cfg.disable_minimal_ghost_width();
+        }
 
         auto mesh = samurai::mra::make_mesh(box, cfg);
         return py::cast(mesh);
     };
 
-    auto make_mesh_with_config_2d = [](
-        const samurai::Box<double, 2>& box,
-        std::size_t min_level,
-        std::size_t max_level,
-        std::size_t start_level,
-        std::size_t graduation_width,
-        int max_stencil_radius,
-        double scaling_factor,
-        double approx_box_tol,
-        bool periodic,
-        py::object periodic_per_direction,
-        bool disable_minimal_ghost_width) -> py::object
+    auto make_mesh_with_config_2d = [](const samurai::Box<double, 2>& box,
+                                       std::size_t min_level,
+                                       std::size_t max_level,
+                                       std::size_t start_level,
+                                       std::size_t graduation_width,
+                                       int max_stencil_radius,
+                                       double scaling_factor,
+                                       double approx_box_tol,
+                                       bool periodic,
+                                       py::object periodic_per_direction,
+                                       bool disable_minimal_ghost_width) -> py::object
     {
         using Config = samurai::mesh_config<2>;
         Config cfg;
         cfg.min_level(min_level);
         cfg.max_level(max_level);
-        if (start_level != std::numeric_limits<std::size_t>::max()) cfg.start_level(start_level);
-        if (graduation_width != std::numeric_limits<std::size_t>::max()) cfg.graduation_width(graduation_width);
-        if (max_stencil_radius >= 0) cfg.max_stencil_radius(max_stencil_radius);
-        if (scaling_factor >= 0.0) cfg.scaling_factor(scaling_factor);
-        if (approx_box_tol >= 0.0) cfg.approx_box_tol(approx_box_tol);
-        if (!periodic_per_direction.is_none()) {
+        if (start_level != std::numeric_limits<std::size_t>::max())
+        {
+            cfg.start_level(start_level);
+        }
+        if (graduation_width != std::numeric_limits<std::size_t>::max())
+        {
+            cfg.graduation_width(graduation_width);
+        }
+        if (max_stencil_radius >= 0)
+        {
+            cfg.max_stencil_radius(max_stencil_radius);
+        }
+        if (scaling_factor >= 0.0)
+        {
+            cfg.scaling_factor(scaling_factor);
+        }
+        if (approx_box_tol >= 0.0)
+        {
+            cfg.approx_box_tol(approx_box_tol);
+        }
+        if (!periodic_per_direction.is_none())
+        {
             auto per = periodic_per_direction.cast<std::array<bool, 2>>();
             cfg.periodic(per);
-        } else if (periodic) {
+        }
+        else if (periodic)
+        {
             cfg.periodic(periodic);
         }
-        if (disable_minimal_ghost_width) cfg.disable_minimal_ghost_width();
+        if (disable_minimal_ghost_width)
+        {
+            cfg.disable_minimal_ghost_width();
+        }
 
         auto mesh = samurai::mra::make_mesh(box, cfg);
         return py::cast(mesh);
     };
 
-    auto make_mesh_with_config_3d = [](
-        const samurai::Box<double, 3>& box,
-        std::size_t min_level,
-        std::size_t max_level,
-        std::size_t start_level,
-        std::size_t graduation_width,
-        int max_stencil_radius,
-        double scaling_factor,
-        double approx_box_tol,
-        bool periodic,
-        py::object periodic_per_direction,
-        bool disable_minimal_ghost_width) -> py::object
+    auto make_mesh_with_config_3d = [](const samurai::Box<double, 3>& box,
+                                       std::size_t min_level,
+                                       std::size_t max_level,
+                                       std::size_t start_level,
+                                       std::size_t graduation_width,
+                                       int max_stencil_radius,
+                                       double scaling_factor,
+                                       double approx_box_tol,
+                                       bool periodic,
+                                       py::object periodic_per_direction,
+                                       bool disable_minimal_ghost_width) -> py::object
     {
         using Config = samurai::mesh_config<3>;
         Config cfg;
         cfg.min_level(min_level);
         cfg.max_level(max_level);
-        if (start_level != std::numeric_limits<std::size_t>::max()) cfg.start_level(start_level);
-        if (graduation_width != std::numeric_limits<std::size_t>::max()) cfg.graduation_width(graduation_width);
-        if (max_stencil_radius >= 0) cfg.max_stencil_radius(max_stencil_radius);
-        if (scaling_factor >= 0.0) cfg.scaling_factor(scaling_factor);
-        if (approx_box_tol >= 0.0) cfg.approx_box_tol(approx_box_tol);
-        if (!periodic_per_direction.is_none()) {
+        if (start_level != std::numeric_limits<std::size_t>::max())
+        {
+            cfg.start_level(start_level);
+        }
+        if (graduation_width != std::numeric_limits<std::size_t>::max())
+        {
+            cfg.graduation_width(graduation_width);
+        }
+        if (max_stencil_radius >= 0)
+        {
+            cfg.max_stencil_radius(max_stencil_radius);
+        }
+        if (scaling_factor >= 0.0)
+        {
+            cfg.scaling_factor(scaling_factor);
+        }
+        if (approx_box_tol >= 0.0)
+        {
+            cfg.approx_box_tol(approx_box_tol);
+        }
+        if (!periodic_per_direction.is_none())
+        {
             auto per = periodic_per_direction.cast<std::array<bool, 3>>();
             cfg.periodic(per);
-        } else if (periodic) {
+        }
+        else if (periodic)
+        {
             cfg.periodic(periodic);
         }
-        if (disable_minimal_ghost_width) cfg.disable_minimal_ghost_width();
+        if (disable_minimal_ghost_width)
+        {
+            cfg.disable_minimal_ghost_width();
+        }
 
         auto mesh = samurai::mra::make_mesh(box, cfg);
         return py::cast(mesh);
@@ -354,83 +414,108 @@ void init_mesh_bindings(py::module_& m)
     //   1. With explicit config: mesh = sam.mesh.make(box, config)
     //   2. With inline config: mesh = sam.mesh.make(box, min_level=4, max_level=8, ...)
     // ============================================================
-    mesh_module.def("make",
+    mesh_module.def(
+        "make",
         [&](const py::object& box_or_domain,
-           const py::object& config_obj,
-           std::size_t min_level,
-           std::size_t max_level,
-           std::size_t start_level,
-           std::size_t graduation_width,
-           int max_stencil_radius,
-           double scaling_factor,
-           double approx_box_tol,
-           bool periodic,
-           py::object periodic_per_direction,
-           bool disable_minimal_ghost_width,
-           py::kwargs kwargs) -> py::object
+            const py::object& config_obj,
+            std::size_t min_level,
+            std::size_t max_level,
+            std::size_t start_level,
+            std::size_t graduation_width,
+            int max_stencil_radius,
+            double scaling_factor,
+            double approx_box_tol,
+            bool periodic,
+            py::object periodic_per_direction,
+            bool disable_minimal_ghost_width,
+            py::kwargs kwargs) -> py::object
         {
             // Case 1: Config object provided
             if (!config_obj.is_none())
             {
                 // Try Box1D + MeshConfig1D
-                try {
-                    using Box1D = samurai::Box<double, 1>;
+                try
+                {
+                    using Box1D    = samurai::Box<double, 1>;
                     using Config1D = samurai::mesh_config<1>;
-                    auto box = py::cast<Box1D>(box_or_domain);
-                    auto cfg = py::cast<Config1D>(config_obj);
-                    auto mesh = samurai::mra::make_mesh(box, cfg);
+                    auto box       = py::cast<Box1D>(box_or_domain);
+                    auto cfg       = py::cast<Config1D>(config_obj);
+                    auto mesh      = samurai::mra::make_mesh(box, cfg);
                     return py::cast(mesh);
-                } catch (...) {}
+                }
+                catch (...)
+                {
+                }
 
                 // Try Box2D + MeshConfig2D
-                try {
-                    using Box2D = samurai::Box<double, 2>;
+                try
+                {
+                    using Box2D    = samurai::Box<double, 2>;
                     using Config2D = samurai::mesh_config<2>;
-                    auto box = py::cast<Box2D>(box_or_domain);
-                    auto cfg = py::cast<Config2D>(config_obj);
-                    auto mesh = samurai::mra::make_mesh(box, cfg);
+                    auto box       = py::cast<Box2D>(box_or_domain);
+                    auto cfg       = py::cast<Config2D>(config_obj);
+                    auto mesh      = samurai::mra::make_mesh(box, cfg);
                     return py::cast(mesh);
-                } catch (...) {}
+                }
+                catch (...)
+                {
+                }
 
                 // Try Box3D + MeshConfig3D
-                try {
-                    using Box3D = samurai::Box<double, 3>;
+                try
+                {
+                    using Box3D    = samurai::Box<double, 3>;
                     using Config3D = samurai::mesh_config<3>;
-                    auto box = py::cast<Box3D>(box_or_domain);
-                    auto cfg = py::cast<Config3D>(config_obj);
-                    auto mesh = samurai::mra::make_mesh(box, cfg);
+                    auto box       = py::cast<Box3D>(box_or_domain);
+                    auto cfg       = py::cast<Config3D>(config_obj);
+                    auto mesh      = samurai::mra::make_mesh(box, cfg);
                     return py::cast(mesh);
-                } catch (...) {}
+                }
+                catch (...)
+                {
+                }
 
                 // Try DomainBuilder1D + MeshConfig1D
-                try {
+                try
+                {
                     using DomainBuilder1D = samurai::DomainBuilder<1>;
-                    using Config1D = samurai::mesh_config<1>;
-                    auto domain = py::cast<DomainBuilder1D>(box_or_domain);
-                    auto cfg = py::cast<Config1D>(config_obj);
-                    auto mesh = samurai::mra::make_mesh(domain, cfg);
+                    using Config1D        = samurai::mesh_config<1>;
+                    auto domain           = py::cast<DomainBuilder1D>(box_or_domain);
+                    auto cfg              = py::cast<Config1D>(config_obj);
+                    auto mesh             = samurai::mra::make_mesh(domain, cfg);
                     return py::cast(mesh);
-                } catch (...) {}
+                }
+                catch (...)
+                {
+                }
 
                 // Try DomainBuilder2D + MeshConfig2D
-                try {
+                try
+                {
                     using DomainBuilder2D = samurai::DomainBuilder<2>;
-                    using Config2D = samurai::mesh_config<2>;
-                    auto domain = py::cast<DomainBuilder2D>(box_or_domain);
-                    auto cfg = py::cast<Config2D>(config_obj);
-                    auto mesh = samurai::mra::make_mesh(domain, cfg);
+                    using Config2D        = samurai::mesh_config<2>;
+                    auto domain           = py::cast<DomainBuilder2D>(box_or_domain);
+                    auto cfg              = py::cast<Config2D>(config_obj);
+                    auto mesh             = samurai::mra::make_mesh(domain, cfg);
                     return py::cast(mesh);
-                } catch (...) {}
+                }
+                catch (...)
+                {
+                }
 
                 // Try DomainBuilder3D + MeshConfig3D
-                try {
+                try
+                {
                     using DomainBuilder3D = samurai::DomainBuilder<3>;
-                    using Config3D = samurai::mesh_config<3>;
-                    auto domain = py::cast<DomainBuilder3D>(box_or_domain);
-                    auto cfg = py::cast<Config3D>(config_obj);
-                    auto mesh = samurai::mra::make_mesh(domain, cfg);
+                    using Config3D        = samurai::mesh_config<3>;
+                    auto domain           = py::cast<DomainBuilder3D>(box_or_domain);
+                    auto cfg              = py::cast<Config3D>(config_obj);
+                    auto mesh             = samurai::mra::make_mesh(domain, cfg);
                     return py::cast(mesh);
-                } catch (...) {}
+                }
+                catch (...)
+                {
+                }
 
                 throw std::runtime_error("Box/Domain and Config dimension mismatch or unsupported types");
             }
@@ -438,116 +523,227 @@ void init_mesh_bindings(py::module_& m)
             // Case 2: Inline config parameters
             // Detect dimension from box_or_domain by trying each type
             // Try Box1D
-            try {
+            try
+            {
                 using Box1D = samurai::Box<double, 1>;
-                auto box = py::cast<Box1D>(box_or_domain);
-                return make_mesh_with_config_1d(box, min_level, max_level, start_level,
-                    graduation_width, max_stencil_radius, scaling_factor, approx_box_tol,
-                    periodic, periodic_per_direction, disable_minimal_ghost_width);
-            } catch (...) {}
+                auto box    = py::cast<Box1D>(box_or_domain);
+                return make_mesh_with_config_1d(box,
+                                                min_level,
+                                                max_level,
+                                                start_level,
+                                                graduation_width,
+                                                max_stencil_radius,
+                                                scaling_factor,
+                                                approx_box_tol,
+                                                periodic,
+                                                periodic_per_direction,
+                                                disable_minimal_ghost_width);
+            }
+            catch (...)
+            {
+            }
 
             // Try Box2D
-            try {
+            try
+            {
                 using Box2D = samurai::Box<double, 2>;
-                auto box = py::cast<Box2D>(box_or_domain);
-                return make_mesh_with_config_2d(box, min_level, max_level, start_level,
-                    graduation_width, max_stencil_radius, scaling_factor, approx_box_tol,
-                    periodic, periodic_per_direction, disable_minimal_ghost_width);
-            } catch (...) {}
+                auto box    = py::cast<Box2D>(box_or_domain);
+                return make_mesh_with_config_2d(box,
+                                                min_level,
+                                                max_level,
+                                                start_level,
+                                                graduation_width,
+                                                max_stencil_radius,
+                                                scaling_factor,
+                                                approx_box_tol,
+                                                periodic,
+                                                periodic_per_direction,
+                                                disable_minimal_ghost_width);
+            }
+            catch (...)
+            {
+            }
 
             // Try Box3D
-            try {
+            try
+            {
                 using Box3D = samurai::Box<double, 3>;
-                auto box = py::cast<Box3D>(box_or_domain);
-                return make_mesh_with_config_3d(box, min_level, max_level, start_level,
-                    graduation_width, max_stencil_radius, scaling_factor, approx_box_tol,
-                    periodic, periodic_per_direction, disable_minimal_ghost_width);
-            } catch (...) {}
+                auto box    = py::cast<Box3D>(box_or_domain);
+                return make_mesh_with_config_3d(box,
+                                                min_level,
+                                                max_level,
+                                                start_level,
+                                                graduation_width,
+                                                max_stencil_radius,
+                                                scaling_factor,
+                                                approx_box_tol,
+                                                periodic,
+                                                periodic_per_direction,
+                                                disable_minimal_ghost_width);
+            }
+            catch (...)
+            {
+            }
 
             // Try DomainBuilder1D
-            try {
+            try
+            {
                 using DomainBuilder1D = samurai::DomainBuilder<1>;
-                using Config1D = samurai::mesh_config<1>;
-                auto domain = py::cast<DomainBuilder1D>(box_or_domain);
+                using Config1D        = samurai::mesh_config<1>;
+                auto domain           = py::cast<DomainBuilder1D>(box_or_domain);
                 Config1D cfg;
                 cfg.min_level(min_level);
                 cfg.max_level(max_level);
-                if (start_level != std::numeric_limits<std::size_t>::max()) cfg.start_level(start_level);
-                if (graduation_width != std::numeric_limits<std::size_t>::max()) cfg.graduation_width(graduation_width);
-                if (max_stencil_radius >= 0) cfg.max_stencil_radius(max_stencil_radius);
-                if (scaling_factor >= 0.0) cfg.scaling_factor(scaling_factor);
-                if (approx_box_tol >= 0.0) cfg.approx_box_tol(approx_box_tol);
-                if (!periodic_per_direction.is_none()) {
-                    cfg.periodic(periodic);  // 1D only uses scalar
-                } else if (periodic) {
+                if (start_level != std::numeric_limits<std::size_t>::max())
+                {
+                    cfg.start_level(start_level);
+                }
+                if (graduation_width != std::numeric_limits<std::size_t>::max())
+                {
+                    cfg.graduation_width(graduation_width);
+                }
+                if (max_stencil_radius >= 0)
+                {
+                    cfg.max_stencil_radius(max_stencil_radius);
+                }
+                if (scaling_factor >= 0.0)
+                {
+                    cfg.scaling_factor(scaling_factor);
+                }
+                if (approx_box_tol >= 0.0)
+                {
+                    cfg.approx_box_tol(approx_box_tol);
+                }
+                if (!periodic_per_direction.is_none())
+                {
+                    cfg.periodic(periodic); // 1D only uses scalar
+                }
+                else if (periodic)
+                {
                     cfg.periodic(periodic);
                 }
-                if (disable_minimal_ghost_width) cfg.disable_minimal_ghost_width();
+                if (disable_minimal_ghost_width)
+                {
+                    cfg.disable_minimal_ghost_width();
+                }
                 auto mesh = samurai::mra::make_mesh(domain, cfg);
                 return py::cast(mesh);
-            } catch (...) {}
+            }
+            catch (...)
+            {
+            }
 
             // Try DomainBuilder2D
-            try {
+            try
+            {
                 using DomainBuilder2D = samurai::DomainBuilder<2>;
-                using Config2D = samurai::mesh_config<2>;
-                auto domain = py::cast<DomainBuilder2D>(box_or_domain);
+                using Config2D        = samurai::mesh_config<2>;
+                auto domain           = py::cast<DomainBuilder2D>(box_or_domain);
                 Config2D cfg;
                 cfg.min_level(min_level);
                 cfg.max_level(max_level);
-                if (start_level != std::numeric_limits<std::size_t>::max()) cfg.start_level(start_level);
-                if (graduation_width != std::numeric_limits<std::size_t>::max()) cfg.graduation_width(graduation_width);
-                if (max_stencil_radius >= 0) cfg.max_stencil_radius(max_stencil_radius);
-                if (scaling_factor >= 0.0) cfg.scaling_factor(scaling_factor);
-                if (approx_box_tol >= 0.0) cfg.approx_box_tol(approx_box_tol);
-                if (!periodic_per_direction.is_none()) {
+                if (start_level != std::numeric_limits<std::size_t>::max())
+                {
+                    cfg.start_level(start_level);
+                }
+                if (graduation_width != std::numeric_limits<std::size_t>::max())
+                {
+                    cfg.graduation_width(graduation_width);
+                }
+                if (max_stencil_radius >= 0)
+                {
+                    cfg.max_stencil_radius(max_stencil_radius);
+                }
+                if (scaling_factor >= 0.0)
+                {
+                    cfg.scaling_factor(scaling_factor);
+                }
+                if (approx_box_tol >= 0.0)
+                {
+                    cfg.approx_box_tol(approx_box_tol);
+                }
+                if (!periodic_per_direction.is_none())
+                {
                     auto per = periodic_per_direction.cast<std::array<bool, 2>>();
                     cfg.periodic(per);
-                } else if (periodic) {
+                }
+                else if (periodic)
+                {
                     cfg.periodic(periodic);
                 }
-                if (disable_minimal_ghost_width) cfg.disable_minimal_ghost_width();
+                if (disable_minimal_ghost_width)
+                {
+                    cfg.disable_minimal_ghost_width();
+                }
                 auto mesh = samurai::mra::make_mesh(domain, cfg);
                 return py::cast(mesh);
-            } catch (...) {}
+            }
+            catch (...)
+            {
+            }
 
             // Try DomainBuilder3D
-            try {
+            try
+            {
                 using DomainBuilder3D = samurai::DomainBuilder<3>;
-                using Config3D = samurai::mesh_config<3>;
-                auto domain = py::cast<DomainBuilder3D>(box_or_domain);
+                using Config3D        = samurai::mesh_config<3>;
+                auto domain           = py::cast<DomainBuilder3D>(box_or_domain);
                 Config3D cfg;
                 cfg.min_level(min_level);
                 cfg.max_level(max_level);
-                if (start_level != std::numeric_limits<std::size_t>::max()) cfg.start_level(start_level);
-                if (graduation_width != std::numeric_limits<std::size_t>::max()) cfg.graduation_width(graduation_width);
-                if (max_stencil_radius >= 0) cfg.max_stencil_radius(max_stencil_radius);
-                if (scaling_factor >= 0.0) cfg.scaling_factor(scaling_factor);
-                if (approx_box_tol >= 0.0) cfg.approx_box_tol(approx_box_tol);
-                if (!periodic_per_direction.is_none()) {
+                if (start_level != std::numeric_limits<std::size_t>::max())
+                {
+                    cfg.start_level(start_level);
+                }
+                if (graduation_width != std::numeric_limits<std::size_t>::max())
+                {
+                    cfg.graduation_width(graduation_width);
+                }
+                if (max_stencil_radius >= 0)
+                {
+                    cfg.max_stencil_radius(max_stencil_radius);
+                }
+                if (scaling_factor >= 0.0)
+                {
+                    cfg.scaling_factor(scaling_factor);
+                }
+                if (approx_box_tol >= 0.0)
+                {
+                    cfg.approx_box_tol(approx_box_tol);
+                }
+                if (!periodic_per_direction.is_none())
+                {
                     auto per = periodic_per_direction.cast<std::array<bool, 3>>();
                     cfg.periodic(per);
-                } else if (periodic) {
+                }
+                else if (periodic)
+                {
                     cfg.periodic(periodic);
                 }
-                if (disable_minimal_ghost_width) cfg.disable_minimal_ghost_width();
+                if (disable_minimal_ghost_width)
+                {
+                    cfg.disable_minimal_ghost_width();
+                }
                 auto mesh = samurai::mra::make_mesh(domain, cfg);
                 return py::cast(mesh);
-            } catch (...) {}
+            }
+            catch (...)
+            {
+            }
 
             throw std::runtime_error("Unsupported box_or_domain type (expected Box or DomainBuilder)");
         },
         py::arg("box_or_domain"),
-        py::arg("config") = py::none(),
-        py::arg("min_level") = std::numeric_limits<std::size_t>::max(),
-        py::arg("max_level") = std::numeric_limits<std::size_t>::max(),
-        py::arg("start_level") = std::numeric_limits<std::size_t>::max(),
-        py::arg("graduation_width") = std::numeric_limits<std::size_t>::max(),
-        py::arg("max_stencil_radius") = -1,
-        py::arg("scaling_factor") = -1.0,
-        py::arg("approx_box_tol") = -1.0,
-        py::arg("periodic") = false,
-        py::arg("periodic_per_direction") = py::none(),
+        py::arg("config")                      = py::none(),
+        py::arg("min_level")                   = std::numeric_limits<std::size_t>::max(),
+        py::arg("max_level")                   = std::numeric_limits<std::size_t>::max(),
+        py::arg("start_level")                 = std::numeric_limits<std::size_t>::max(),
+        py::arg("graduation_width")            = std::numeric_limits<std::size_t>::max(),
+        py::arg("max_stencil_radius")          = -1,
+        py::arg("scaling_factor")              = -1.0,
+        py::arg("approx_box_tol")              = -1.0,
+        py::arg("periodic")                    = false,
+        py::arg("periodic_per_direction")      = py::none(),
         py::arg("disable_minimal_ghost_width") = false,
         R"pbdoc(
         Create an MRMesh from Box/Domain and optional config.

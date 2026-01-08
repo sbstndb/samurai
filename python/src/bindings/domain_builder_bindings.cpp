@@ -135,44 +135,48 @@ void bind_domain_builder(py::module_& m, const std::string& name)
              "Create a domain builder from a Box")
 
         // add() method - add a region to the domain
-        .def("add",
-             [](DomainBuilder& db, const py::object& min_obj, const py::object& max_obj)
-             {
-                 auto min_corner = convert_to_point<dim>(min_obj);
-                 auto max_corner = convert_to_point<dim>(max_obj);
-                 db.add(min_corner, max_corner);
-             },
-             py::arg("min_corner"),
-             py::arg("max_corner"),
-             "Add a rectangular region to the domain")
+        .def(
+            "add",
+            [](DomainBuilder& db, const py::object& min_obj, const py::object& max_obj)
+            {
+                auto min_corner = convert_to_point<dim>(min_obj);
+                auto max_corner = convert_to_point<dim>(max_obj);
+                db.add(min_corner, max_corner);
+            },
+            py::arg("min_corner"),
+            py::arg("max_corner"),
+            "Add a rectangular region to the domain")
 
-        .def("add",
-             [](DomainBuilder& db, const Box& box)
-             {
-                 db.add(box);
-             },
-             py::arg("box"),
-             "Add a box region to the domain")
+        .def(
+            "add",
+            [](DomainBuilder& db, const Box& box)
+            {
+                db.add(box);
+            },
+            py::arg("box"),
+            "Add a box region to the domain")
 
         // remove() method - remove a region (create hole/obstacle)
-        .def("remove",
-             [](DomainBuilder& db, const py::object& min_obj, const py::object& max_obj)
-             {
-                 auto min_corner = convert_to_point<dim>(min_obj);
-                 auto max_corner = convert_to_point<dim>(max_obj);
-                 db.remove(min_corner, max_corner);
-             },
-             py::arg("min_corner"),
-             py::arg("max_corner"),
-             "Remove a rectangular region (create a hole/obstacle)")
+        .def(
+            "remove",
+            [](DomainBuilder& db, const py::object& min_obj, const py::object& max_obj)
+            {
+                auto min_corner = convert_to_point<dim>(min_obj);
+                auto max_corner = convert_to_point<dim>(max_obj);
+                db.remove(min_corner, max_corner);
+            },
+            py::arg("min_corner"),
+            py::arg("max_corner"),
+            "Remove a rectangular region (create a hole/obstacle)")
 
-        .def("remove",
-             [](DomainBuilder& db, const Box& box)
-             {
-                 db.remove(box);
-             },
-             py::arg("box"),
-             "Remove a box region (create a hole/obstacle)")
+        .def(
+            "remove",
+            [](DomainBuilder& db, const Box& box)
+            {
+                db.remove(box);
+            },
+            py::arg("box"),
+            "Remove a box region (create a hole/obstacle)")
 
         // Accessors
         .def_property_readonly(
@@ -192,24 +196,23 @@ void bind_domain_builder(py::module_& m, const std::string& name)
             "List of boxes removed from the domain (holes/obstacles)")
 
         // Geometric computations
-        .def("origin_point",
-             [](const DomainBuilder& db) -> py::array_t<double>
-             {
-                 auto origin = db.origin_point();
-                 py::array_t<double> arr(dim);
-                 auto buf  = arr.request();
-                 auto* ptr = static_cast<double*>(buf.ptr);
-                 for (std::size_t i = 0; i < dim; ++i)
-                 {
-                     ptr[i] = origin[i];
-                 }
-                 return arr;
-             },
-             "Get the origin point (minimum corner) of the domain")
+        .def(
+            "origin_point",
+            [](const DomainBuilder& db) -> py::array_t<double>
+            {
+                auto origin = db.origin_point();
+                py::array_t<double> arr(dim);
+                auto buf  = arr.request();
+                auto* ptr = static_cast<double*>(buf.ptr);
+                for (std::size_t i = 0; i < dim; ++i)
+                {
+                    ptr[i] = origin[i];
+                }
+                return arr;
+            },
+            "Get the origin point (minimum corner) of the domain")
 
-        .def("largest_subdivision",
-             &DomainBuilder::largest_subdivision,
-             "Compute the largest subdivision length for mesh discretization")
+        .def("largest_subdivision", &DomainBuilder::largest_subdivision, "Compute the largest subdivision length for mesh discretization")
 
         // String representation
         .def("__repr__",

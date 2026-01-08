@@ -217,7 +217,7 @@ todo_include_todos = True
 
 # -- Breathe configuration for readthedocs -----------------------------------
 
-import subprocess, os
+import subprocess  # noqa: E402
 
 read_the_docs_build = os.environ.get("READTHEDOCS", None) == "True"
 

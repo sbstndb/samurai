@@ -243,7 +243,7 @@ class TestScalarField2D:
         assert not np.allclose(arr, 1.0)
 
 
-class TestVectorField2D_2:
+class TestVectorField2D_2:  # noqa: N801
     """Tests for VectorField2D_2 class (2 components)."""
 
     def test_creation(self):
@@ -335,7 +335,7 @@ class TestVectorField2D_2:
         assert "2 components" in str_str
 
 
-class TestVectorField2D_3:
+class TestVectorField2D_3:  # noqa: N801
     """Tests for VectorField2D_3 class (3 components)."""
 
     def test_creation(self):

@@ -1,11 +1,9 @@
-import re
 import os
 import pytest
 import h5py
 from functools import wraps
 import shutil
 import tempfile
-import warnings
 
 
 def pytest_addoption(parser):
@@ -86,7 +84,7 @@ class H5File:
 
             def func(name, obj):
                 if isinstance(obj, h5py.Dataset):
-                    dataset = obj
+                    _ = obj
                     assert test_file[name][...] == pytest.approx(
                         ref_file[name][...], rel=rtol, abs=atol
                     )
@@ -117,7 +115,7 @@ class H5Comparison:
         if compare is None:
             return
 
-        extension = "h5"
+        _ = "h5"
         atol = compare.kwargs.get("atol", 1e-7)
         rtol = compare.kwargs.get("rtol", 1e-14)
 
@@ -170,7 +168,7 @@ class H5Comparison:
 
                 pytest.skip("Skipping test, since generating data")
             else:
-                test_h5file = os.path.abspath(os.path.join(result_dir, filename))
+                _ = os.path.abspath(os.path.join(result_dir, filename))
 
                 # Find path to baseline array
                 baseline_path_ref = os.path.abspath(

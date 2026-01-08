@@ -35,18 +35,13 @@ from .stats import MeshStatistics, compute_mesh_stats
 
 # Public API
 __all__ = [
-    # Context managers
-    "time_loop",
-    "iteration",
-    "mesh_adaptation",
-
-    # Classes (for advanced usage)
-    "TimeLoop",
     "IterationLoop",
     "MeshStatistics",
-
-    # Utility functions
+    "TimeLoop",
     "compute_mesh_stats",
+    "iteration",
+    "mesh_adaptation",
+    "time_loop",
 ]
 
 

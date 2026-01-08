@@ -158,7 +158,7 @@ class TestVectorFieldHelpers:
         vel2 = sam.field.zeros_like_vector(vel, "vel2")
 
         # Same type
-        assert type(vel2) == type(vel)
+        assert isinstance(vel2, type(vel))
         # Different name
         assert vel2.name == "vel2"
 

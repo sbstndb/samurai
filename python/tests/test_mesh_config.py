@@ -172,7 +172,7 @@ class TestMeshConfig2D:
     def test_periodic_index_out_of_range(self):
         """Test that out of range index raises error."""
         config = sam.config.make(2)
-        with pytest.raises(Exception):  # RuntimeError or similar
+        with pytest.raises(RuntimeError):
             config.get_periodic(2)
 
 

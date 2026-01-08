@@ -172,9 +172,8 @@ class ConfigValidator:
         # 1. Vérifier les plages admissibles
         for key, (min_val, max_val) in cls.RANGES.items():
             value = getattr(config, key, None)
-            if value is not None:
-                if value < min_val or value > max_val:
-                    errors.append(f"{key}={value} hors plage [{min_val}, {max_val}]")
+            if value is not None and (value < min_val or value > max_val):
+                errors.append(f"{key}={value} hors plage [{min_val}, {max_val}]")
 
         # 2. Vérifier la cohérence min/max level
         if config.min_level is not None and config.max_level is not None:
@@ -188,9 +187,8 @@ class ConfigValidator:
             typical = cls.TYPICAL_VALUES.get(config.scheme, {})
 
             # Vérifier max_stencil_size
-            if config.scheme == 'weno5' and config.max_stencil_size is not None:
-                if config.max_stencil_size < 6:
-                    errors.append(f"WENO5 nécessite max_stencil_size >= 6, trouvé {config.max_stencil_size}")
+            if config.scheme == 'weno5' and config.max_stencil_size is not None and config.max_stencil_size < 6:
+                errors.append(f"WENO5 nécessite max_stencil_size >= 6, trouvé {config.max_stencil_size}")
 
             # Vérifier CFL
             if 'cfl' in typical and config.cfl is not None:
@@ -212,9 +210,8 @@ class ConfigValidator:
                 warnings.append(f"epsilon={config.epsilon} très petit pour max_level={config.max_level} (gaspillage)")
 
         # 5. Vérifier la cohérence schéma temporel
-        if config.time_scheme == 'euler' and config.cfl is not None:
-            if config.cfl > 0.6:
-                warnings.append(f"Euler forward avec CFL={config.cfl} > 0.6 peut être instable")
+        if config.time_scheme == 'euler' and config.cfl is not None and config.cfl > 0.6:
+            warnings.append(f"Euler forward avec CFL={config.cfl} > 0.6 peut être instable")
 
         is_valid = len(errors) == 0
         return is_valid, errors, warnings
@@ -314,7 +311,7 @@ class ConfigComparator:
         differences = []
 
         # Comparer tous les champs
-        for key in config1.to_dict().keys():
+        for key in config1.to_dict():
             val1 = getattr(config1, key)
             val2 = getattr(config2, key)
 

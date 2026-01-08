@@ -86,11 +86,12 @@ def get_mesh_stats(mesh):
     # Count cells by level
     level_counts = {}
 
-    def count_by_level(cell):
+    # Capture level_counts with default argument to avoid closure bug
+    def count_by_level(cell, counts=level_counts):
         level = cell.level
-        if level not in level_counts:
-            level_counts[level] = 0
-        level_counts[level] += 1
+        if level not in counts:
+            counts[level] = 0
+        counts[level] += 1
 
     sam.algorithms.for_each_cell(mesh, count_by_level)
 
@@ -265,11 +266,12 @@ def main():
         if nt % save_interval == 0 or t >= Tf:
             # Count cells by level
             level_counts = {}
-            def count_by_level(cell):
+            # Capture level_counts with default argument to avoid closure bug
+            def count_by_level(cell, counts=level_counts):
                 level = cell.level
-                if level not in level_counts:
-                    level_counts[level] = 0
-                level_counts[level] += 1
+                if level not in counts:
+                    counts[level] = 0
+                counts[level] += 1
             sam.algorithms.for_each_cell(mesh, count_by_level)
 
             min_level = min(level_counts.keys()) if level_counts else 0

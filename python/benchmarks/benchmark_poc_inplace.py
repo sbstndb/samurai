@@ -221,10 +221,11 @@ def benchmark_all_operators():
                         ('-=', lambda a, b: a.__isub__(b)),
                         ('*=', lambda a, b: a.__imul__(b)),
                         ('/=', lambda a, b: a.__itruediv__(b))]:
-        def test_op():
+        # Capture current op value with default argument to avoid closure bug
+        def test_op(current_op=op):
             u = sam.field.scalar(mesh, "u", init=2.0)
             v = sam.field.scalar(mesh, "v", init=4.0)
-            op(u, v)
+            current_op(u, v)
             return u
 
         time_taken = timeit.timeit(test_op, number=100)

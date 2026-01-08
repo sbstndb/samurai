@@ -38,7 +38,7 @@ class Plot:
             if 'points' in mesh:
                 self.plot(ax, mesh)
             else:
-                for rank in mesh.keys():
+                for rank in mesh:
                     self.plot(ax, mesh[rank])
             ax.set_title("Mesh")
             self.ax = [ax]
@@ -56,7 +56,7 @@ class Plot:
 
                     self.plot(ax, mesh, f)
                 else:
-                    for rank in mesh.keys():
+                    for rank in mesh:
                         unknown_field = next((f for f in args.field if f not in mesh[rank]['fields']), None)
 
                         if unknown_field is not None:

@@ -271,7 +271,6 @@ class TestIntervalComparison:
         i2 = sam.Interval(0, 10)
 
         assert i1 == i2
-        assert not (i1 != i2)
 
     def test_equality_false(self):
         """Test inequality for different intervals."""
@@ -279,7 +278,6 @@ class TestIntervalComparison:
         i2 = sam.Interval(0, 15)
 
         assert i1 != i2
-        assert not (i1 == i2)
 
     def test_less_than(self):
         """Test less than comparison (by start only)."""

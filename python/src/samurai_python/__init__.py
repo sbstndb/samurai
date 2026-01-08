@@ -50,13 +50,12 @@ for attr_name in dir(_compiled_module):
         globals()[attr_name] = getattr(_compiled_module, attr_name)
 
 # Import the Python utility submodules
-from . import utils
+from . import utils  # noqa: E402
 
 # Export utilities at package level for convenience
-from .utils import progress
+from .utils import progress  # noqa: E402
 
 __all__ = [
-    # Utilities
-    "utils",
     "progress",
+    "utils",
 ]

@@ -3,7 +3,7 @@
 Burgers 2D equation with progress bars and variable time stepping.
 
 This demo demonstrates:
-- 2D Burgers equation: ∂u/∂t + u·∇u = ν·∇²u
+- 2D Burgers equation: ∂u/∂t + u·∇u = v·∇²u
 - RK3 (Runge-Kutta 3rd order) time integration
 - WENO5 spatial discretization for convection
 - Variable time stepping with CFL condition
@@ -12,7 +12,7 @@ This demo demonstrates:
 
 Equation:
     ∂u/∂t + u·∇u = 0  (inviscid Burgers)
-    ∂u/∂t + u·∇u = ν·∇²u  (viscous Burgers)
+    ∂u/∂t + u·∇u = v·∇²u  (viscous Burgers)
 
 This example shows:
 - Progress tracking with variable time steps

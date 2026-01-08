@@ -19,4 +19,4 @@ def test_simple_2d(config):
     cmd = [get_executable(Path("../build/demos/p4est/"), "p4est-simple-2d"),
            "--path", config['path'],
            '--filename', config['filename']]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)

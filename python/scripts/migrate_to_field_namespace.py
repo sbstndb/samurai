@@ -192,10 +192,7 @@ class FieldAPIMigrator:
         line_before = self.original_content[line_start:pos]
 
         # Check for # comment
-        if '#' in line_before:
-            return True
-
-        return False
+        return '#' in line_before
 
     def is_in_string(self, pos: int) -> bool:
         """Check if position is within a string literal.

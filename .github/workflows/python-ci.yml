@@ -73,15 +73,14 @@ jobs:
               run: |
                   cmake --build build --target samurai_python --parallel 2
 
-            - name: Test Python import (basic)
+            - name: Test Python import
               shell: bash -el {0}
               run: |
                   export PYTHONPATH="${PWD}/build/python:${PYTHONPATH}"
                   export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
                   python -c "import sys; print(f'Python {sys.version}')"
                   python -c "import numpy; print(f'NumPy {numpy.__version__}')"
-                  # Import test with immediate exit to avoid destructor crash
-                  python -c "import samurai_python; print('✓ samurai_python imported'); import sys; sys.exit(0)"
+                  python -c "import samurai_python; print('✓ samurai_python imported successfully')"
 
             - name: Run pytest tests
               shell: bash -el {0}
@@ -89,7 +88,7 @@ jobs:
                   export PYTHONPATH="${PWD}/build/python:${PYTHONPATH}"
                   export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
                   cd python
-                  pytest tests/ -v --tb=short -x || true
+                  pytest tests/ -v --tb=short -x
 
     #
     # Debug with AddressSanitizer (allowed to fail)

@@ -18,13 +18,12 @@ Options:
     --dir        Process all Python files in a directory
 """
 
-import sys
-import os
-import re
 import argparse
 import difflib
+import re
+import sys
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 
 class FieldAPIMigrator:
@@ -341,7 +340,7 @@ def migrate_file(filepath: Path, dry_run: bool = False) -> bool:
     modified_content = migrator.apply_conversions()
 
     if not migrator.has_changes():
-        print(f"  No changes needed")
+        print("  No changes needed")
         return False
 
     # Show changes
@@ -353,7 +352,7 @@ def migrate_file(filepath: Path, dry_run: bool = False) -> bool:
     # Show diff
     diff = migrator.get_diff()
     if diff:
-        print(f"\n  Diff:")
+        print("\n  Diff:")
         for line in diff:
             print(f"    {line}")
 
@@ -365,9 +364,9 @@ def migrate_file(filepath: Path, dry_run: bool = False) -> bool:
 
         # Write modified content
         filepath.write_text(modified_content)
-        print(f"  File updated successfully")
+        print("  File updated successfully")
     else:
-        print(f"\n  [DRY RUN] File not modified")
+        print("\n  [DRY RUN] File not modified")
 
     return True
 

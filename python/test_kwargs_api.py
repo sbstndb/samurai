@@ -5,8 +5,8 @@ Quick test for new kwargs API improvements.
 Tests MeshConfig and MRAConfig constructor with keyword arguments.
 """
 
-import sys
 import os
+import sys
 
 # Add build directory to path
 build_dir = os.path.join(os.path.dirname(__file__), "..", "build", "python")

@@ -4,14 +4,14 @@ Integration test to verify the progress bar API works correctly
 with the updated example files.
 """
 
-import sys
 import os
+import sys
 
 # Add src directory to path
 src_dir = os.path.join(os.path.dirname(__file__), "src")
 sys.path.insert(0, src_dir)
 
-from samurai.utils import progress, ProgressBar, TimeLoopProgress
+from samurai.utils import ProgressBar, TimeLoopProgress, progress
 
 
 def test_api_structure():
@@ -75,10 +75,10 @@ def test_example_imports():
     # Check that example files have the correct import
     examples_dir = os.path.join(os.path.dirname(__file__), "examples")
 
-    with open(os.path.join(examples_dir, "advection_2d.py"), 'r') as f:
+    with open(os.path.join(examples_dir, "advection_2d.py")) as f:
         advection_content = f.read()
 
-    with open(os.path.join(examples_dir, "burgers_2d.py"), 'r') as f:
+    with open(os.path.join(examples_dir, "burgers_2d.py")) as f:
         burgers_content = f.read()
 
     # Check for import statement

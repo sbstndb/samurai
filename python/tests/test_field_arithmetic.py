@@ -14,10 +14,11 @@ Coverage:
 - Name generation for result fields
 """
 
-import sys
 import os
-import pytest
+import sys
+
 import numpy as np
+import pytest
 
 # Add build directory to path
 build_dir = os.path.join(os.path.dirname(__file__), "..", "..", "build", "python")
@@ -25,7 +26,6 @@ if os.path.exists(build_dir):
     sys.path.insert(0, build_dir)
 
 import samurai_python as sam
-
 
 # ============================================================
 # Test Fixtures

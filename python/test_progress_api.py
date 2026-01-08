@@ -6,9 +6,8 @@ This script demonstrates and tests the progress bar functionality with
 a simple mesh-based simulation.
 """
 
-import sys
 import os
-from pathlib import Path
+import sys
 
 # Add build directory to path
 build_dir = os.path.join(os.path.dirname(__file__), "..", "build", "python")
@@ -148,7 +147,7 @@ def test_mesh_statistics():
 
     print(f"Summary: {mesh_stats.get_summary()}")
     print(f"Level breakdown: {mesh_stats.get_level_breakdown()}")
-    print(f"Repr: {repr(mesh_stats)}")
+    print(f"Repr: {mesh_stats!r}")
 
     print("✓ Test 5 passed")
 

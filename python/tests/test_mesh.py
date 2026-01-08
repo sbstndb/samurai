@@ -4,8 +4,9 @@ Tests for samurai Python bindings - MRMesh class
 Tests the samurai::MRMesh class bindings for 1D, 2D, and 3D.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Add the build directory to Python path for development

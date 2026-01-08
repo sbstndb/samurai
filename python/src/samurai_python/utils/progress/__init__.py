@@ -30,7 +30,7 @@ Example usage:
     ...         pbar.update()
 """
 
-from .core import TimeLoop, IterationLoop, mesh_adaptation
+from .core import IterationLoop, TimeLoop, mesh_adaptation
 from .stats import MeshStatistics, compute_mesh_stats
 
 # Public API

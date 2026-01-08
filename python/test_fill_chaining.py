@@ -3,11 +3,13 @@
 Test script to verify Field.fill() returns self for method chaining.
 """
 import sys
+
 sys.path.insert(0, 'python/src')
 
 try:
-    import samurai_python as sam
     import numpy as np
+
+    import samurai_python as sam
 
     print("Testing Field.fill() method chaining...")
 

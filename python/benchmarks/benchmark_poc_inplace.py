@@ -8,7 +8,9 @@ Run with: python python/benchmarks/benchmark_poc_inplace.py
 """
 
 import timeit
+
 import numpy as np
+
 import samurai_python as sam
 
 

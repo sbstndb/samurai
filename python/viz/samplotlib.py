@@ -32,12 +32,12 @@ Example:
     >>>     plt.pause(0.01)
 """
 
-import numpy as np
+from typing import List, Optional, Tuple
+
 import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
-from matplotlib.collections import PatchCollection, QuadMesh
-from matplotlib.colors import Normalize
-from typing import Optional, Tuple, List, Union
 
 
 def _extract_cell_data(field) -> Tuple[List, List, List, List]:

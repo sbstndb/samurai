@@ -5,8 +5,9 @@ Tests the make_MRAdapt function and MRAdapt callable object,
 along with update_ghost_mr for mesh adaptation.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Add the build directory to Python path for development

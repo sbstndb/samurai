@@ -7,10 +7,12 @@ interface more Pythonic and intuitive.
 """
 
 import sys
+
 sys.path.insert(0, '/home/sbstndbs/sbstndbs/samurai/build/python')
 
-import samurai_python as sam
 import numpy as np
+
+import samurai_python as sam
 
 
 def test_scalarfield_reductions_1d():
@@ -124,7 +126,7 @@ def test_vectorfield_reductions_2d():
     # Test sum by component
     sum_by_comp = vel.sum(axis="components")
     expected_sum = np.sum(arr, axis=0)
-    assert np.allclose(sum_by_comp, expected_sum), f"sum by component failed"
+    assert np.allclose(sum_by_comp, expected_sum), "sum by component failed"
     print(f"  sum (by component): {sum_by_comp} (expected {expected_sum}) ✓")
 
     # Test mean
@@ -182,7 +184,7 @@ def test_vectorfield_3d():
     # Test sum by component
     sum_by_comp = vel.sum(axis="components")
     expected_sum = np.sum(arr, axis=0)
-    assert np.allclose(sum_by_comp, expected_sum), f"sum by component failed"
+    assert np.allclose(sum_by_comp, expected_sum), "sum by component failed"
     print(f"  sum (by component): {sum_by_comp} (expected {expected_sum}) ✓")
 
     # Test magnitude

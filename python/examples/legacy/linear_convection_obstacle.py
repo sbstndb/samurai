@@ -15,8 +15,8 @@ with constant velocity a = (1, -1) and a rectangular obstacle in the center.
 The obstacle is created using DomainBuilder2D to remove a region from the mesh.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add build directory to path for development
@@ -77,9 +77,9 @@ def main():
     print("=" * 70)
     print("Linear Convection 2D with Obstacle - WENO5 with TVD-RK3")
     print("=" * 70)
-    print(f"Domain: [-1, 1] x [-1, 1] with obstacle [0, 0.4] x [0, 0.4]")
+    print("Domain: [-1, 1] x [-1, 1] with obstacle [0, 0.4] x [0, 0.4]")
     print(f"Velocity: ({velocity[0]}, {velocity[1]})")
-    print(f"Initial condition: rectangle [-0.8, -0.3] x [0.3, 0.8]")
+    print("Initial condition: rectangle [-0.8, -0.3] x [0.3, 0.8]")
     print(f"CFL: {cfl}")
     print(f"Final time: {Tf}")
     print(f"Mesh levels: min={min_level}, max={max_level}")
@@ -100,7 +100,7 @@ def main():
     # Obstacle: [0.0, 0.4] x [0.0, 0.4] (in the flow path)
     domain.remove([0.0, 0.0], [0.4, 0.4])
 
-    print(f"Domain created with DomainBuilder:")
+    print("Domain created with DomainBuilder:")
     print(f"  Added boxes: {len(domain.added_boxes)}")
     print(f"  Removed boxes (obstacles): {len(domain.removed_boxes)}")
     print()
@@ -161,7 +161,7 @@ def main():
     sum_velocities = sum(abs(v) for v in velocity)
     dt = cfl * min_cell_length / sum_velocities
 
-    print(f"\nTime stepping parameters:")
+    print("\nTime stepping parameters:")
     print(f"  Min cell length: {min_cell_length:.6e}")
     print(f"  Time step: {dt:.6e}")
     print(f"  Expected iterations: ~{int(Tf/dt)}")
@@ -244,11 +244,11 @@ def main():
     print(f"  - {filename}_init.h5/.xdmf    (initial condition)")
     print(f"  - {filename}_ite_*.h5/.xdmf   (time series)")
     print()
-    print(f"To visualize in Paraview:")
+    print("To visualize in Paraview:")
     print(f"  paraview {output_path.absolute() / filename}_ite_0.xdmf")
     print()
-    print(f"Note: The obstacle region [0, 0.4] x [0, 0.4] is excluded from the mesh.")
-    print(f"      The flow will go around this obstacle.")
+    print("Note: The obstacle region [0, 0.4] x [0, 0.4] is excluded from the mesh.")
+    print("      The flow will go around this obstacle.")
     print("=" * 70)
 
 

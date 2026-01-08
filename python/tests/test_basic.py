@@ -4,8 +4,8 @@ Basic tests for Samurai Python bindings
 These tests verify that the Python bindings can be imported and basic functionality works.
 """
 
-import sys
 import os
+import sys
 
 # Add the build directory to Python path for development
 # In production, the module will be installed properly

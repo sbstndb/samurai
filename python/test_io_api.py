@@ -7,13 +7,15 @@ Test script for new I/O API features:
 """
 
 import sys
+
 sys.path.insert(0, '/home/sbstndbs/sbstndbs/samurai/build/python')
 
-import samurai_python as sam
-import numpy as np
-from pathlib import Path
 import tempfile
-import os
+from pathlib import Path
+
+import numpy as np
+
+import samurai_python as sam
 
 print("=" * 70)
 print("Testing New I/O API")
@@ -92,7 +94,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
         # Note: .dump() should NOT create .xdmf file
         checkpoint_xdmf = tmpdir / "checkpoint.xdmf"
         if not checkpoint_xdmf.exists():
-            print(f"  ✓ XDMF file NOT created (correct for dump)")
+            print("  ✓ XDMF file NOT created (correct for dump)")
     else:
         print(f"  ✗ Checkpoint file NOT created: {checkpoint_file}")
 
@@ -116,8 +118,8 @@ with tempfile.TemporaryDirectory() as tmpdir:
         print(f"After load - mesh cells: {mesh.nb_cells}")
         # Note: Due to Samurai library limitations, .load() may not fully restore data
         # The mesh structure is modified but data values may not be correctly restored
-        print(f"  ✓ Load operation completed (mesh structure updated)")
-        print(f"  Note: Full data verification not supported by Samurai's load() function")
+        print("  ✓ Load operation completed (mesh structure updated)")
+        print("  Note: Full data verification not supported by Samurai's load() function")
     except Exception as e:
         print(f"  ✗ Load failed: {e}")
 
@@ -137,7 +139,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
     # This should work with pathlib.Path
     try:
         u.save(pathlib_file)
-        print(f"  ✓ pathlib.Path support works")
+        print("  ✓ pathlib.Path support works")
 
         # Check file was created
         expected_file = pathlib_path / "solution.h5"
@@ -162,7 +164,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
         # Open with h5py
         print(f"Opening with h5py: {h5py_test_path}")
         with sam.open_h5py(str(h5py_test_path)) as f:
-            print(f"  ✓ Opened successfully")
+            print("  ✓ Opened successfully")
 
             # List keys
             keys = list(f.keys())
@@ -180,7 +182,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
                 print(f"  Field data shape: {data.shape}")
                 print(f"  Field data min: {data.min():.6f}")
                 print(f"  Field data max: {data.max():.6f}")
-                print(f"  ✓ h5py integration works")
+                print("  ✓ h5py integration works")
     except ImportError:
         print("  ⚠ h5py not installed, skipping test")
     except Exception as e:
@@ -213,9 +215,9 @@ with tempfile.TemporaryDirectory() as tmpdir:
     vec_xdmf = tmpdir / "velocity.xdmf"
 
     if vec_h5.exists() and vec_xdmf.exists():
-        print(f"  ✓ VectorField save successful")
+        print("  ✓ VectorField save successful")
     else:
-        print(f"  ✗ VectorField save failed")
+        print("  ✗ VectorField save failed")
 
     # Test VectorField .dump()
     vec_dump_path = tmpdir / "velocity_checkpoint.h5"
@@ -224,9 +226,9 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
     vec_checkpoint = tmpdir / "velocity_checkpoint.h5"
     if vec_checkpoint.exists():
-        print(f"  ✓ VectorField dump successful")
+        print("  ✓ VectorField dump successful")
     else:
-        print(f"  ✗ VectorField dump failed")
+        print("  ✗ VectorField dump failed")
 
     # ============================================================
     # Test 7: Comparison with old API
@@ -250,11 +252,11 @@ with tempfile.TemporaryDirectory() as tmpdir:
     new_h5 = old_api_path / "new_style.h5"
 
     if old_h5.exists() and new_h5.exists():
-        print(f"  ✓ Both APIs work correctly")
+        print("  ✓ Both APIs work correctly")
         print(f"  Old API creates: {old_h5}")
         print(f"  New API creates: {new_h5}")
     else:
-        print(f"  ✗ API comparison failed")
+        print("  ✗ API comparison failed")
 
 print("\n" + "=" * 70)
 print("All tests completed!")

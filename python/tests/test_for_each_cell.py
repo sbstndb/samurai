@@ -4,8 +4,9 @@ Tests for samurai Python bindings - for_each_cell function
 Tests the for_each_cell algorithm that iterates over individual mesh cells.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Add the build directory to Python path for development
@@ -78,7 +79,7 @@ class TestForEachCell1D:
         # All cells should be at level 3
         for data in cell_data_list:
             assert data['level'] == 3, f"Cell should be at level 3, got {data['level']}"
-            assert data['length'] > 0, f"Cell length should be positive"
+            assert data['length'] > 0, "Cell length should be positive"
             assert data['center'] > data['corner'], "Center should be > corner"
 
     def test_1d_field_indexing(self):

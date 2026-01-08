@@ -12,11 +12,12 @@ The POC aims to prove that in-place operators:
 This is a PROOF OF CONCEPT - focus on critical functionality.
 """
 
-import sys
 import os
-import pytest
-import numpy as np
+import sys
 import time
+
+import numpy as np
+import pytest
 
 # Add build directory to path
 build_dir = os.path.join(os.path.dirname(__file__), "..", "..", "build", "python")
@@ -24,7 +25,6 @@ if os.path.exists(build_dir):
     sys.path.insert(0, build_dir)
 
 import samurai_python as sam
-
 
 # ============================================================
 # Test Fixtures
@@ -518,7 +518,7 @@ class TestPerformance:
         # We allow some tolerance for measurement noise
         speedup = time_copy / time_inplace if time_inplace > 0 else 1.0
 
-        print(f"\nPerformance comparison (100 iterations):")
+        print("\nPerformance comparison (100 iterations):")
         print(f"  In-place:  {time_inplace*1000:.2f} ms")
         print(f"  Copy-based: {time_copy*1000:.2f} ms")
         print(f"  Speedup:   {speedup:.2f}x")

@@ -4,8 +4,9 @@ Tests for samurai Python bindings - MRA Configuration
 Tests the MRAConfig class and its properties for multiresolution adaptation.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Add the build directory to Python path for development

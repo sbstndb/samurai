@@ -25,8 +25,8 @@ Features:
     - Real-time matplotlib visualization (optional)
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add build directory to path for development
@@ -40,8 +40,9 @@ if os.path.exists(viz_dir):
     sys.path.insert(0, viz_dir)
 
 import matplotlib.pyplot as plt
-import samurai_python as sam
 import samplotlib as svmpl  # matplotlib visualization
+
+import samurai_python as sam
 
 # Import progress bar from demo_progress
 try:
@@ -123,17 +124,17 @@ def main():
     output_path = Path("./results")
     filename = "FV_advection_2d_progress"
 
-    print(f"=== Advection 2D Python Demo with Progress Bars ===")
-    print(f"Domain: [0, 1] x [0, 1]")
+    print("=== Advection 2D Python Demo with Progress Bars ===")
+    print("Domain: [0, 1] x [0, 1]")
     print(f"Velocity: ({velocity[0]}, {velocity[1]})")
     print(f"CFL: {cfl}")
     print(f"Final time: {Tf}")
     print(f"Output: {output_path}/{filename}_*.h5")
     if HAS_PROGRESS:
-        print(f"Progress bars: ENABLED")
+        print("Progress bars: ENABLED")
     if enable_realtime_viz:
-        print(f"Real-time visualization: ENABLED")
-    print(f"==============================\n")
+        print("Real-time visualization: ENABLED")
+    print("==============================\n")
 
     # ============================================================
     # Mesh configuration
@@ -209,7 +210,7 @@ def main():
         plotter = svmpl.FieldPlotter(u, ax=ax, cmap='RdBu_r', vmin=0.0, vmax=1.0, show_mesh=True)
         plt.pause(0.01)
 
-    print(f"Starting time stepping...")
+    print("Starting time stepping...")
     print(f"Estimated {estimated_steps} time steps\n")
 
     # ============================================================
@@ -296,22 +297,22 @@ def main():
     # ============================================================
 
     print("\n" + "=" * 70)
-    print(f"Simulation complete!")
-    print(f"\nStatistics:")
+    print("Simulation complete!")
+    print("\nStatistics:")
     print(f"  Final time: {t:.6e}")
     print(f"  Time steps: {nt}")
     print(f"  Output files: {nt // save_interval + 2}")
     print(f"\nGenerated files in {output_path}:")
     print(f"  - {filename}_*.h5/.xdmf     (time series)")
-    print(f"\nTo visualize in Paraview:")
+    print("\nTo visualize in Paraview:")
     print(f"  paraview {output_path}/{filename}_00000.xdmf")
-    print(f"\nThis demo is equivalent to demos/FiniteVolume/advection_2d.cpp")
+    print("\nThis demo is equivalent to demos/FiniteVolume/advection_2d.cpp")
 
     # Keep matplotlib figure open if visualization was enabled
     if enable_realtime_viz and plotter is not None:
         plt.ioff()  # Turn off interactive mode
-        print(f"\nReal-time visualization complete.")
-        print(f"Close the plot window to exit...")
+        print("\nReal-time visualization complete.")
+        print("Close the plot window to exit...")
         plt.show()
 
 

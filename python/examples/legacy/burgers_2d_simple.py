@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Burgers 2D equation - Simple version without mesh adaptation"""
 
-import sys
-import os
 import math
+import os
+import sys
 from pathlib import Path
 
 # Add build directory to path

@@ -6,17 +6,17 @@ Tests that the new in-place operators work correctly
 and provide performance benefits.
 """
 
-import sys
 import os
-from pathlib import Path
+import sys
 
 # Add build directory to path
 build_dir = os.path.join(os.path.dirname(__file__), "..", "build", "python")
 if os.path.exists(build_dir):
     sys.path.insert(0, build_dir)
 
-import samurai as sam
 import time
+
+import samurai as sam
 
 print("=== Testing apply_upwind_* in-place operators ===\n")
 
@@ -67,6 +67,7 @@ print(f"  First value: {flux_new.array()[0]:.6f}")
 
 # Verify results match
 import numpy as np
+
 if np.allclose(flux_old.numpy_view(), flux_new.numpy_view()):
     print("  ✓ Results match!")
 else:

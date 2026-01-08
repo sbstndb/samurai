@@ -4,8 +4,9 @@ Tests for samurai Python bindings - for_each_interval function
 Tests the for_each_interval algorithm that iterates over mesh intervals.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Add the build directory to Python path for development

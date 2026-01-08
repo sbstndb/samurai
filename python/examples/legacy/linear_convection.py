@@ -15,8 +15,8 @@ with constant velocity a = (1, -1) and a rectangle initial condition.
 Equivalent to: demos/FiniteVolume/linear_convection.cpp
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add build directory to path for development
@@ -80,9 +80,9 @@ def main():
     print("=" * 70)
     print("Linear Convection 2D - WENO5 with TVD-RK3")
     print("=" * 70)
-    print(f"Domain: [-1, 1] x [-1, 1]")
+    print("Domain: [-1, 1] x [-1, 1]")
     print(f"Velocity: ({velocity[0]}, {velocity[1]})")
-    print(f"Initial condition: rectangle [-0.8, -0.3] x [0.3, 0.8]")
+    print("Initial condition: rectangle [-0.8, -0.3] x [0.3, 0.8]")
     print(f"CFL: {cfl}")
     print(f"Final time: {Tf}")
     print(f"Mesh levels: min={min_level}, max={max_level}")
@@ -148,7 +148,7 @@ def main():
     sum_velocities = sum(abs(v) for v in velocity)
     dt = cfl * min_cell_length / sum_velocities
 
-    print(f"\nTime stepping parameters:")
+    print("\nTime stepping parameters:")
     print(f"  Min cell length: {min_cell_length:.6e}")
     print(f"  Time step: {dt:.6e}")
     print(f"  Expected iterations: ~{int(Tf/dt)}")
@@ -231,10 +231,10 @@ def main():
     print(f"  - {filename}_init.h5/.xdmf    (initial condition)")
     print(f"  - {filename}_ite_*.h5/.xdmf   (time series)")
     print()
-    print(f"To visualize in Paraview:")
+    print("To visualize in Paraview:")
     print(f"  paraview {output_path.absolute() / filename}_ite_0.xdmf")
     print()
-    print(f"Equivalent C++ demo: demos/FiniteVolume/linear_convection.cpp")
+    print("Equivalent C++ demo: demos/FiniteVolume/linear_convection.cpp")
     print("=" * 70)
 
 

@@ -23,9 +23,9 @@ Options:
     --no-plot           Disable real-time matplotlib visualization
 """
 
-import sys
-import os
 import argparse
+import os
+import sys
 from pathlib import Path
 
 # Add build directory to path for development
@@ -39,8 +39,9 @@ if os.path.exists(viz_dir):
     sys.path.insert(0, viz_dir)
 
 import matplotlib.pyplot as plt
-import samurai_python as sam
 import samplotlib as svmpl
+
+import samurai_python as sam
 from samurai_python.utils import progress
 
 
@@ -107,13 +108,13 @@ def main():
     print("=" * 70)
     print("Advection 2D - Upwind with Euler")
     print("=" * 70)
-    print(f"Domain: [0, 1] x [0, 1]")
+    print("Domain: [0, 1] x [0, 1]")
     print(f"Velocity: ({velocity[0]}, {velocity[1]})")
     print(f"CFL: {cfl}")
     print(f"Final time: {Tf}")
     print(f"Output: {output_path}/{filename}_*.h5")
     if enable_realtime_viz:
-        print(f"Real-time visualization: ENABLED")
+        print("Real-time visualization: ENABLED")
     print("=" * 70)
     print()
 
@@ -180,7 +181,7 @@ def main():
         plotter = svmpl.FieldPlotter(u, ax=ax, cmap='RdBu_r', vmin=0.0, vmax=1.0, show_mesh=True)
         plt.pause(0.01)
 
-    print(f"Starting time stepping...")
+    print("Starting time stepping...")
     print(f"Estimated ~{int(Tf/dt)} time steps\n")
 
     # ============================================================
@@ -229,21 +230,21 @@ def main():
     # ============================================================
 
     print("\n" + "=" * 54)
-    print(f"Simulation complete!")
-    print(f"\nStatistics:")
+    print("Simulation complete!")
+    print("\nStatistics:")
     print(f"  Final time: {Tf:.6e}")
     print(f"  Time steps: {pbar.iteration}")
     print(f"  Output files: {pbar.iteration // save_interval + 2}")
     print(f"\nGenerated files in {output_path}:")
     print(f"  - {filename}_*.h5/.xdmf     (time series)")
-    print(f"\nTo visualize in Paraview:")
+    print("\nTo visualize in Paraview:")
     print(f"  paraview {output_path}/{filename}_00000.xdmf")
 
     # Keep matplotlib figure open if visualization was enabled
     if enable_realtime_viz and plotter is not None:
         plt.ioff()  # Turn off interactive mode
-        print(f"\nReal-time visualization complete.")
-        print(f"Close the plot window to exit...")
+        print("\nReal-time visualization complete.")
+        print("Close the plot window to exit...")
         plt.show()
 
 

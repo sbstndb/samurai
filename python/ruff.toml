@@ -28,5 +28,9 @@ ignore = [
 quote-style = "double"
 indent-style = "space"
 
-[per-file-ignores]
-"python/tests/*.py" = ["S101"]  # allow assert in tests
+[lint.per-file-ignores]
+"tests/*.py" = ["S101", "E402"]  # allow assert and imports not at top in tests
+"examples/*.py" = ["E402"]  # allow imports not at top (sys.path modification)
+"test_*.py" = ["E402"]  # standalone test files
+"compare.py" = ["E712", "E713", "SIM118"]  # legacy comparison script
+"scripts/*.py" = ["E402"]  # scripts may import after setup

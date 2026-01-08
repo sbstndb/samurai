@@ -6,10 +6,10 @@ This package provides the Python bindings for Samurai, combining:
 - Python utility modules (progress bars, visualization helpers)
 """
 
-import sys
-import os
 import ctypes
 import ctypes.util
+import os
+import sys
 
 # Get the build/python directory (parent of samurai_python package)
 _package_dir = os.path.dirname(__file__)

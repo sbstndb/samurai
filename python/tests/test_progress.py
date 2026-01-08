@@ -7,12 +7,12 @@ Tests the progress reporting utilities including:
 - TimeLoopProgress: Context manager interface for time loops
 """
 
-import sys
 import os
+import sys
 import time
-from unittest.mock import Mock, patch, MagicMock
-from io import StringIO
 from contextlib import contextmanager
+from io import StringIO
+from unittest.mock import Mock, patch
 
 # Add the source directory to Python path for development
 src_dir = os.path.join(os.path.dirname(__file__), "..", "src")
@@ -27,9 +27,9 @@ if os.path.exists(build_dir):
 import pytest
 
 try:
-    from samurai_python.utils.progress.stats import MeshStatistics, compute_mesh_stats
-    from samurai.utils import ProgressBar, TimeLoopProgress, progress
     import samurai_python as sam
+    from samurai.utils import ProgressBar, TimeLoopProgress, progress
+    from samurai_python.utils.progress.stats import MeshStatistics, compute_mesh_stats
 except ImportError as e:
     pytest.skip(f"Required modules not available: {e}", allow_module_level=True)
 

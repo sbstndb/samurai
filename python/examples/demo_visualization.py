@@ -12,9 +12,8 @@ Features demonstrated:
 - Real-time plotting during simulation
 """
 
-import sys
 import os
-import math
+import sys
 from pathlib import Path
 
 # Add build directory to path for development
@@ -28,8 +27,9 @@ if os.path.exists(viz_dir):
     sys.path.insert(0, viz_dir)
 
 import matplotlib.pyplot as plt
-import samurai_python as sam
 import samplotlib as svmpl
+
+import samurai_python as sam
 
 
 def init_circular(u, center=(0.0, 0.0), radius=0.3):

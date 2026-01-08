@@ -2,13 +2,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-import h5py
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import collections as mc
-from matplotlib import animation
-from matplotlib import rc
 import argparse
+
+import h5py
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import animation
+from matplotlib import collections as mc
+
 
 def read_mesh(filename, ite=None):
     return h5py.File(filename + '.h5', 'r')['mesh']

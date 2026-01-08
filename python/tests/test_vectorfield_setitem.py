@@ -3,8 +3,8 @@
 Test script for VectorField __setitem__ and __getitem__
 """
 
-import sys
 import os
+import sys
 
 # Add the build directory to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -58,7 +58,7 @@ try:
     print("  PASSED ✓")
 
 except Exception as e:
-    print(f"  FAILED ✗")
+    print("  FAILED ✗")
     print(f"  Error: {e}")
     import traceback
     traceback.print_exc()
@@ -100,7 +100,7 @@ try:
     print("  PASSED ✓")
 
 except Exception as e:
-    print(f"  FAILED ✗")
+    print("  FAILED ✗")
     print(f"  Error: {e}")
     import traceback
     traceback.print_exc()

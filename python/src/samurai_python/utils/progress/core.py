@@ -6,8 +6,8 @@ time-dependent simulations with adaptive mesh refinement.
 """
 
 import time
-from typing import Optional, Callable, Any, Dict, TYPE_CHECKING
 from contextlib import contextmanager
+from typing import TYPE_CHECKING, Optional
 
 try:
     from tqdm import tqdm as tqdm_class

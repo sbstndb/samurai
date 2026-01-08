@@ -30,9 +30,9 @@ Features:
     - Automatic time step adjustment at final time
 """
 
-import sys
-import os
 import math
+import os
+import sys
 from pathlib import Path
 
 # Add build directory to path for development
@@ -46,8 +46,9 @@ if os.path.exists(viz_dir):
     sys.path.insert(0, viz_dir)
 
 import matplotlib.pyplot as plt
-import samurai_python as sam
 import samplotlib as svmpl
+
+import samurai_python as sam
 
 # Import progress bar from demo_progress
 try:
@@ -183,17 +184,17 @@ def main():
     # Visualization option
     enable_realtime_viz = True  # Set to False to disable matplotlib visualization
 
-    print(f"=== Burgers 2D with Progress Bars ===")
+    print("=== Burgers 2D with Progress Bars ===")
     print(f"Domain: [{box_corner1[0]}, {box_corner2[0]}] x [{box_corner1[1]}, {box_corner2[1]}]")
     print(f"CFL: {cfl}")
     print(f"Final time: {Tf}")
     print(f"Initial condition: {init_sol}")
     print(f"min_level: {min_level}, max_level: {max_level}")
     if HAS_PROGRESS:
-        print(f"Progress bars: ENABLED")
+        print("Progress bars: ENABLED")
     if enable_realtime_viz:
-        print(f"Real-time visualization: ENABLED")
-    print(f"==============================\n")
+        print("Real-time visualization: ENABLED")
+    print("==============================\n")
 
     # ============================================================
     # Mesh and field creation
@@ -285,7 +286,7 @@ def main():
     # Estimate total steps (rough estimate, will be updated)
     estimated_steps = int(Tf / dt)
 
-    print(f"\nStarting time integration:")
+    print("\nStarting time integration:")
     print(f"  Tf = {Tf}, dt = {dt:.6f}, CFL = {cfl}")
     print(f"  min_level = {min_level}, max_level = {max_level}")
     print(f"  epsilon = {mra_config.epsilon}")
@@ -377,21 +378,21 @@ def main():
     # ============================================================
     print()
     print("=" * 70)
-    print(f"Simulation complete!")
-    print(f"\nStatistics:")
+    print("Simulation complete!")
+    print("\nStatistics:")
     print(f"  Total iterations: {nt}")
     print(f"  Final time: {t}")
     print(f"  Final cells: {n_cells}")
     print(f"  Output saved to: {output_path.absolute()}")
-    print(f"\nTo visualize in Paraview:")
+    print("\nTo visualize in Paraview:")
     print(f"  paraview {output_path.absolute() / filename}{suffix}.xdmf")
-    print(f"\nThis demo shows RK3 time stepping with progress bars")
+    print("\nThis demo shows RK3 time stepping with progress bars")
 
     # Keep matplotlib figure open if visualization was enabled
     if enable_realtime_viz and plotter is not None:
         plt.ioff()  # Turn off interactive mode
-        print(f"\nReal-time visualization complete.")
-        print(f"Close the plot window to exit...")
+        print("\nReal-time visualization complete.")
+        print("Close the plot window to exit...")
         plt.show()
 
 

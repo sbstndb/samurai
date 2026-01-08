@@ -4,8 +4,8 @@ Simple test script for VectorField WENO5 convection operators (Burgers equation)
 Tests the core functionality without custom initialization
 """
 
-import sys
 import os
+import sys
 
 # Add the build directory to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -50,7 +50,7 @@ try:
     print("  PASSED ✓")
 
 except Exception as e:
-    print(f"  FAILED ✗")
+    print("  FAILED ✗")
     print(f"  Error: {e}")
     import traceback
     traceback.print_exc()
@@ -84,7 +84,7 @@ try:
     print("  PASSED ✓")
 
 except Exception as e:
-    print(f"  FAILED ✗")
+    print("  FAILED ✗")
     print(f"  Error: {e}")
     import traceback
     traceback.print_exc()
@@ -121,14 +121,14 @@ try:
     u2 = 3./4 * u + 1./4 * (u1 - dt * sam.operators.convection_weno5(u1))
     unp1 = 1./3 * u + 2./3 * (u2 - dt * sam.operators.convection_weno5(u2))
 
-    print(f"  Successfully performed RK3 time step")
+    print("  Successfully performed RK3 time step")
     print(f"  dt = {dt}")
     print(f"  u type: {type(u).__name__}")
     print(f"  unp1 type: {type(unp1).__name__}")
     print("  PASSED ✓")
 
 except Exception as e:
-    print(f"  FAILED ✗")
+    print("  FAILED ✗")
     print(f"  Error: {e}")
     import traceback
     traceback.print_exc()

@@ -3,8 +3,8 @@
 Test script for VectorField WENO5 convection operators (Burgers equation)
 """
 
-import sys
 import os
+import sys
 
 # Add the build directory to path
 # Get the project root (2 levels up from tests/ directory)
@@ -16,8 +16,9 @@ else:
     # Fallback: try adding relative to current directory
     sys.path.insert(0, os.path.join(os.getcwd(), 'build', 'python'))
 
-import samurai_python as sam
 import numpy as np
+
+import samurai_python as sam
 
 print("=" * 60)
 print("Testing VectorField WENO5 Convection Operators")
@@ -60,7 +61,7 @@ try:
     print("  PASSED ✓")
 
 except Exception as e:
-    print(f"  FAILED ✗")
+    print("  FAILED ✗")
     print(f"  Error: {e}")
     import traceback
     traceback.print_exc()
@@ -102,7 +103,7 @@ try:
     print("  PASSED ✓")
 
 except Exception as e:
-    print(f"  FAILED ✗")
+    print("  FAILED ✗")
     print(f"  Error: {e}")
     import traceback
     traceback.print_exc()
@@ -152,14 +153,14 @@ try:
     u2.assign(3./4 * u + 1./4 * (u1 - dt * sam.operators.convection_weno5(u1)))
     unp1.assign(1./3 * u + 2./3 * (u2 - dt * sam.operators.convection_weno5(u2)))
 
-    print(f"  Successfully performed RK3 time step")
+    print("  Successfully performed RK3 time step")
     print(f"  dt = {dt}")
     print(f"  u type: {type(u).__name__}")
     print(f"  unp1 type: {type(unp1).__name__}")
     print("  PASSED ✓")
 
 except Exception as e:
-    print(f"  FAILED ✗")
+    print("  FAILED ✗")
     print(f"  Error: {e}")
     import traceback
     traceback.print_exc()

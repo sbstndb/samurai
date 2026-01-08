@@ -2,10 +2,10 @@
 """
 Test script to verify the sam.operators submodule is accessible and functional.
 """
-import sys
-
 # Import the samurai_python module directly from the .so file
 import importlib.util
+import sys
+
 spec = importlib.util.spec_from_file_location("samurai_python", "/home/sbstndbs/sbstndbs/samurai/build/python/samurai_python.cpython-312-x86_64-linux-gnu.so")
 samurai_python = importlib.util.module_from_spec(spec)
 sys.modules["samurai_python"] = samurai_python

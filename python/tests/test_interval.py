@@ -4,8 +4,9 @@ Tests for samurai Python bindings - Interval class
 Tests the samurai::Interval class bindings.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Add the build directory to Python path for development

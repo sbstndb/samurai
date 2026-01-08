@@ -1,5 +1,5 @@
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 
 test_case = "D2Q4444_Euler_Lax_Liu"
 

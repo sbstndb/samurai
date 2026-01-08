@@ -4,8 +4,9 @@ Tests for samurai Python bindings - Boundary Conditions
 Tests the make_bc function and boundary condition types.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Add the build directory to Python path for development

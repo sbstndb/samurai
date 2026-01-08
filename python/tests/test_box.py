@@ -4,8 +4,9 @@ Tests for samurai Python bindings - Box class
 Tests the samurai::Box<value_t, dim> class bindings for 1D, 2D, and 3D.
 """
 
-import sys
 import os
+import sys
+
 import numpy as np
 import pytest
 

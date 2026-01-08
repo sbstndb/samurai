@@ -5,7 +5,7 @@ This module provides efficient tracking of mesh statistics for adaptive mesh
 refinement simulations, including cell counts and refinement levels.
 """
 
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict
 
 if TYPE_CHECKING:
     import samurai_python

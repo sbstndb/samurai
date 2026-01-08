@@ -5,8 +5,8 @@ Basic test for progress bar API (without requiring full C++ bindings).
 This tests the progress bar functionality in isolation.
 """
 
-import sys
 import os
+import sys
 import time
 
 # Add build directory to path

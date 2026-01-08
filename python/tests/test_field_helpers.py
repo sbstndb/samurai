@@ -2,8 +2,8 @@
 Tests for NumPy-style field creation helpers.
 """
 
-import sys
 import os
+import sys
 
 # Add the build directory to Python path for development
 build_dir = os.path.join(os.path.dirname(__file__), "..", "..", "build", "python")

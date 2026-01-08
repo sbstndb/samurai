@@ -25,10 +25,10 @@ Options:
     --no-plot            Disable real-time matplotlib visualization
 """
 
-import sys
-import os
-import math
 import argparse
+import math
+import os
+import sys
 from pathlib import Path
 
 # Add build directory to path for development
@@ -42,8 +42,9 @@ if os.path.exists(viz_dir):
     sys.path.insert(0, viz_dir)
 
 import matplotlib.pyplot as plt
-import samurai_python as sam
 import samplotlib as svmpl
+
+import samurai_python as sam
 from samurai_python.utils import progress
 
 
@@ -165,7 +166,7 @@ def main():
     print("=" * 70)
     print("Burgers 2D - WENO5 with TVD-RK3")
     print("=" * 70)
-    print(f"Domain: [-1, 1] x [-1, 1]")
+    print("Domain: [-1, 1] x [-1, 1]")
     print(f"Initial condition: {init_sol}")
     print(f"CFL: {cfl}")
     print(f"Final time: {Tf}")
@@ -256,7 +257,7 @@ def main():
     # Main time loop
     # ============================================================
 
-    print(f"\nStarting time integration:")
+    print("\nStarting time integration:")
     print(f"  Tf = {Tf}, dt = {dt:.6f}, CFL = {cfl}")
     print(f"  min_level = {min_level}, max_level = {max_level}")
     print(f"  epsilon = {mra_config.epsilon}")
@@ -320,18 +321,18 @@ def main():
                 sam.save(f"{output_path}/{filename}{suffix}", u)
                 nsave += 1
 
-    print(f"\nSimulation complete!")
+    print("\nSimulation complete!")
     print(f"  Total iterations: {pbar.iteration}")
     print(f"  Final time: {Tf}")
     print(f"  Output saved to: {output_path.absolute()}")
-    print(f"\nTo visualize in Paraview:")
+    print("\nTo visualize in Paraview:")
     print(f"  paraview {output_path.absolute() / filename}{suffix}.xdmf")
 
     # Keep matplotlib figure open if visualization was enabled
     if enable_realtime_viz and plotter is not None:
         plt.ioff()  # Turn off interactive mode
-        print(f"\nReal-time visualization complete.")
-        print(f"Close the plot window to exit...")
+        print("\nReal-time visualization complete.")
+        print("Close the plot window to exit...")
         plt.show()
 
 

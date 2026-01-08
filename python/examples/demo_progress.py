@@ -20,17 +20,15 @@ This demo requires:
     - No actual simulation is run, just demonstrations
 """
 
-import sys
 import os
+import sys
 import time
-from pathlib import Path
 
 # Add build directory to path for development
 build_dir = os.path.join(os.path.dirname(__file__), "..", "..", "build", "python")
 if os.path.exists(build_dir):
     sys.path.insert(0, build_dir)
 
-import samurai_python as sam
 
 
 # ============================================================================
@@ -372,7 +370,7 @@ def demo_nested_progress():
 
     print(f"Running {n_timesteps} time steps with {n_inner_iter} inner iterations\n")
 
-    outer_desc = f"Time steps"
+    outer_desc = "Time steps"
     for ts in range(n_timesteps):
         print(f"\nTime step {ts + 1}/{n_timesteps}:")
 

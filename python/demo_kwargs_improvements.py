@@ -5,8 +5,8 @@ Demonstration of Python API improvements with kwargs.
 Shows the new Pythonic API for MeshConfig and MRAConfig.
 """
 
-import sys
 import os
+import sys
 
 # Add build directory to path
 build_dir = os.path.join(os.path.dirname(__file__), "..", "build", "python")

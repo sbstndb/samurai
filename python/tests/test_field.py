@@ -4,8 +4,9 @@ Tests for samurai Python bindings - ScalarField and VectorField classes
 Tests the samurai::ScalarField and samurai::VectorField class bindings.
 """
 
-import sys
 import os
+import sys
+
 import numpy as np
 import pytest
 

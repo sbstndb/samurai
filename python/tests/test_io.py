@@ -4,11 +4,11 @@ Tests for samurai Python bindings - HDF5 I/O
 Tests the save(), dump(), and load() functions for fields and meshes.
 """
 
-import sys
 import os
-import pytest
+import sys
 import tempfile
-import shutil
+
+import pytest
 
 # Add the build directory to Python path for development
 build_dir = os.path.join(os.path.dirname(__file__), "..", "..", "build", "python")

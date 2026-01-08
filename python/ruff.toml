@@ -30,7 +30,9 @@ indent-style = "space"
 
 [lint.per-file-ignores]
 "tests/*.py" = ["S101", "E402"]  # allow assert and imports not at top in tests
-"examples/*.py" = ["E402"]  # allow imports not at top (sys.path modification)
+"examples/*.py" = ["E402", "RUF059"]  # allow imports not at top and unused fig from plt.subplots()
+"examples/legacy/*.py" = ["E402", "RUF059"]  # legacy examples
 "test_*.py" = ["E402"]  # standalone test files
 "compare.py" = ["E712", "E713", "SIM118"]  # legacy comparison script
 "scripts/*.py" = ["E402"]  # scripts may import after setup
+"viz/*.py" = ["RUF059"]  # visualization code may not use fig from plt.subplots()

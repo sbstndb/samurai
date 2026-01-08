@@ -38,9 +38,7 @@ jobs:
                   environment-file: conda/environment.yml
                   environment-name: samurai-env
                   cache-environment: true
-                  create-args: |
-                      python=3.11
-                      pybind11
+                  create-args: python=3.11 pybind11
 
             - name: Compiler installation
               shell: bash -el {0}

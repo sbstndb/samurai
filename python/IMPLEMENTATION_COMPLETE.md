@@ -104,7 +104,7 @@ Simulation Name: 100 it | t=0.500000/1.000000 ( 50.0%) | cells: 12345
 ### Unit Tests (test_progress_api.py)
 ```
 ✓ Basic progress bar functionality - PASSED
-✓ Mesh adaptation context manager - PASSED  
+✓ Mesh adaptation context manager - PASSED
 ✓ Iteration tracking - PASSED (10 iterations)
 ```
 

@@ -93,7 +93,7 @@ with progress.time_loop(Tf=1.0, dt=0.01) as pbar:
         # simulation
         pbar.advance_time(dt)
         it += 1
-        
+
         if it % save_interval == 0:
             pbar.update_stats(mesh=u.mesh)
             save(u, it)
@@ -107,7 +107,7 @@ with progress.time_loop(Tf=1.0, dt=0.01) as pbar:
     while pbar.continue_loop():
         # simulation
         pbar.advance_time(dt)
-        
+
         # Update plot
         ax.clear()
         plot(u, ax)

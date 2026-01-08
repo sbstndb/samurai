@@ -39,7 +39,7 @@ with progress.time_loop(Tf=1.0, dt=0.01) as pbar:
         # Simulation step
         MRadaptation(config)
         update_ghost_mr(u)
-        
+
         # Update progress bar with mesh statistics
         pbar.advance_time(dt)
         pbar.update_stats(mesh=u.mesh)
@@ -268,7 +268,7 @@ Pass any tqdm arguments:
 
 ```python
 with progress.time_loop(
-    Tf=1.0, 
+    Tf=1.0,
     dt=0.01,
     desc="Simulation",
     colour='green',
@@ -301,7 +301,7 @@ with progress.time_loop(Tf=1.0, dt=0.01) as pbar:
     while pbar.continue_loop():
         # Simulation step
         pbar.advance_time(dt)
-        
+
         # Update plot
         ax.clear()
         plot_field(u, ax)

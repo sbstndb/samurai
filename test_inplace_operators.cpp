@@ -2,18 +2,18 @@
 // SPDX-License-Identifier:  BSD-3-Clause
 
 // Simple test for in-place arithmetic operators
-#include <samurai/samurai.hpp>
 #include <iostream>
+#include <samurai/samurai.hpp>
 
 int main()
 {
     constexpr std::size_t dim = 2;
-    using Box = samurai::Box<double, dim>;
+    using Box                 = samurai::Box<double, dim>;
 
     // Create a simple mesh
     Box box({0., 0.}, {1., 1.});
     auto config = samurai::mesh_config<dim>().min_level(0).max_level(2);
-    auto mesh = samurai::mra::make_empty_mesh(config);
+    auto mesh   = samurai::mra::make_empty_mesh(config);
 
     // Create a scalar field
     auto u = samurai::make_scalar_field<double>("u", mesh);

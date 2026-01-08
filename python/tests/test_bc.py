@@ -48,6 +48,7 @@ class TestMakeDirichletBC:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 2
+        config.max_stencil_size = 10  # Support up to order 4 BCs
         mesh = sam.mesh.make(box, config)
 
         # Test orders 1-4
@@ -108,6 +109,7 @@ class TestMakeDirichletBC:
         config = sam.config.make(2)
         config.min_level = 2
         config.max_level = 2
+        config.max_stencil_size = 10  # Support up to order 4 BCs
         mesh = sam.mesh.make(box, config)
 
         # Test orders 1-4
@@ -173,6 +175,7 @@ class TestPolynomialExtrapolationBC:
         config = sam.config.make(1)
         config.min_level = 2
         config.max_level = 2
+        config.max_stencil_size = 8  # Support up to order 3 (stencil size 6)
         mesh = sam.mesh.make(box, config)
 
         # Test orders 1-3
@@ -213,6 +216,7 @@ class TestPolynomialExtrapolationBC:
         config = sam.config.make(3)
         config.min_level = 1
         config.max_level = 1
+        config.max_stencil_size = 8  # Support up to order 3 (stencil size 6)
         mesh = sam.mesh.make(box, config)
 
         u = sam.field.scalar(mesh, "u", init=0.0)
@@ -232,6 +236,171 @@ class TestPolynomialExtrapolationBC:
         # Use the boundary submodule API
         sam.boundary.polynomial_extrapolation(u, order=2)
         assert True
+
+
+class TestNeumannBC:
+    """Tests for Neumann boundary condition."""
+
+    def test_1d_neumann_default(self):
+        """Test default Neumann BC (zero derivative/no-flux) for 1D."""
+        box = sam.geometry.box([0.0], [1.0])
+        config = sam.config.make(1)
+        config.min_level = 3
+        config.max_level = 3
+        mesh = sam.mesh.make(box, config)
+
+        u = sam.field.scalar(mesh, "u", init=0.0)
+
+        # Create Neumann BC with default (zero derivative)
+        sam.make_neumann_bc(u)
+        assert True
+
+    def test_1d_neumann_explicit_value(self):
+        """Test Neumann BC with explicit derivative value."""
+        box = sam.geometry.box([0.0], [1.0])
+        config = sam.config.make(1)
+        config.min_level = 2
+        config.max_level = 2
+        mesh = sam.mesh.make(box, config)
+
+        u = sam.field.scalar(mesh, "u", init=0.0)
+
+        # Create Neumann BC with derivative value
+        sam.make_neumann_bc(u, 1.5)
+        assert True
+
+    def test_2d_neumann_default(self):
+        """Test Neumann BC for 2D field."""
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
+        config = sam.config.make(2)
+        config.min_level = 2
+        config.max_level = 2
+        mesh = sam.mesh.make(box, config)
+
+        u = sam.field.scalar(mesh, "u", init=0.0)
+
+        # Create Neumann BC with default
+        sam.make_neumann_bc(u)
+        assert True
+
+    def test_2d_neumann_explicit_value(self):
+        """Test Neumann BC with explicit derivative in 2D."""
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
+        config = sam.config.make(2)
+        config.min_level = 2
+        config.max_level = 2
+        mesh = sam.mesh.make(box, config)
+
+        u = sam.field.scalar(mesh, "u", init=0.0)
+
+        # Create Neumann BC with derivative value
+        sam.make_neumann_bc(u, 0.5)
+        assert True
+
+    def test_3d_neumann(self):
+        """Test Neumann BC for 3D field."""
+        box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        config = sam.config.make(3)
+        config.min_level = 1
+        config.max_level = 1
+        mesh = sam.mesh.make(box, config)
+
+        u = sam.field.scalar(mesh, "u", init=0.0)
+
+        # Create Neumann BC
+        sam.make_neumann_bc(u, 0.0)
+        assert True
+
+    def test_neumann_via_boundary_submodule(self):
+        """Test Neumann BC via boundary submodule."""
+        box = sam.geometry.box([0.0], [1.0])
+        config = sam.config.make(1)
+        config.min_level = 2
+        config.max_level = 2
+        mesh = sam.mesh.make(box, config)
+
+        u = sam.field.scalar(mesh, "u", init=0.0)
+
+        # Use the boundary submodule API
+        sam.boundary.neumann(u, 0.0)
+        assert True
+
+
+class TestVectorFieldBC:
+    """Tests for VectorField boundary conditions."""
+
+    def test_2d_vector_dirichlet(self):
+        """Test Dirichlet BC for 2D vector field (Burgers equation)."""
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
+        config = sam.config.make(2)
+        config.min_level = 2
+        config.max_level = 2
+        mesh = sam.mesh.make(box, config)
+
+        # Create 2D vector field (2 components)
+        u = sam.field.vector(mesh, "u", 2)
+
+        # Create Dirichlet BC with list of values
+        sam.make_dirichlet_bc(u, [0.0, 0.0])
+        assert True
+
+    def test_2d_vector_dirichlet_different_orders(self):
+        """Test Dirichlet BC for 2D vector field with different orders."""
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
+        config = sam.config.make(2)
+        config.min_level = 2
+        config.max_level = 2
+        config.max_stencil_size = 10  # Support up to order 4
+        mesh = sam.mesh.make(box, config)
+
+        # Test orders 1-3
+        for order in [1, 2, 3]:
+            u = sam.field.vector(mesh, "u", 2)
+            sam.make_dirichlet_bc(u, [1.0, 0.0], order=order)
+            assert True
+
+    def test_2d_vector_wrong_value_count(self):
+        """Test error on wrong number of values for VectorField."""
+        box = sam.geometry.box([0.0, 0.0], [1.0, 1.0])
+        config = sam.config.make(2)
+        config.min_level = 2
+        config.max_level = 2
+        mesh = sam.mesh.make(box, config)
+
+        u = sam.field.vector(mesh, "u", 2)
+
+        # Should raise error: expected 2 values, got 3
+        with pytest.raises(RuntimeError, match="Expected 2 values"):
+            sam.make_dirichlet_bc(u, [0.0, 0.0, 0.0])
+
+    def test_3d_vector_dirichlet(self):
+        """Test Dirichlet BC for 3D vector field."""
+        box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        config = sam.config.make(3)
+        config.min_level = 1
+        config.max_level = 1
+        mesh = sam.mesh.make(box, config)
+
+        # Create 3D vector field (3 components)
+        u = sam.field.vector(mesh, "u", 3)
+
+        # Create Dirichlet BC with list of values
+        sam.make_dirichlet_bc(u, [1.0, 0.0, 0.0])
+        assert True
+
+    def test_3d_vector_wrong_value_count(self):
+        """Test error on wrong number of values for 3D VectorField."""
+        box = sam.geometry.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        config = sam.config.make(3)
+        config.min_level = 1
+        config.max_level = 1
+        mesh = sam.mesh.make(box, config)
+
+        u = sam.field.vector(mesh, "u", 3)
+
+        # Should raise error: expected 3 values, got 2
+        with pytest.raises(RuntimeError, match="Expected 3 values"):
+            sam.make_dirichlet_bc(u, [0.0, 0.0])
 
 
 # NOTE: Directional BC tests are temporarily disabled because they require

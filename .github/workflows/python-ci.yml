@@ -25,7 +25,7 @@ jobs:
             - name: Setup Python
               uses: actions/setup-python@v5
               with:
-                  python-version: "3.11"
+                  python-version: "3.12"
                   cache: 'pip'
 
             - name: Install Python dev tools
@@ -63,9 +63,9 @@ jobs:
                   path: |
                       ~/.cache/ccache
                       ~/micromamba-root/envs/samurai-env
-                  key: python-${{ runner.os }}-py3.11
+                  key: python-${{ runner.os }}-py3.12
                   restore-keys: |
-                      python-${{ runner.os }}-py3.11
+                      python-${{ runner.os }}-py3.12
 
             - name: Mamba and samurai env installation
               uses: mamba-org/setup-micromamba@v2
@@ -73,7 +73,7 @@ jobs:
                   environment-file: conda/environment.yml
                   environment-name: samurai-env
                   cache-environment: true
-                  create-args: python=3.11 pybind11
+                  create-args: python=3.12 pybind11
 
             - name: Compiler installation
               shell: bash -el {0}
@@ -153,7 +153,7 @@ jobs:
                   environment-file: conda/environment.yml
                   environment-name: samurai-env
                   cache-environment: true
-                  create-args: python=3.11 pybind11
+                  create-args: python=3.12 pybind11
 
             - name: Install pybind11 via pip
               shell: bash -el {0}

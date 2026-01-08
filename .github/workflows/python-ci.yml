@@ -14,10 +14,45 @@ concurrency:
 
 jobs:
     #
+    # Python code quality checks (fast)
+    #
+    #########################################################
+    python-quality:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.11"
+                  cache: 'pip'
+
+            - name: Install Python dev tools
+              run: |
+                  pip install ruff mypy
+
+            - name: Run ruff linter
+              working-directory: python
+              run: |
+                  ruff check . --output-format=github
+
+            - name: Run ruff formatter check
+              working-directory: python
+              run: |
+                  ruff format --check .
+
+            - name: Run mypy type checker
+              working-directory: python
+              run: |
+                  mypy src/samurai_python/ --show-error-codes || true
+
+    #
     # Python bindings testing
     #
     #########################################################
     python-bindings:
+        needs: [python-quality]
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -82,19 +117,31 @@ jobs:
                   python -c "import numpy; print(f'NumPy {numpy.__version__}')"
                   python -c "import samurai_python; print('✓ samurai_python imported successfully')"
 
-            - name: Run pytest tests
+            - name: Run pytest tests with coverage
               shell: bash -el {0}
               run: |
                   export PYTHONPATH="${PWD}/build/python:${PYTHONPATH}"
                   export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
                   cd python
-                  pytest tests/ -v --tb=short -x
+                  pytest tests/ -v --tb=short -x \
+                      --cov=src/samurai_python \
+                      --cov-report=xml \
+                      --cov-report=term-missing \
+                      --cov-report=html
+
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v4
+              with:
+                  file: python/coverage.xml
+                  flags: python-bindings
+                  name: codecov-python-bindings
+                  fail_ci_if_error: false
 
     #
-    # Debug with AddressSanitizer (allowed to fail)
+    # Debug with Sanitizers (ASAN + UBSAN, allowed to fail)
     #
     #########################################################
-    python-bindings-asan:
+    python-bindings-sanitizers:
         runs-on: ubuntu-latest
         continue-on-error: true
         steps:
@@ -113,30 +160,31 @@ jobs:
               run: |
                   pip install pybind11[global]
 
-            - name: Configure CMake with AddressSanitizer
+            - name: Configure CMake with Sanitizers (ASAN + UBSAN)
               shell: bash -el {0}
               run: |
                   cmake . \
-                      -Bbuild-asan \
+                      -Bbuild-san \
                       -GNinja \
                       -DCMAKE_BUILD_TYPE=Debug \
-                      -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer -g" \
-                      -DCMAKE_C_FLAGS="-fsanitize=address -fno-omit-frame-pointer -g" \
-                      -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" \
-                      -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address" \
+                      -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g" \
+                      -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g" \
+                      -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+                      -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address,undefined" \
                       -DBUILD_PYTHON_BINDINGS=ON \
                       -DBUILD_DEMOS=OFF \
                       -DBUILD_TESTS=OFF
 
-            - name: Build Python bindings with ASAN
+            - name: Build Python bindings with sanitizers
               shell: bash -el {0}
               run: |
-                  cmake --build build-asan --target samurai_python --parallel 2
+                  cmake --build build-san --target samurai_python --parallel 2
 
-            - name: Test with ASAN
+            - name: Test with sanitizers
               shell: bash -el {0}
               run: |
-                  export PYTHONPATH="${PWD}/build-asan/python:${PYTHONPATH}"
+                  export PYTHONPATH="${PWD}/build-san/python:${PYTHONPATH}"
                   export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
                   export ASAN_OPTIONS=detect_leaks=0
+                  export UBSAN_OPTIONS=print_stacktrace=1
                   python -c "import samurai_python; print('✓ Import OK'); import sys; sys.exit(0)"

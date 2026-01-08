@@ -46,7 +46,7 @@ import samurai_python as sam
 
 # Import progress bar from demo_progress
 try:
-    from demo_progress import ProgressBar, TQDMProgressBar
+    from demo_progress import ProgressBar
     HAS_PROGRESS = True
 except ImportError:
     HAS_PROGRESS = False

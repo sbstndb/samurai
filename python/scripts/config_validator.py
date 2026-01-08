@@ -18,7 +18,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import ClassVar, Dict, List, Optional, Tuple
 
 # Ajouter le build directory au path
 build_dir = os.path.join(os.path.dirname(__file__), "..", "..", "build", "python")
@@ -70,7 +70,7 @@ class ConfigExtractor:
     """Extrait les configurations de fichiers Python"""
 
     # Patterns regex pour extraire les valeurs
-    PATTERNS = {
+    PATTERNS: ClassVar[Dict[str, str]] = {
         'min_level': r'min_level\s*=\s*(\d+)',
         'max_level': r'max_level\s*=\s*(\d+)',
         'max_stencil_size': r'max_stencil_size\s*=\s*(\d+)',
@@ -81,14 +81,14 @@ class ConfigExtractor:
     }
 
     # Patterns pour détecter les schémas
-    SCHEME_PATTERNS = {
+    SCHEME_PATTERNS: ClassVar[Dict[str, str]] = {
         'upwind': r'\.upwind\s*\(',
         'weno5': r'weno5|make_convection_weno5',
         'convection': r'make_convection',
     }
 
     # Patterns pour détecter les schémas temporels
-    TIME_SCHEME_PATTERNS = {
+    TIME_SCHEME_PATTERNS: ClassVar[Dict[str, str]] = {
         'SSPRK3': r'3\.0\s*/\s*4\.0|1\.0\s*/\s*3\.0|2\.0\s*/\s*3\.0',
         'euler': r'unp1\s*=\s*u\s*-\s*dt\s*\*',
     }
@@ -132,7 +132,7 @@ class ConfigValidator:
     """Valide une configuration Samurai"""
 
     # Valeurs typiques par schéma
-    TYPICAL_VALUES = {
+    TYPICAL_VALUES: ClassVar[Dict[str, Dict[str, any]]] = {
         'upwind': {
             'max_stencil_size': 2,
             'cfl': 0.5,
@@ -148,7 +148,7 @@ class ConfigValidator:
     }
 
     # Plages admissibles
-    RANGES = {
+    RANGES: ClassVar[Dict[str, Tuple[float, float]]] = {
         'cfl': (0.01, 1.0),
         'epsilon': (1e-8, 0.1),
         'regularity': (0.0, 3.0),
@@ -239,10 +239,7 @@ class ConfigSuggester:
         """
         # Déterminer le schéma si non spécifié
         if scheme is None:
-            if problem_type == "advection":
-                scheme = "upwind"  # Par défaut
-            else:
-                scheme = "weno5"
+            scheme = "upwind" if problem_type == "advection" else "weno5"
 
         # Configurations de base par schéma
         base_configs = {

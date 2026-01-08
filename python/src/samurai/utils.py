@@ -65,14 +65,13 @@ class ProgressBar:
             >>> with pbar.mesh_adaptation(mesh):
             ...     MRadaptation(mra_config)
         """
-        # Store mesh state before adaptation
-        cells_before = getattr(mesh, 'nb_cells', 0)
+        # Could track adaptation statistics here in the future
+        # cells_before = getattr(mesh, 'nb_cells', 0)
 
         yield mesh
 
-        # Could track adaptation statistics here in the future
-        cells_after = getattr(mesh, 'nb_cells', 0)
         # For now, we just provide the context structure
+        # cells_after = getattr(mesh, 'nb_cells', 0)
 
     def advance(self, dt: Optional[float] = None, mesh=None) -> bool:
         """Advance progress bar by one time step.

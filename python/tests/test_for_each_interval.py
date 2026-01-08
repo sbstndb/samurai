@@ -145,7 +145,7 @@ class TestForEachInterval1D:
         sam.for_each_interval(mesh, callback)
 
         # Check if we have multiple intervals at any level
-        for level, intervals in level_intervals.items():
+        for _, intervals in level_intervals.items():
             # Verify intervals don't overlap
             sorted_intervals = sorted(intervals, key=lambda x: x[0])
             for i in range(len(sorted_intervals) - 1):

@@ -359,7 +359,7 @@ class TestProgressBar:
                     pbar.advance()
 
             # Output should be shorter due to update interval
-            output = fake_out.getvalue()
+            _ = fake_out.getvalue()
 
     def test_mesh_adaptation_context(self, mock_mesh_2d):
         """Test mesh_adaptation context manager."""
@@ -472,7 +472,7 @@ class TestProgressIntegration:
         """Test a simplified full simulation workflow."""
         # Create field
         try:
-            u = sam.field.zeros(real_mesh_2d, "u")
+            _ = sam.field.zeros(real_mesh_2d, "u")
         except Exception:
             pytest.skip("Could not create field")
 
@@ -504,7 +504,7 @@ class TestProgressIntegration:
 
     def test_progress_with_adaptation_tracking(self, real_mesh_2d):
         """Test progress bar with mesh adaptation context."""
-        stats_before = compute_mesh_stats(real_mesh_2d)
+        _ = compute_mesh_stats(real_mesh_2d)
 
         pbar = ProgressBar(total_time=0.1, dt=0.05)
 
@@ -597,9 +597,9 @@ class TestProgressPerformance:
         # Access cached values (should be instant)
         start2 = time.time()
         n_cells = stats.n_cells
-        min_level = stats.min_level
-        max_level = stats.max_level
-        level_counts = stats.level_counts
+        _ = stats.min_level
+        _ = stats.max_level
+        _ = stats.level_counts
         time2 = time.time() - start2
 
         # Cached access should be much faster

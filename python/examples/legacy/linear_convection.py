@@ -134,7 +134,6 @@ def main():
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Save initial condition
-    it = 0
     save_filename = f"{filename}_init"
     print(f"Saving initial condition to {output_path / save_filename}")
     sam.save(f"{output_path}/{save_filename}", u)

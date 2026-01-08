@@ -52,7 +52,7 @@ import samurai_python as sam
 
 # Import progress bar from demo_progress
 try:
-    from demo_progress import ProgressBar, TQDMProgressBar
+    from demo_progress import TQDMProgressBar
     HAS_PROGRESS = True
 except ImportError:
     HAS_PROGRESS = False
@@ -74,10 +74,7 @@ def init_hat(u):
         dist = math.sqrt(cx**2 + cy**2)
 
         # Hat function: linear decrease from center
-        if dist <= radius:
-            value = -max_val / radius * dist + max_val
-        else:
-            value = 0.0
+        value = -max_val / radius * dist + max_val if dist <= radius else 0.0
 
         # Set both components to same value
         u[cell.index] = [value, value]

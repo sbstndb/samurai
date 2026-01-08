@@ -364,7 +364,7 @@ class TestInPlaceOpsAfterMeshAdaptation:
         mra_config.regularity = 1.0
 
         # Simulate time loop with mesh adaptation
-        for i in range(3):
+        for _ in range(3):
             # Adapt mesh (this changes mesh structure!)
             MRadaptation(mra_config)
 
@@ -389,7 +389,7 @@ class TestInPlaceOpsAfterMeshAdaptation:
         mra_config.regularity = 1.0
 
         # Simulate time loop
-        for i in range(5):
+        for _ in range(5):
             # Adapt
             MRadaptation(mra_config)
 

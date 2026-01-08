@@ -124,9 +124,9 @@ class TestIntervalQueryMethods:
         i = sam.Interval(0, 10)
 
         # Within interval
-        assert i.contains(5) == True
-        assert i.contains(0) == True
-        assert i.contains(9) == True
+        assert i.contains(5) is True
+        assert i.contains(0) is True
+        assert i.contains(9) is True
 
         # Using 'in' operator
         assert 5 in i
@@ -138,9 +138,9 @@ class TestIntervalQueryMethods:
         i = sam.Interval(0, 10)
 
         # Outside interval
-        assert i.contains(-1) == False
-        assert i.contains(10) == False  # end is exclusive
-        assert i.contains(100) == False
+        assert i.contains(-1) is False
+        assert i.contains(10) is False  # end is exclusive
+        assert i.contains(100) is False
 
         # Using 'in' operator
         assert -1 not in i
@@ -150,28 +150,28 @@ class TestIntervalQueryMethods:
     def test_is_valid_true(self):
         """Test is_valid for non-empty interval."""
         i = sam.Interval(0, 10)
-        assert i.is_valid() == True
+        assert i.is_valid() is True
 
         i = sam.Interval(-5, 5)
-        assert i.is_valid() == True
+        assert i.is_valid() is True
 
     def test_is_valid_false(self):
         """Test is_valid for empty interval."""
         i = sam.Interval(5, 5)  # Empty interval
-        assert i.is_valid() == False
+        assert i.is_valid() is False
 
         i = sam.Interval(10, 5)  # Invalid interval
-        assert i.is_valid() == False
+        assert i.is_valid() is False
 
     def test_is_empty_true(self):
         """Test is_empty for empty interval."""
         i = sam.Interval(5, 5)
-        assert i.is_empty() == True
+        assert i.is_empty() is True
 
     def test_is_empty_false(self):
         """Test is_empty for non-empty interval."""
         i = sam.Interval(0, 10)
-        assert i.is_empty() == False
+        assert i.is_empty() is False
 
 
 class TestIntervalElementSelection:
@@ -347,13 +347,13 @@ class TestIntervalEdgeCases:
         """Test Interval with large values."""
         i = sam.Interval(1000, 2000)
         assert i.size() == 1000
-        assert i.contains(1500) == True
+        assert i.contains(1500) is True
 
     def test_single_element_interval(self):
         """Test Interval with single element."""
         i = sam.Interval(5, 6)
         assert i.size() == 1
-        assert i.contains(5) == True
+        assert i.contains(5) is True
         assert 6 not in i
 
 

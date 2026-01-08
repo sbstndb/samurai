@@ -188,8 +188,8 @@ class TQDMProgressBar:
     def _check_tqdm(self):
         """Check if tqdm is available."""
         try:
-            import tqdm
-            return True
+            import importlib.util
+            return importlib.util.find_spec("tqdm") is not None
         except ImportError:
             return False
 
@@ -370,7 +370,6 @@ def demo_nested_progress():
 
     print(f"Running {n_timesteps} time steps with {n_inner_iter} inner iterations\n")
 
-    outer_desc = "Time steps"
     for ts in range(n_timesteps):
         print(f"\nTime step {ts + 1}/{n_timesteps}:")
 

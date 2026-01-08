@@ -9,7 +9,6 @@ This package provides the Python bindings for Samurai, combining:
 import ctypes
 import ctypes.util
 import os
-import sys
 
 # Get the build/python directory (parent of samurai_python package)
 _package_dir = os.path.dirname(__file__)

@@ -115,7 +115,7 @@ def test_2d_upwind_operator_callable():
 
     # Test using sam.upwind (old API)
     try:
-        flux1 = sam.upwind(velocity, u)
+        _ = sam.upwind(velocity, u)
         print("✓ sam.upwind(velocity, u) executed successfully for 2D")
     except Exception as e:
         print(f"✗ sam.upwind failed for 2D: {e}")
@@ -123,7 +123,7 @@ def test_2d_upwind_operator_callable():
 
     # Test using sam.operators.upwind (new API)
     try:
-        flux2 = sam.operators.upwind(u, velocity)
+        _ = sam.operators.upwind(u, velocity)
         print("✓ sam.operators.upwind(u, velocity) executed successfully for 2D")
     except Exception as e:
         print(f"✗ sam.operators.upwind failed for 2D: {e}")
@@ -151,7 +151,7 @@ def test_weno5_operator_callable():
 
     # Test using sam.make_convection_weno5 (old API)
     try:
-        flux1 = sam.make_convection_weno5(u)
+        _ = sam.make_convection_weno5(u)
         print("✓ sam.make_convection_weno5(u) executed successfully")
     except Exception as e:
         print(f"✗ sam.make_convection_weno5 failed: {e}")
@@ -159,7 +159,7 @@ def test_weno5_operator_callable():
 
     # Test using sam.operators.make_convection_weno5 (new API)
     try:
-        flux2 = sam.operators.make_convection_weno5(u)
+        _ = sam.operators.make_convection_weno5(u)
         print("✓ sam.operators.make_convection_weno5(u) executed successfully")
     except Exception as e:
         print(f"✗ sam.operators.make_convection_weno5 failed: {e}")

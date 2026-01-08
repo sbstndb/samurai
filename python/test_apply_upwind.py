@@ -50,7 +50,7 @@ print("-" * 40)
 # Test old way (creates new field)
 print("Old way: flux = sam.upwind(u, velocity)")
 start = time.time()
-for i in range(10):
+for _ in range(10):
     flux_old = sam.upwind(u, velocity)
 old_time = time.time() - start
 print(f"  Time (10 iterations): {old_time:.4f}s")
@@ -59,7 +59,7 @@ print(f"  First value: {flux_old.array()[0]:.6f}")
 # Test new way (in-place, no allocation)
 print("\nNew way: sam.apply_upwind_2d(flux, velocity, u)")
 start = time.time()
-for i in range(10):
+for _ in range(10):
     sam.apply_upwind_2d(flux_new, velocity, u)
 new_time = time.time() - start
 print(f"  Time (10 iterations): {new_time:.4f}s")
@@ -86,7 +86,7 @@ unp1_new = sam.field.scalar(mesh, "unp1_new", init=0.0)
 # Old way (allocates 2 fields: upwind_result + arithmetic result)
 print("Old way: flux = sam.upwind(...); unp1 = u - dt * flux")
 start = time.time()
-for i in range(100):
+for _ in range(100):
     flux_old = sam.upwind(u, velocity)
     unp1_old = u - dt * flux_old
 old_full_time = time.time() - start
@@ -96,7 +96,7 @@ print(f"  Time (100 iterations): {old_full_time:.4f}s")
 print("\nNew way: sam.apply_upwind_2d(...); sam.euler_update_2d(...)")
 flux_reuse = sam.field.scalar(mesh, "flux_reuse", init=0.0)
 start = time.time()
-for i in range(100):
+for _ in range(100):
     sam.apply_upwind_2d(flux_reuse, velocity, u)
     sam.euler_update_2d(unp1_new, u, dt, flux_reuse)
 new_full_time = time.time() - start

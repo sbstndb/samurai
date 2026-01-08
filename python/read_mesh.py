@@ -111,7 +111,7 @@ class Plot:
                     self.plot(None, mesh, init=False)
 
         else:
-            for i, f in enumerate(args.field):
+            for _, f in enumerate(args.field):
                 if args.mpi_size == 1:
                     mesh = read_mesh(filename)
                     self.plot(None, mesh, f, init=False)

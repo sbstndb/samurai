@@ -93,7 +93,7 @@ def test_mesh_adaptation():
     sam.for_each_cell(mesh, init_fn)
 
     # Test mesh adaptation with progress tracking
-    with progress.mesh_adaptation(mesh, desc="Adapting mesh") as stats:
+    with progress.mesh_adaptation(mesh, desc="Adapting mesh"):
         MRadaptation = sam.make_MRAdapt(u)
         mra_config = sam.MRAConfig()
         mra_config.epsilon = 1e-3

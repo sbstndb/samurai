@@ -23,14 +23,14 @@ import difflib
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import ClassVar, List, Tuple
 
 
 class FieldAPIMigrator:
     """Handles migration from old Samurai field API to new sam.field.* API."""
 
     # Conversion patterns: (pattern, replacement, description)
-    CONVERSIONS = [
+    CONVERSIONS: ClassVar[List[Tuple[str, str, str]]] = [
         # ScalarField direct constructors
         (
             r'\bsam\.\bScalarField1D\s*\(\s*["\'](\w+)["\']\s*,\s*(\w+)\s*,\s*([^)]+)\)',
@@ -167,7 +167,7 @@ class FieldAPIMigrator:
         """Build mapping from character position to line number."""
         self.line_mapping = [1]  # Position 0 is line 1
         line_num = 1
-        for i, char in enumerate(self.original_content):
+        for _, char in enumerate(self.original_content):
             if char == '\n':
                 line_num += 1
             self.line_mapping.append(line_num)
@@ -233,7 +233,7 @@ class FieldAPIMigrator:
         """
         self._build_line_mapping()
 
-        for pattern, replacement, description in self.CONVERSIONS:
+        for pattern, replacement, _ in self.CONVERSIONS:
             matches = list(re.finditer(pattern, self.content))
 
             # Process matches in reverse order to preserve positions

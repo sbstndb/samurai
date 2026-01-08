@@ -19,10 +19,7 @@ def init_hat(u):
     def init_cell(cell):
         cx, cy = cell.center()
         dist = math.sqrt(cx**2 + cy**2)
-        if dist <= 0.5:
-            value = -1.0 / 0.5 * dist + 1.0
-        else:
-            value = 0.0
+        value = -1.0 / 0.5 * dist + 1.0 if dist <= 0.5 else 0.0
         u[cell.index] = [value, value]
     sam.algorithms.for_each_cell(u.mesh, init_cell)
 

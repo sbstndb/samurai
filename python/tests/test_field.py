@@ -166,11 +166,11 @@ class TestScalarField1D:
         field = sam.field.scalar(mesh, "u")
 
         # Initially False
-        assert field.ghosts_updated == False
+        assert field.ghosts_updated is False
 
         # Set to True
         field.ghosts_updated = True
-        assert field.ghosts_updated == True
+        assert field.ghosts_updated is True
 
     def test_string_representation(self):
         """Test __repr__ and __str__."""
@@ -259,7 +259,7 @@ class TestVectorField2D_2:
         assert field.name == "vel"
         assert field.dim == 2
         assert field.n_components == 2
-        assert field.is_soa == False  # AOS layout
+        assert field.is_soa is False  # AOS layout
         assert field.mesh is mesh
 
     def test_fill(self):

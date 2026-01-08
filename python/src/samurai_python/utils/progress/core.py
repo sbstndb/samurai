@@ -213,7 +213,6 @@ class TimeLoop(ProgressManager):
 
         # Update progress bar with current time
         if self._pbar is not None:
-            pct = (self.t / self.Tf) * 100
             self._pbar.set_description(f"{self.desc} ({self.t:.3f}/{self.Tf:.3f}s)")
 
     def update_stats(

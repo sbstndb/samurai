@@ -249,7 +249,7 @@ class TestAdaptationPipeline:
         mra_config.epsilon = 1e-2
 
         # Multiple iterations (simulating time loop)
-        for i in range(3):
+        for _ in range(3):
             MRadaptation(mra_config)
             sam.adaptation.update_ghost_mr(field)
 

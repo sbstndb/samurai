@@ -88,16 +88,16 @@ class TestMeshConfig1D:
         """Test setting periodic with scalar value."""
         config = sam.config.make(1)
         config.set_periodic(True)
-        assert config.get_periodic(0) == True
+        assert config.get_periodic(0) is True
 
         config.set_periodic(False)
-        assert config.get_periodic(0) == False
+        assert config.get_periodic(0) is False
 
     def test_periodic_per_direction(self):
         """Test setting periodic per direction."""
         config = sam.config.make(1)
         config.set_periodic_per_direction([True])
-        assert config.get_periodic(0) == True
+        assert config.get_periodic(0) is True
 
     def test_repr(self):
         """Test string representation."""
@@ -155,19 +155,19 @@ class TestMeshConfig2D:
         """Test setting periodic with scalar value."""
         config = sam.config.make(2)
         config.set_periodic(True)
-        assert config.get_periodic(0) == True
-        assert config.get_periodic(1) == True
+        assert config.get_periodic(0) is True
+        assert config.get_periodic(1) is True
 
         config.set_periodic(False)
-        assert config.get_periodic(0) == False
-        assert config.get_periodic(1) == False
+        assert config.get_periodic(0) is False
+        assert config.get_periodic(1) is False
 
     def test_periodic_per_direction(self):
         """Test setting periodic per direction."""
         config = sam.config.make(2)
         config.set_periodic_per_direction([True, False])
-        assert config.get_periodic(0) == True
-        assert config.get_periodic(1) == False
+        assert config.get_periodic(0) is True
+        assert config.get_periodic(1) is False
 
     def test_periodic_index_out_of_range(self):
         """Test that out of range index raises error."""
@@ -205,9 +205,9 @@ class TestMeshConfig3D:
         """Test setting periodic per direction in 3D."""
         config = sam.config.make(3)
         config.set_periodic_per_direction([True, False, True])
-        assert config.get_periodic(0) == True
-        assert config.get_periodic(1) == False
-        assert config.get_periodic(2) == True
+        assert config.get_periodic(0) is True
+        assert config.get_periodic(1) is False
+        assert config.get_periodic(2) is True
 
 
 class TestMeshConfigStringRepresentation:

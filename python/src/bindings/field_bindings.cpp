@@ -238,7 +238,8 @@ template <std::size_t dim>
 ScalarField<dim> field_sub_scalar(const ScalarField<dim>& field, double scalar)
 {
     auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field.mesh());
-    auto result = samurai::make_scalar_field<double>(field.name() + "_sub", mesh);
+    // Initialize with 0 to avoid garbage values in ghost cells
+    auto result = samurai::make_scalar_field<double>(field.name() + "_sub", mesh, 0.0);
     result      = field - scalar;
     return result;
 }
@@ -247,7 +248,8 @@ template <std::size_t dim>
 ScalarField<dim> scalar_sub_field(double scalar, const ScalarField<dim>& field)
 {
     auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field.mesh());
-    auto result = samurai::make_scalar_field<double>("scalar_sub", mesh);
+    // Initialize with 0 to avoid garbage values in ghost cells
+    auto result = samurai::make_scalar_field<double>("scalar_sub", mesh, 0.0);
     result      = scalar - field;
     return result;
 }
@@ -256,7 +258,8 @@ template <std::size_t dim>
 ScalarField<dim> field_add_scalar(const ScalarField<dim>& field, double scalar)
 {
     auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field.mesh());
-    auto result = samurai::make_scalar_field<double>(field.name() + "_add", mesh);
+    // Initialize with 0 to avoid garbage values in ghost cells
+    auto result = samurai::make_scalar_field<double>(field.name() + "_add", mesh, 0.0);
     result      = field + scalar;
     return result;
 }
@@ -265,7 +268,8 @@ template <std::size_t dim>
 ScalarField<dim> field_mul_scalar(const ScalarField<dim>& field, double scalar)
 {
     auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field.mesh());
-    auto result = samurai::make_scalar_field<double>(field.name() + "_mul", mesh);
+    // Initialize with 0 to avoid garbage values in ghost cells
+    auto result = samurai::make_scalar_field<double>(field.name() + "_mul", mesh, 0.0);
     result      = field * scalar;
     return result;
 }
@@ -274,7 +278,8 @@ template <std::size_t dim>
 ScalarField<dim> field_div_scalar(const ScalarField<dim>& field, double scalar)
 {
     auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field.mesh());
-    auto result = samurai::make_scalar_field<double>(field.name() + "_div", mesh);
+    // Initialize with 0 to avoid garbage values in ghost cells
+    auto result = samurai::make_scalar_field<double>(field.name() + "_div", mesh, 0.0);
     result      = field / scalar;
     return result;
 }
@@ -284,7 +289,8 @@ template <std::size_t dim>
 ScalarField<dim> field_sub_field(const ScalarField<dim>& field1, const ScalarField<dim>& field2)
 {
     auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field1.mesh());
-    auto result = samurai::make_scalar_field<double>(field1.name() + "_sub", mesh);
+    // Initialize with 0 to avoid garbage values in ghost cells
+    auto result = samurai::make_scalar_field<double>(field1.name() + "_sub", mesh, 0.0);
     result      = field1 - field2;
     return result;
 }
@@ -293,7 +299,8 @@ template <std::size_t dim>
 ScalarField<dim> field_add_field(const ScalarField<dim>& field1, const ScalarField<dim>& field2)
 {
     auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field1.mesh());
-    auto result = samurai::make_scalar_field<double>(field1.name() + "_add", mesh);
+    // Initialize with 0 to avoid garbage values in ghost cells
+    auto result = samurai::make_scalar_field<double>(field1.name() + "_add", mesh, 0.0);
     result      = field1 + field2;
     return result;
 }

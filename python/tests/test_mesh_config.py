@@ -103,7 +103,7 @@ class TestMeshConfig1D:
         """Test string representation."""
         config = sam.config.make(1)
         s = repr(config)
-        assert "_MeshConfig1D" in s
+        assert "MeshConfig1D" in s
         assert "min_level=" in s
 
 
@@ -172,7 +172,7 @@ class TestMeshConfig2D:
     def test_periodic_index_out_of_range(self):
         """Test that out of range index raises error."""
         config = sam.config.make(2)
-        with pytest.raises(RuntimeError):
+        with pytest.raises(IndexError):
             config.get_periodic(2)
 
 
@@ -217,7 +217,7 @@ class TestMeshConfigStringRepresentation:
         """Test __repr__ for 1D config."""
         config = sam.config.make(1)
         s = repr(config)
-        assert "_MeshConfig1D" in s
+        assert "MeshConfig1D" in s
 
     def test_repr_2d(self):
         """Test __repr__ for 2D config."""
@@ -225,32 +225,32 @@ class TestMeshConfigStringRepresentation:
         config.min_level = 2
         config.max_level = 6
         s = repr(config)
-        assert "_MeshConfig2D" in s
+        assert "MeshConfig2D" in s
         assert "min_level=" in s
 
     def test_repr_3d(self):
         """Test __repr__ for 3D config."""
         config = sam.config.make(3)
         s = repr(config)
-        assert "_MeshConfig3D" in s
+        assert "MeshConfig3D" in s
 
     def test_str_1d(self):
         """Test __str__ for 1D config."""
         config = sam.config.make(1)
         s = str(config)
-        assert "_MeshConfig1D" in s
+        assert "MeshConfig1D" in s
 
     def test_str_2d(self):
         """Test __str__ for 2D config."""
         config = sam.config.make(2)
         s = str(config)
-        assert "_MeshConfig2D" in s
+        assert "MeshConfig2D" in s
 
     def test_str_3d(self):
         """Test __str__ for 3D config."""
         config = sam.config.make(3)
         s = str(config)
-        assert "_MeshConfig3D" in s
+        assert "MeshConfig3D" in s
 
 
 class TestMeshConfigSubmodule:

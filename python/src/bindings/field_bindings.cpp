@@ -711,7 +711,16 @@ void bind_scalar_field(py::module_& m, const std::string& name)
     // Arithmetic operators: field +/-/* scalar
     cls.def("__sub__", &field_sub_scalar<dim>, py::arg("scalar"), "Subtract scalar from field (returns new field)");
 
-    cls.def("__rsub__", &scalar_sub_field<dim>, py::arg("scalar"), "Subtract field from scalar (returns new field)");
+    // __rsub__ is called for expressions like "scalar - field"
+    // We need to wrap scalar_sub_field because the signature is (scalar, field) but pybind11 expects (field, scalar)
+    cls.def(
+        "__rsub__",
+        [](const ScalarField<dim>& field, double scalar)
+        {
+            return scalar_sub_field(scalar, field);
+        },
+        py::arg("scalar"),
+        "Subtract field from scalar (returns new field)");
 
     cls.def("__add__", &field_add_scalar<dim>, py::arg("scalar"), "Add scalar to field (returns new field)");
 
@@ -1314,7 +1323,8 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         [](Field& f, double scalar)
         {
             auto& mesh  = const_cast<Mesh&>(f.mesh());
-            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_sub", mesh);
+            // Initialize with 0 to avoid garbage values in ghost cells
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_sub", mesh, 0.0);
             result      = f - scalar;
             return result;
         },
@@ -1326,7 +1336,8 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         [](Field& f, double scalar)
         {
             auto& mesh  = const_cast<Mesh&>(f.mesh());
-            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>("scalar_sub", mesh);
+            // Initialize with 0 to avoid garbage values in ghost cells
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>("scalar_sub", mesh, 0.0);
             result      = scalar - f;
             return result;
         },
@@ -1338,7 +1349,8 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         [](Field& f, double scalar)
         {
             auto& mesh  = const_cast<Mesh&>(f.mesh());
-            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_add", mesh);
+            // Initialize with 0 to avoid garbage values in ghost cells
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_add", mesh, 0.0);
             result      = f + scalar;
             return result;
         },
@@ -1350,7 +1362,8 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         [](Field& f, double scalar)
         {
             auto& mesh  = const_cast<Mesh&>(f.mesh());
-            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_add", mesh);
+            // Initialize with 0 to avoid garbage values in ghost cells
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_add", mesh, 0.0);
             result      = f + scalar;
             return result;
         },
@@ -1362,7 +1375,8 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         [](Field& f, double scalar)
         {
             auto& mesh  = const_cast<Mesh&>(f.mesh());
-            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_mul", mesh);
+            // Initialize with 0 to avoid garbage values in ghost cells
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_mul", mesh, 0.0);
             result      = f * scalar;
             return result;
         },
@@ -1374,7 +1388,8 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         [](Field& f, double scalar)
         {
             auto& mesh  = const_cast<Mesh&>(f.mesh());
-            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_mul", mesh);
+            // Initialize with 0 to avoid garbage values in ghost cells
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_mul", mesh, 0.0);
             result      = f * scalar;
             return result;
         },
@@ -1386,7 +1401,8 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         [](Field& f, double scalar)
         {
             auto& mesh  = const_cast<Mesh&>(f.mesh());
-            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_div", mesh);
+            // Initialize with 0 to avoid garbage values in ghost cells
+            auto result = samurai::make_vector_field<value_t, n_comp, Field::is_soa>(f.name() + "_div", mesh, 0.0);
             result      = f / scalar;
             return result;
         },

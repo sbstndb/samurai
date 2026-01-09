@@ -732,10 +732,108 @@ void bind_scalar_field(py::module_& m, const std::string& name)
 
     cls.def("__truediv__", &field_div_scalar<dim>, py::arg("scalar"), "Divide field by scalar (returns new field)");
 
+    // In-place arithmetic operators: field +/-/*= scalar
+    // These modify the field in-place and return self (for chaining)
+    // They use the C++ assignment operator which reuses storage, avoiding
+    // stale mesh reference issues after mesh adaptation
+    //
+    // IMPORTANT: To ensure ghost cells are updated correctly, we:
+    // 1. Create a temporary field with the operation result
+    // 2. Copy it to self (reusing storage)
+    // 3. Return self
+    //
+    // This ensures ghost cells get the correct values from the result field,
+    // not just the initial values from make_scalar_field.
+    cls.def(
+        "__iadd__",
+        [](ScalarField<dim>& field, double scalar) -> ScalarField<dim>&
+        {
+            auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field.mesh());
+            // Create result with 0 init (ghost cells will be 0.0)
+            auto result = samurai::make_scalar_field<double>(field.name() + "_temp", mesh, 0.0);
+            result      = field + scalar;  // Compute result
+            field       = result;         // Copy to self (reuses storage)
+            field.name() = field.name().substr(0, field.name().size() - 5);  // Remove "_temp"
+            return field;
+        },
+        py::arg("scalar"),
+        "In-place addition: field += scalar\n\n"
+        "Modifies this field in-place and returns self.\n"
+        "This is the preferred way to update fields after mesh adaptation.");
+
+    cls.def(
+        "__isub__",
+        [](ScalarField<dim>& field, double scalar) -> ScalarField<dim>&
+        {
+            auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field.mesh());
+            auto result = samurai::make_scalar_field<double>(field.name() + "_temp", mesh, 0.0);
+            result      = field - scalar;
+            field       = result;
+            field.name() = field.name().substr(0, field.name().size() - 5);
+            return field;
+        },
+        py::arg("scalar"),
+        "In-place subtraction: field -= scalar\n\n"
+        "Modifies this field in-place and returns self.");
+
+    cls.def(
+        "__imul__",
+        [](ScalarField<dim>& field, double scalar) -> ScalarField<dim>&
+        {
+            auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field.mesh());
+            auto result = samurai::make_scalar_field<double>(field.name() + "_temp", mesh, 0.0);
+            result      = field * scalar;
+            field       = result;
+            field.name() = field.name().substr(0, field.name().size() - 5);
+            return field;
+        },
+        py::arg("scalar"),
+        "In-place multiplication: field *= scalar\n\n"
+        "Modifies this field in-place and returns self.");
+
+    cls.def(
+        "__itruediv__",
+        [](ScalarField<dim>& field, double scalar) -> ScalarField<dim>&
+        {
+            auto& mesh  = const_cast<typename ScalarField<dim>::mesh_t&>(field.mesh());
+            auto result = samurai::make_scalar_field<double>(field.name() + "_temp", mesh, 0.0);
+            result      = field / scalar;
+            field       = result;
+            field.name() = field.name().substr(0, field.name().size() - 5);
+            return field;
+        },
+        py::arg("scalar"),
+        "In-place division: field /= scalar\n\n"
+        "Modifies this field in-place and returns self.");
+
     // Field-to-field operators
     cls.def("__sub__", &field_sub_field<dim>, py::arg("other"), "Subtract another field (returns new field)");
 
     cls.def("__add__", &field_add_field<dim>, py::arg("other"), "Add another field (returns new field)");
+
+    // In-place field-to-field operators: field +/-= other_field
+    // These modify the field in-place and return self (for chaining)
+    cls.def(
+        "__iadd__",
+        [](ScalarField<dim>& field, const ScalarField<dim>& other) -> ScalarField<dim>&
+        {
+            field = field + other;
+            return field;
+        },
+        py::arg("other"),
+        "In-place addition: field += other_field\n\n"
+        "Modifies this field in-place and returns self.");
+
+    cls.def(
+        "__isub__",
+        [](ScalarField<dim>& field, const ScalarField<dim>& other) -> ScalarField<dim>&
+        {
+            field = field - other;
+            return field;
+        },
+        py::arg("other"),
+        "In-place subtraction: field -= other_field\n\n"
+        "Modifies this field in-place and returns self.");
 
     // Utility methods
     cls.def("clone", &field_clone<dim>, "Create a deep copy of this field");
@@ -1409,6 +1507,55 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         py::arg("scalar"),
         "Divide field by scalar (returns new field)");
 
+    // In-place arithmetic operators: field +/-/*= scalar
+    // These modify the field in-place and return self (for chaining)
+    // They use the C++ assignment operator which reuses storage, avoiding
+    // stale mesh reference issues after mesh adaptation
+    cls.def(
+        "__iadd__",
+        [](Field& f, double scalar) -> Field&
+        {
+            f = f + scalar;
+            return f;
+        },
+        py::arg("scalar"),
+        "In-place addition: field += scalar\n\n"
+        "Modifies this field in-place and returns self.\n"
+        "This is the preferred way to update fields after mesh adaptation.");
+
+    cls.def(
+        "__isub__",
+        [](Field& f, double scalar) -> Field&
+        {
+            f = f - scalar;
+            return f;
+        },
+        py::arg("scalar"),
+        "In-place subtraction: field -= scalar\n\n"
+        "Modifies this field in-place and returns self.");
+
+    cls.def(
+        "__imul__",
+        [](Field& f, double scalar) -> Field&
+        {
+            f = f * scalar;
+            return f;
+        },
+        py::arg("scalar"),
+        "In-place multiplication: field *= scalar\n\n"
+        "Modifies this field in-place and returns self.");
+
+    cls.def(
+        "__itruediv__",
+        [](Field& f, double scalar) -> Field&
+        {
+            f = f / scalar;
+            return f;
+        },
+        py::arg("scalar"),
+        "In-place division: field /= scalar\n\n"
+        "Modifies this field in-place and returns self.");
+
     // Arithmetic operators: field +/- field
     cls.def(
         "__add__",
@@ -1433,6 +1580,30 @@ void bind_vectorfield_methods(py::class_<Field, Options...>& cls)
         },
         py::arg("other"),
         "Subtract two fields (returns new field)");
+
+    // In-place field-to-field operators: field +/-= other_field
+    // These modify the field in-place and return self (for chaining)
+    cls.def(
+        "__iadd__",
+        [](Field& f, const Field& other) -> Field&
+        {
+            f = f + other;
+            return f;
+        },
+        py::arg("other"),
+        "In-place addition: field += other_field\n\n"
+        "Modifies this field in-place and returns self.");
+
+    cls.def(
+        "__isub__",
+        [](Field& f, const Field& other) -> Field&
+        {
+            f = f - other;
+            return f;
+        },
+        py::arg("other"),
+        "In-place subtraction: field -= other_field\n\n"
+        "Modifies this field in-place and returns self.");
 }
 
 // Template function to bind VectorField for a specific dimension and component count

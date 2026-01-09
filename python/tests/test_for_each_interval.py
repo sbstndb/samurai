@@ -39,7 +39,7 @@ class TestForEachInterval1D:
             intervals.append((level, interval.start, interval.end))
             indices.append(index)
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Verify we got some intervals
         assert len(intervals) > 0, "Should have at least one interval"
@@ -70,7 +70,7 @@ class TestForEachInterval1D:
                 'is_empty': interval.is_empty()
             })
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # All intervals should be valid and non-empty
         for data in interval_data:
@@ -92,7 +92,7 @@ class TestForEachInterval1D:
         def callback(level, interval, index):
             levels_seen.add(level)
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Should see at least one level
         assert len(levels_seen) > 0, "Should see at least one level"
@@ -118,7 +118,7 @@ class TestForEachInterval1D:
                     if interval.size() > 1 else None
             })
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Verify contains logic
         for check in contains_checks:
@@ -142,7 +142,7 @@ class TestForEachInterval1D:
                 level_intervals[level] = []
             level_intervals[level].append((interval.start, interval.end))
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Check if we have multiple intervals at any level
         for _, intervals in level_intervals.items():
@@ -171,7 +171,7 @@ class TestForEachInterval2D:
         def callback(level, interval, index):
             indices.append(index)
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # All indices should be 1-element tuples for 2D
         for idx in indices:
@@ -192,7 +192,7 @@ class TestForEachInterval2D:
             y = index[0]
             y_values.append(y)
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # All y values should be non-negative integers
         for y in y_values:
@@ -211,7 +211,7 @@ class TestForEachInterval2D:
         def callback(level, interval, index):
             count[0] += 1
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Should have multiple intervals in 2D
         assert count[0] > 0, "Should have intervals in 2D mesh"
@@ -229,7 +229,7 @@ class TestForEachInterval2D:
         def callback(level, interval, index):
             index_types.add(type(index[0]).__name__)
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # All index values should be integers
         assert 'int' in index_types, f"Index values should be int, got types: {index_types}"
@@ -251,7 +251,7 @@ class TestForEachInterval3D:
         def callback(level, interval, index):
             indices.append(index)
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # All indices should be 2-element tuples for 3D
         for idx in indices:
@@ -272,7 +272,7 @@ class TestForEachInterval3D:
             y, z = index
             yz_values.append((y, z))
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # All y and z values should be non-negative
         for y, z in yz_values:
@@ -292,7 +292,7 @@ class TestForEachInterval3D:
         def callback(level, interval, index):
             count[0] += 1
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Should have intervals in 3D
         assert count[0] > 0, "Should have intervals in 3D mesh"
@@ -314,7 +314,7 @@ class TestForEachIntervalIntegration:
         def callback(level, interval, index):
             interval_types.add(type(interval).__name__)
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # All intervals should be Interval type
         assert 'Interval' in interval_types, f"Expected Interval type, got {interval_types}"
@@ -332,7 +332,7 @@ class TestForEachIntervalIntegration:
         def callback(level, interval, index):
             level_types.add(type(level).__name__)
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # All levels should be integers
         assert 'int' in level_types, f"Level should be int, got types: {level_types}"
@@ -350,7 +350,7 @@ class TestForEachIntervalIntegration:
         def callback(level, interval, index):
             execution_count[0] += 1
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Callback should have been executed
         assert execution_count[0] > 0, "Callback should be executed at least once"
@@ -367,12 +367,12 @@ class TestForEachIntervalIntegration:
         callback_intervals = []
 
         # Create intervals using factory
-        factory_intervals.append(sam.make_interval(0, 10))
+        factory_intervals.append(sam.interval.make_interval(0, 10))
 
         def callback(level, interval, index):
             callback_intervals.append((interval.start, interval.end))
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Both should produce Interval objects
         assert len(callback_intervals) > 0, "Should have callback intervals"
@@ -393,7 +393,7 @@ class TestForEachIntervalIntegration:
         def callback(level, interval, index):
             pass  # Do nothing
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Mesh properties should be unchanged
         assert mesh.min_level == original_min_level, "min_level should be unchanged"
@@ -417,7 +417,7 @@ class TestForEachIntervalEdgeCases:
         def callback(level, interval, index):
             levels_seen.add(level)
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Should only see level 3
         assert levels_seen == {3}, f"Should only see level 3, got {levels_seen}"
@@ -434,7 +434,7 @@ class TestForEachIntervalEdgeCases:
             pass
 
         # Should not raise any exception
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
     def test_callback_can_capture_variables(self):
         """Test that callbacks can capture outer variables (Python closure)."""
@@ -449,7 +449,7 @@ class TestForEachIntervalEdgeCases:
         def callback(level, interval, index):
             total_size[0] += interval.size()
 
-        sam.for_each_interval(mesh, callback)
+        sam.algorithms.for_each_interval(mesh, callback)
 
         # Should have accumulated sizes
         assert total_size[0] > 0, "Should have accumulated interval sizes"

@@ -25,7 +25,7 @@ class TestIntervalCreation:
 
     def test_default_constructor(self):
         """Test creating Interval with default constructor."""
-        i = sam.Interval()
+        i = sam.interval.Interval()
         assert i.start == 0
         assert i.end == 0
         assert i.step == 1
@@ -33,7 +33,7 @@ class TestIntervalCreation:
 
     def test_main_constructor(self):
         """Test creating Interval with start and end."""
-        i = sam.Interval(5, 15)
+        i = sam.interval.Interval(5, 15)
         assert i.start == 5
         assert i.end == 15
         assert i.step == 1
@@ -41,7 +41,7 @@ class TestIntervalCreation:
 
     def test_constructor_with_index(self):
         """Test creating Interval with start, end, and index."""
-        i = sam.Interval(5, 15, 100)
+        i = sam.interval.Interval(5, 15, 100)
         assert i.start == 5
         assert i.end == 15
         assert i.step == 1
@@ -49,14 +49,14 @@ class TestIntervalCreation:
 
     def test_factory_function(self):
         """Test make_interval factory function."""
-        i = sam.make_interval(0, 10)
-        assert isinstance(i, sam.Interval)
+        i = sam.interval.make_interval(0, 10)
+        assert isinstance(i, sam.interval.Interval)
         assert i.start == 0
         assert i.end == 10
 
     def test_factory_with_index(self):
         """Test make_interval with index parameter."""
-        i = sam.make_interval(0, 10, index=5)
+        i = sam.interval.make_interval(0, 10, index=5)
         assert i.start == 0
         assert i.end == 10
         assert i.index == 5
@@ -67,7 +67,7 @@ class TestIntervalProperties:
 
     def test_start_property(self):
         """Test start property getter and setter."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         assert i.start == 0
 
         i.start = 5
@@ -76,7 +76,7 @@ class TestIntervalProperties:
 
     def test_end_property(self):
         """Test end property getter and setter."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         assert i.end == 10
 
         i.end = 20
@@ -85,7 +85,7 @@ class TestIntervalProperties:
 
     def test_step_property(self):
         """Test step property getter and setter."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         assert i.step == 1
 
         i.step = 2
@@ -93,7 +93,7 @@ class TestIntervalProperties:
 
     def test_index_property(self):
         """Test index property getter and setter."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         assert i.index == 0
 
         i.index = 50
@@ -105,23 +105,23 @@ class TestIntervalQueryMethods:
 
     def test_size(self):
         """Test size method."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         assert i.size() == 10
 
-        i = sam.Interval(5, 15)
+        i = sam.interval.Interval(5, 15)
         assert i.size() == 10
 
-        i = sam.Interval(-5, 5)
+        i = sam.interval.Interval(-5, 5)
         assert i.size() == 10
 
     def test_len(self):
         """Test len() function on Interval."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         assert len(i) == 10
 
     def test_contains_true(self):
         """Test contains method for value in interval."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
 
         # Within interval
         assert i.contains(5) is True
@@ -135,7 +135,7 @@ class TestIntervalQueryMethods:
 
     def test_contains_false(self):
         """Test contains method for value not in interval."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
 
         # Outside interval
         assert i.contains(-1) is False
@@ -149,28 +149,28 @@ class TestIntervalQueryMethods:
 
     def test_is_valid_true(self):
         """Test is_valid for non-empty interval."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         assert i.is_valid() is True
 
-        i = sam.Interval(-5, 5)
+        i = sam.interval.Interval(-5, 5)
         assert i.is_valid() is True
 
     def test_is_valid_false(self):
         """Test is_valid for empty interval."""
-        i = sam.Interval(5, 5)  # Empty interval
+        i = sam.interval.Interval(5, 5)  # Empty interval
         assert i.is_valid() is False
 
-        i = sam.Interval(10, 5)  # Invalid interval
+        i = sam.interval.Interval(10, 5)  # Invalid interval
         assert i.is_valid() is False
 
     def test_is_empty_true(self):
         """Test is_empty for empty interval."""
-        i = sam.Interval(5, 5)
+        i = sam.interval.Interval(5, 5)
         assert i.is_empty() is True
 
     def test_is_empty_false(self):
         """Test is_empty for non-empty interval."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         assert i.is_empty() is False
 
 
@@ -179,7 +179,7 @@ class TestIntervalElementSelection:
 
     def test_even_elements(self):
         """Test even_elements method."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         even = i.even_elements()
 
         assert even.start == 0
@@ -188,7 +188,7 @@ class TestIntervalElementSelection:
 
     def test_odd_elements(self):
         """Test odd_elements method."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         odd = i.odd_elements()
 
         assert odd.start == 1
@@ -201,7 +201,7 @@ class TestIntervalArithmetic:
 
     def test_multiply(self):
         """Test interval scaling multiplication."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         scaled = i * 2
 
         assert scaled.start == 0
@@ -210,7 +210,7 @@ class TestIntervalArithmetic:
 
     def test_multiply_in_place(self):
         """Test in-place multiplication."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         i *= 2
 
         assert i.start == 0
@@ -218,7 +218,7 @@ class TestIntervalArithmetic:
 
     def test_divide(self):
         """Test interval scaling division."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         scaled = i / 2
 
         assert scaled.start == 0
@@ -227,7 +227,7 @@ class TestIntervalArithmetic:
 
     def test_right_shift_coarsen(self):
         """Test right shift (coarsening) operator."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         coarsened = i >> 1
 
         # Coarsening divides by 2
@@ -237,7 +237,7 @@ class TestIntervalArithmetic:
 
     def test_left_shift_refine(self):
         """Test left shift (refining) operator."""
-        i = sam.Interval(0, 5)
+        i = sam.interval.Interval(0, 5)
         refined = i << 1
 
         # Refining multiplies by 2
@@ -247,7 +247,7 @@ class TestIntervalArithmetic:
 
     def test_add_shift_right(self):
         """Test addition (shift right)."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         shifted = i + 3
 
         assert shifted.start == 3
@@ -255,7 +255,7 @@ class TestIntervalArithmetic:
 
     def test_subtract_shift_left(self):
         """Test subtraction (shift left)."""
-        i = sam.Interval(5, 15)
+        i = sam.interval.Interval(5, 15)
         shifted = i - 3
 
         assert shifted.start == 2
@@ -267,22 +267,22 @@ class TestIntervalComparison:
 
     def test_equality_true(self):
         """Test equality for identical intervals."""
-        i1 = sam.Interval(0, 10)
-        i2 = sam.Interval(0, 10)
+        i1 = sam.interval.Interval(0, 10)
+        i2 = sam.interval.Interval(0, 10)
 
         assert i1 == i2
 
     def test_equality_false(self):
         """Test inequality for different intervals."""
-        i1 = sam.Interval(0, 10)
-        i2 = sam.Interval(0, 15)
+        i1 = sam.interval.Interval(0, 10)
+        i2 = sam.interval.Interval(0, 15)
 
         assert i1 != i2
 
     def test_less_than(self):
         """Test less than comparison (by start only)."""
-        i1 = sam.Interval(0, 10)
-        i2 = sam.Interval(5, 15)
+        i1 = sam.interval.Interval(0, 10)
+        i2 = sam.interval.Interval(5, 15)
 
         assert i1 < i2
         assert not (i2 < i1)
@@ -293,7 +293,7 @@ class TestIntervalStringRepresentation:
 
     def test_repr(self):
         """Test __repr__ method."""
-        i = sam.Interval(0, 10, index=5)
+        i = sam.interval.Interval(0, 10, index=5)
         repr_str = repr(i)
 
         assert "Interval" in repr_str
@@ -303,7 +303,7 @@ class TestIntervalStringRepresentation:
 
     def test_str(self):
         """Test __str__ method."""
-        i = sam.Interval(0, 10)
+        i = sam.interval.Interval(0, 10)
         str_str = str(i)
 
         # Format is "[start,end[@index:step"
@@ -336,20 +336,20 @@ class TestIntervalEdgeCases:
 
     def test_negative_coordinates(self):
         """Test Interval with negative coordinates."""
-        i = sam.Interval(-5, 5)
+        i = sam.interval.Interval(-5, 5)
         assert i.start == -5
         assert i.end == 5
         assert i.size() == 10
 
     def test_large_values(self):
         """Test Interval with large values."""
-        i = sam.Interval(1000, 2000)
+        i = sam.interval.Interval(1000, 2000)
         assert i.size() == 1000
         assert i.contains(1500) is True
 
     def test_single_element_interval(self):
         """Test Interval with single element."""
-        i = sam.Interval(5, 6)
+        i = sam.interval.Interval(5, 6)
         assert i.size() == 1
         assert i.contains(5) is True
         assert 6 not in i

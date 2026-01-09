@@ -42,7 +42,7 @@ class TestForEachCell1D:
                 'length': cell.length
             })
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # Verify we got some cells
         assert len(cells) > 0, "Should have at least one cell"
@@ -74,7 +74,7 @@ class TestForEachCell1D:
                 'corner': corner[0],
             })
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # All cells should be at level 3
         for data in cell_data_list:
@@ -97,14 +97,14 @@ class TestForEachCell1D:
         def callback(cell):
             u[cell.index] = cell.level * 10.0
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # Verify values were set correctly
         def verify_callback(cell):
             assert u[cell.index] == cell.level * 10.0, \
                 f"Field value at index {cell.index} should be {cell.level * 10.0}, got {u[cell.index]}"
 
-        sam.for_each_cell(mesh, verify_callback)
+        sam.algorithms.for_each_cell(mesh, verify_callback)
 
     def test_1d_center_values(self):
         """Test that center values are within domain bounds."""
@@ -120,7 +120,7 @@ class TestForEachCell1D:
             center = cell.center()
             centers.append(center[0])
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # All centers should be within [0, 1]
         for c in centers:
@@ -143,7 +143,7 @@ class TestForEachCell2D:
         def callback(cell):
             centers.append(cell.center())
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # All centers should be 2-element tuples
         for center in centers:
@@ -165,7 +165,7 @@ class TestForEachCell2D:
         def callback(cell):
             count[0] += 1
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # Should have cells
         assert count[0] > 0, "Should have cells in 2D mesh"
@@ -185,7 +185,7 @@ class TestForEachCell2D:
         def callback(cell):
             centers.append(cell.center())
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # All centers should be within [0, 1] x [0, 1]
         for x, y in centers:
@@ -214,14 +214,14 @@ class TestForEachCell2D:
             else:
                 u[cell.index] = 0.0
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # Verify some cells are set to 1 and some to 0
         values = []
         def collect_callback(cell):
             values.append(u[cell.index])
 
-        sam.for_each_cell(mesh, collect_callback)
+        sam.algorithms.for_each_cell(mesh, collect_callback)
 
         assert 1.0 in values, "Should have some cells set to 1.0"
         assert 0.0 in values, "Should have some cells set to 0.0"
@@ -243,7 +243,7 @@ class TestForEachCell3D:
         def callback(cell):
             centers.append(cell.center())
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # All centers should be 3-element tuples
         for center in centers:
@@ -263,7 +263,7 @@ class TestForEachCell3D:
         def callback(cell):
             corners.append(cell.corner())
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # All corners should be 3-element tuples
         for corner in corners:
@@ -283,7 +283,7 @@ class TestForEachCell3D:
         def callback(cell):
             count[0] += 1
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # Should have cells
         assert count[0] > 0, "Should have cells in 3D mesh"
@@ -305,7 +305,7 @@ class TestForEachCellIntegration:
         def callback(cell):
             cell_types.add(type(cell).__name__)
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # All cells should be Cell1D type
         assert 'Cell1D' in cell_types, f"Expected Cell1D type, got {cell_types}"
@@ -323,7 +323,7 @@ class TestForEachCellIntegration:
         def callback(cell):
             reprs.append(repr(cell))
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # All reprs should contain level and index info
         for r in reprs:
@@ -345,7 +345,7 @@ class TestForEachCellIntegration:
             x, y = cell.center()
             u[cell.index] = x + y  # Simple function
 
-        sam.for_each_cell(mesh, callback)
+        sam.algorithms.for_each_cell(mesh, callback)
 
         # Verify some values
         count = [0]
@@ -361,7 +361,7 @@ class TestForEachCellIntegration:
             count[0] += 1
             total[0] += actual
 
-        sam.for_each_cell(mesh, verify_callback)
+        sam.algorithms.for_each_cell(mesh, verify_callback)
 
         assert count[0] > 0, "Should have verified some cells"
 

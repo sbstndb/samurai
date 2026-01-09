@@ -36,8 +36,9 @@ class TestSaveFunction:
 
         # Create a temporary directory for output
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Save with path
-            sam.save(tmpdir, "test_1d_save", field)
+            # Save with filepath (path + filename combined)
+            filepath = os.path.join(tmpdir, "test_1d_save")
+            sam.save(filepath, field)
 
             # Check that files were created
             h5_file = os.path.join(tmpdir, "test_1d_save.h5")
@@ -60,8 +61,8 @@ class TestSaveFunction:
             original_cwd = os.getcwd()
             try:
                 os.chdir(tmpdir)
-                # Save with None path
-                sam.save(None, "test_1d_none", field)
+                # Save with filename only (None path becomes just filename)
+                sam.save("test_1d_none", field)
 
                 # Check that files were created in current directory
                 h5_file = "test_1d_none.h5"
@@ -82,7 +83,8 @@ class TestSaveFunction:
         field = sam.field.scalar(mesh, "u", init=3.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            sam.save(tmpdir, "test_2d_save", field)
+            filepath = os.path.join(tmpdir, "test_2d_save")
+            sam.save(filepath, field)
 
             h5_file = os.path.join(tmpdir, "test_2d_save.h5")
             xdmf_file = os.path.join(tmpdir, "test_2d_save.xdmf")
@@ -100,7 +102,8 @@ class TestSaveFunction:
         field = sam.field.scalar(mesh, "u", init=4.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            sam.save(tmpdir, "test_3d_save", field)
+            filepath = os.path.join(tmpdir, "test_3d_save")
+            sam.save(filepath, field)
 
             h5_file = os.path.join(tmpdir, "test_3d_save.h5")
             xdmf_file = os.path.join(tmpdir, "test_3d_save.xdmf")
@@ -119,7 +122,8 @@ class TestSaveFunction:
         field2 = sam.field.scalar(mesh, "v", init=2.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            sam.save(tmpdir, "test_1d_two", field1, field2)
+            filepath = os.path.join(tmpdir, "test_1d_two")
+            sam.save(filepath, field1, field2)
 
             h5_file = os.path.join(tmpdir, "test_1d_two.h5")
             xdmf_file = os.path.join(tmpdir, "test_1d_two.xdmf")
@@ -139,7 +143,8 @@ class TestSaveFunction:
         field3 = sam.field.scalar(mesh, "w", init=3.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            sam.save(tmpdir, "test_1d_three", field1, field2, field3)
+            filepath = os.path.join(tmpdir, "test_1d_three")
+            sam.save(filepath, field1, field2, field3)
 
             h5_file = os.path.join(tmpdir, "test_1d_three.h5")
             xdmf_file = os.path.join(tmpdir, "test_1d_three.xdmf")
@@ -185,7 +190,8 @@ class TestDumpFunction:
         field = sam.field.scalar(mesh, "u", init=1.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            sam.dump(tmpdir, "test_1d_dump", field)
+            filepath = os.path.join(tmpdir, "test_1d_dump")
+            sam.dump(filepath, field)
 
             # Check that only HDF5 file was created (no XDMF)
             h5_file = os.path.join(tmpdir, "test_1d_dump.h5")
@@ -204,7 +210,8 @@ class TestDumpFunction:
         field = sam.field.scalar(mesh, "u", init=2.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            sam.dump(tmpdir, "test_2d_dump", field)
+            filepath = os.path.join(tmpdir, "test_2d_dump")
+            sam.dump(filepath, field)
 
             h5_file = os.path.join(tmpdir, "test_2d_dump.h5")
             assert os.path.exists(h5_file)
@@ -220,7 +227,8 @@ class TestDumpFunction:
         field = sam.field.scalar(mesh, "u", init=3.0)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            sam.dump(tmpdir, "test_3d_dump", field)
+            filepath = os.path.join(tmpdir, "test_3d_dump")
+            sam.dump(filepath, field)
 
             h5_file = os.path.join(tmpdir, "test_3d_dump.h5")
             assert os.path.exists(h5_file)
@@ -262,14 +270,15 @@ class TestLoadFunction:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Dump
-            sam.dump(tmpdir, "test_1d_restart", field)
+            filepath = os.path.join(tmpdir, "test_1d_restart")
+            sam.dump(filepath, field)
 
             # Create new mesh and field for loading
             mesh2 = sam.mesh.make(box, config)
             field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
             # Load
-            sam.load(tmpdir, "test_1d_restart", field2)
+            sam.load(filepath, field2)
 
             # Check that the file still exists
             h5_file = os.path.join(tmpdir, "test_1d_restart.h5")
@@ -287,14 +296,15 @@ class TestLoadFunction:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Dump
-            sam.dump(tmpdir, "test_2d_restart", field)
+            filepath = os.path.join(tmpdir, "test_2d_restart")
+            sam.dump(filepath, field)
 
             # Create new mesh and field for loading
             mesh2 = sam.mesh.make(box, config)
             field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
             # Load
-            sam.load(tmpdir, "test_2d_restart", field2)
+            sam.load(filepath, field2)
 
             h5_file = os.path.join(tmpdir, "test_2d_restart.h5")
             assert os.path.exists(h5_file)
@@ -311,14 +321,15 @@ class TestLoadFunction:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Dump
-            sam.dump(tmpdir, "test_3d_restart", field)
+            filepath = os.path.join(tmpdir, "test_3d_restart")
+            sam.dump(filepath, field)
 
             # Create new mesh and field for loading
             mesh2 = sam.mesh.make(box, config)
             field2 = sam.field.scalar(mesh2, "u", init=0.0)
 
             # Load
-            sam.load(tmpdir, "test_3d_restart", field2)
+            sam.load(filepath, field2)
 
             h5_file = os.path.join(tmpdir, "test_3d_restart.h5")
             assert os.path.exists(h5_file)
@@ -376,11 +387,12 @@ class TestIoIntegration:
         mra_config.epsilon = 1e-2
 
         MRadaptation(mra_config)
-        sam.update_ghost_mr(field)
+        sam.adaptation.update_ghost_mr(field)
 
         # Save
         with tempfile.TemporaryDirectory() as tmpdir:
-            sam.save(tmpdir, "test_1d_adapt", field)
+            filepath = os.path.join(tmpdir, "test_1d_adapt")
+            sam.save(filepath, field)
 
             h5_file = os.path.join(tmpdir, "test_1d_adapt.h5")
             xdmf_file = os.path.join(tmpdir, "test_1d_adapt.xdmf")
@@ -404,10 +416,11 @@ class TestIoIntegration:
         mra_config.epsilon = 1e-2
 
         MRadaptation(mra_config)
-        sam.update_ghost_mr(field)
+        sam.adaptation.update_ghost_mr(field)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            sam.save(tmpdir, "test_2d_adapt", field)
+            filepath = os.path.join(tmpdir, "test_2d_adapt")
+            sam.save(filepath, field)
 
             h5_file = os.path.join(tmpdir, "test_2d_adapt.h5")
             xdmf_file = os.path.join(tmpdir, "test_2d_adapt.xdmf")

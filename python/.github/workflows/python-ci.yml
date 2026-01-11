@@ -1,0 +1,188 @@
+name: Python Bindings CI
+
+on:
+    pull_request:
+        branches: [master, pybind11]
+    push:
+        branches: [pybind11]
+    workflow_dispatch:
+
+# Cancel previous runs for the same branch
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    #
+    # Python code quality checks (fast)
+    #
+    #########################################################
+    python-quality:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+                  cache: 'pip'
+
+            - name: Install Python dev tools
+              run: |
+                  pip install ruff mypy
+
+            - name: Run ruff linter
+              working-directory: python
+              run: |
+                  ruff check . --output-format=github
+
+            # ruff format check skipped - conflicts with clang-format
+            # clang-format handles Python formatting in this project
+
+            - name: Run mypy type checker
+              working-directory: python
+              run: |
+                  mypy src/samurai_python/ --show-error-codes || true
+
+    #
+    # Python bindings testing
+    #
+    #########################################################
+    python-bindings:
+        needs: [python-quality]
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Cache
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cache/ccache
+                      ~/micromamba-root/envs/samurai-env
+                  key: python-${{ runner.os }}-py3.12
+                  restore-keys: |
+                      python-${{ runner.os }}-py3.12
+
+            - name: Mamba and samurai env installation
+              uses: mamba-org/setup-micromamba@v2
+              with:
+                  environment-file: conda/environment.yml
+                  environment-name: samurai-env
+                  cache-environment: true
+                  create-args: python=3.12 pybind11
+
+            - name: Compiler installation
+              shell: bash -el {0}
+              run: |
+                  sudo apt update
+                  sudo apt install -y ccache
+
+            - name: Install pybind11 via pip
+              shell: bash -el {0}
+              run: |
+                  pip install pybind11[global]
+
+            - name: Conda informations
+              shell: bash -el {0}
+              run: |
+                  conda info
+                  conda list
+
+            - name: Configure CMake
+              shell: bash -el {0}
+              run: |
+                  cmake . \
+                      -Bbuild \
+                      -GNinja \
+                      -DCMAKE_BUILD_TYPE=Release \
+                      -DBUILD_PYTHON_BINDINGS=ON \
+                      -DBUILD_DEMOS=OFF \
+                      -DBUILD_TESTS=OFF
+
+            - name: Build Python bindings
+              shell: bash -el {0}
+              run: |
+                  cmake --build build --target samurai_python --parallel 2
+
+            - name: Test Python import
+              shell: bash -el {0}
+              run: |
+                  export PYTHONPATH="${PWD}/build/python:${PYTHONPATH}"
+                  export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
+                  python -c "import sys; print(f'Python {sys.version}')"
+                  python -c "import numpy; print(f'NumPy {numpy.__version__}')"
+                  python -c "import samurai_python; print('✓ samurai_python imported successfully')"
+
+            - name: Run pytest tests with coverage
+              shell: bash -el {0}
+              run: |
+                  export PYTHONPATH="${PWD}/build/python:${PYTHONPATH}"
+                  export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
+                  cd python
+                  pytest tests/ -v --tb=short -x \
+                      --cov=src/samurai_python \
+                      --cov-report=xml \
+                      --cov-report=term-missing \
+                      --cov-report=html
+
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v4
+              with:
+                  file: python/coverage.xml
+                  flags: python-bindings
+                  name: codecov-python-bindings
+                  fail_ci_if_error: false
+
+    #
+    # Debug with Sanitizers (ASAN + UBSAN, allowed to fail)
+    #
+    #########################################################
+    python-bindings-sanitizers:
+        runs-on: ubuntu-latest
+        continue-on-error: true
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Mamba and samurai env installation
+              uses: mamba-org/setup-micromamba@v2
+              with:
+                  environment-file: conda/environment.yml
+                  environment-name: samurai-env
+                  cache-environment: true
+                  create-args: python=3.12 pybind11
+
+            - name: Install pybind11 via pip
+              shell: bash -el {0}
+              run: |
+                  pip install pybind11[global]
+
+            - name: Configure CMake with Sanitizers (ASAN + UBSAN)
+              shell: bash -el {0}
+              run: |
+                  cmake . \
+                      -Bbuild-san \
+                      -GNinja \
+                      -DCMAKE_BUILD_TYPE=Debug \
+                      -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g" \
+                      -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g" \
+                      -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+                      -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address,undefined" \
+                      -DBUILD_PYTHON_BINDINGS=ON \
+                      -DBUILD_DEMOS=OFF \
+                      -DBUILD_TESTS=OFF
+
+            - name: Build Python bindings with sanitizers
+              shell: bash -el {0}
+              run: |
+                  cmake --build build-san --target samurai_python --parallel 2
+
+            - name: Test with sanitizers
+              shell: bash -el {0}
+              run: |
+                  export PYTHONPATH="${PWD}/build-san/python:${PYTHONPATH}"
+                  export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
+                  export ASAN_OPTIONS=detect_leaks=0
+                  export UBSAN_OPTIONS=print_stacktrace=1
+                  python -c "import samurai_python; print('✓ Import OK'); import sys; sys.exit(0)"

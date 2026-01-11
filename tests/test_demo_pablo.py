@@ -20,4 +20,4 @@ def test_2d_bubbles(config):
            "--path", config['path'],
            '--filename', config['filename'],
            '--Tf', '3']
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)

@@ -2,13 +2,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-import h5py
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import collections as mc
-from matplotlib import animation
-from matplotlib import rc
 import argparse
+
+import h5py
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import animation
+from matplotlib import collections as mc
+
 
 def read_mesh(filename, ite=None):
     return h5py.File(filename + '.h5', 'r')['mesh']
@@ -37,7 +38,7 @@ class Plot:
             if 'points' in mesh:
                 self.plot(ax, mesh)
             else:
-                for rank in mesh.keys():
+                for rank in mesh:
                     self.plot(ax, mesh[rank])
             ax.set_title("Mesh")
             self.ax = [ax]
@@ -55,7 +56,7 @@ class Plot:
 
                     self.plot(ax, mesh, f)
                 else:
-                    for rank in mesh.keys():
+                    for rank in mesh:
                         unknown_field = next((f for f in args.field if f not in mesh[rank]['fields']), None)
 
                         if unknown_field is not None:
@@ -110,7 +111,7 @@ class Plot:
                     self.plot(None, mesh, init=False)
 
         else:
-            for i, f in enumerate(args.field):
+            for _, f in enumerate(args.field):
                 if args.mpi_size == 1:
                     mesh = read_mesh(filename)
                     self.plot(None, mesh, f, init=False)

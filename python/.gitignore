@@ -1,0 +1,36 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Working draft documentation (keep official docs)
+*_SUMMARY.txt
+*_SUMMARY_TABLE.md
+*_ANALYSIS.md
+*_DIAGRAMS.md
+*_DELIVERABLES.md
+*_GUIDE.md
+*_COMPLETE.md
+*_API.md
+*.bak
+
+# Test outputs and results
+results/
+*.png
+*.jpg
+*.pdf
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

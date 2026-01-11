@@ -11,3 +11,11 @@ dependencies:
   - cli11<2.5
   - pytest
   - h5py
+  # Python bindings dependencies
+  - python>=3.8
+  - numpy>=1.20,<2.4
+  - pybind11>=2.10
+  # Python dev tools (testing, linting, type checking)
+  - pytest-cov
+  - mypy
+  - ruff

@@ -19,7 +19,7 @@ def test_2d_mesh(config):
     cmd = [get_executable(Path("../build/demos/tutorial/"), "tutorial-2d-mesh"),
            "--path", config['path'],
            '--filename', config['filename']]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 # The random generator doesn't make the same result
 # so this test failed depending on the compiler version
@@ -59,7 +59,7 @@ def test_graduation_3(extra, config):
            "--path", config['path'],
            '--filename', config['filename'],
            *extra]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 @pytest.mark.h5diff()
 @pytest.mark.parametrize(
@@ -70,7 +70,7 @@ def test_burgers(step, config):
     cmd = [get_executable(Path(f"../build/demos/tutorial/AMR_1D_Burgers/step_{step}/"), f"tutorial-burgers1d-step-{step}"),
            "--path", config['path'],
            '--filename', config['filename']]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 @pytest.mark.h5diff()
 @pytest.mark.parametrize(
@@ -94,4 +94,4 @@ def test_reconstruction(exec, extra, config):
            "--path", config['path'],
            '--filename', config['filename'],
            *extra]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)

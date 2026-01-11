@@ -1,56 +1,221 @@
+# SamuraiConfig.cmake.in - CMake configuration file for Samurai
+#
+# This file is configured by CMake and used by find_package(samurai CONFIG)
+# to locate the installed Samurai library.
+#
+# Usage:
+#   find_package(samurai CONFIG REQUIRED)
+#   target_link_libraries(my_target PRIVATE samurai::samurai)
 
-option(SAMURAI_WITH_OPENMP "Enable OpenMP" OFF)
-if(${SAMURAI_WITH_OPENMP})
-    message(STATUS "SAMURAI_WITH_OPENMP = ON")
-    find_dependency(OpenMP)
-    if(OpenMP_CXX_FOUND)
+@PACKAGE_INIT@
+
+# Include CMakeFindDependencyMacro for find_dependency
+include(CMakeFindDependencyMacro)
+
+# ----------------------------------------------------------------------------
+# FIND DEPENDENCIES
+# ----------------------------------------------------------------------------
+
+# Core dependencies - always required
+find_dependency(HighFive CONFIG REQUIRED)
+find_dependency(pugixml CONFIG REQUIRED)
+find_dependency(fmt CONFIG REQUIRED)
+find_dependency(CLI11 CONFIG REQUIRED)
+
+# xtensor is required as the default field container
+find_dependency(xtensor CONFIG REQUIRED)
+
+# Eigen3 is optional but commonly used
+find_dependency(Eigen3 CONFIG)
+
+# ----------------------------------------------------------------------------
+# OPTIONAL DEPENDENCIES (must match the configuration used to build samurai)
+# ----------------------------------------------------------------------------
+
+# OpenMP support
+set(SAMURAI_WITH_OPENMP "@SAMURAI_WITH_OPENMP@")
+if(SAMURAI_WITH_OPENMP)
+    find_dependency(OpenMP REQUIRED)
+endif()
+
+# MPI support
+set(SAMURAI_WITH_MPI "@SAMURAI_WITH_MPI@")
+if(SAMURAI_WITH_MPI)
+    find_dependency(Boost REQUIRED COMPONENTS serialization mpi)
+endif()
+
+# PETSc support
+set(SAMURAI_WITH_PETSC "@SAMURAI_WITH_PETSC@")
+if(SAMURAI_WITH_PETSC)
+    find_dependency(PkgConfig REQUIRED)
+    pkg_check_modules(PETSC REQUIRED PETSc)
+endif()
+
+# Stats support
+set(WITH_STATS "@WITH_STATS@")
+if(WITH_STATS)
+    find_dependency(nlohmann_json CONFIG REQUIRED)
+endif()
+
+# ----------------------------------------------------------------------------
+# INCLUDE THE TARGETS
+# ----------------------------------------------------------------------------
+
+# Check if the targets file exists
+if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/samuraiTargets.cmake")
+    message(FATAL_ERROR
+        "Samurai targets file not found: ${CMAKE_CURRENT_LIST_DIR}/samuraiTargets.cmake\n"
+        "This indicates an incomplete installation of Samurai."
+    )
+endif()
+
+# Include the exported targets
+include("${CMAKE_CURRENT_LIST_DIR}/samuraiTargets.cmake")
+
+# ----------------------------------------------------------------------------
+# APPLY CONFIGURATION OPTIONS
+# ----------------------------------------------------------------------------
+
+# Apply compile definitions based on how samurai was configured
+
+# Get the samurai target
+if(TARGET samurai::samurai)
+    # Field container type (xtensor or eigen3)
+    set(SAMURAI_FIELD_CONTAINER "@SAMURAI_FIELD_CONTAINER@")
+    if(SAMURAI_FIELD_CONTAINER STREQUAL "xtensor")
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_FIELD_CONTAINER_XTENSOR)
+    elseif(SAMURAI_FIELD_CONTAINER STREQUAL "eigen3")
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_FIELD_CONTAINER_EIGEN3)
+    endif()
+
+    # Flux container type
+    set(SAMURAI_FLUX_CONTAINER "@SAMURAI_FLUX_CONTAINER@")
+    if(SAMURAI_FLUX_CONTAINER STREQUAL "xtensor")
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_FLUX_CONTAINER_XTENSOR)
+    elseif(SAMURAI_FLUX_CONTAINER STREQUAL "eigen3")
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_FLUX_CONTAINER_EIGEN3)
+    elseif(SAMURAI_FLUX_CONTAINER STREQUAL "array")
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_FLUX_CONTAINER_ARRAY)
+    endif()
+
+    # Static matrix container type
+    set(SAMURAI_STATIC_MAT_CONTAINER "@SAMURAI_STATIC_MAT_CONTAINER@")
+    if(SAMURAI_STATIC_MAT_CONTAINER STREQUAL "xtensor")
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_STATIC_MAT_CONTAINER_XTENSOR)
+    elseif(SAMURAI_STATIC_MAT_CONTAINER STREQUAL "eigen3")
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_STATIC_MAT_CONTAINER_EIGEN3)
+    endif()
+
+    # Column-major layout
+    set(SAMURAI_CONTAINER_LAYOUT_COL_MAJOR "@SAMURAI_CONTAINER_LAYOUT_COL_MAJOR@")
+    if(SAMURAI_CONTAINER_LAYOUT_COL_MAJOR)
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_CONTAINER_LAYOUT_COL_MAJOR)
+    endif()
+
+    # NaN checking
+    set(SAMURAI_CHECK_NAN "@SAMURAI_CHECK_NAN@")
+    if(SAMURAI_CHECK_NAN)
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_CHECK_NAN)
+    endif()
+
+    # Stats
+    if(WITH_STATS)
+        target_compile_definitions(samurai::samurai INTERFACE WITH_STATS)
+    endif()
+
+    # OpenMP
+    if(SAMURAI_WITH_OPENMP AND OpenMP_CXX_FOUND)
         target_link_libraries(samurai::samurai INTERFACE OpenMP::OpenMP_CXX)
         target_compile_definitions(samurai::samurai INTERFACE SAMURAI_WITH_OPENMP)
-    else()
-        message(FATAL_ERROR "OpenMP not found")
+    endif()
+
+    # MPI
+    if(SAMURAI_WITH_MPI)
+        target_link_libraries(samurai::samurai INTERFACE Boost::serialization Boost::mpi)
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_WITH_MPI)
+    endif()
+
+    # PETSc
+    if(SAMURAI_WITH_PETSC)
+        target_compile_definitions(samurai::samurai INTERFACE SAMURAI_WITH_PETSC)
+        target_link_libraries(samurai::samurai INTERFACE ${PETSC_LINK_LIBRARIES})
+        target_include_directories(samurai::samurai INTERFACE ${PETSC_INCLUDE_DIRS})
+    endif()
+
+    # Stats
+    if(WITH_STATS)
+        target_link_libraries(samurai::samurai INTERFACE nlohmann_json::nlohmann_json)
+    endif()
+
+    # Eigen3 array plugin (if Eigen3 is used)
+    if(SAMURAI_FIELD_CONTAINER STREQUAL "eigen3" OR
+       SAMURAI_FLUX_CONTAINER STREQUAL "eigen3" OR
+       SAMURAI_STATIC_MAT_CONTAINER STREQUAL "eigen3")
+        # Note: The EIGEN_ARRAYBASE_PLUGIN path must be set at configure time
+        # This is a placeholder - actual path depends on installation
+        # target_compile_definitions(samurai::samurai INTERFACE
+        #     EIGEN_ARRAYBASE_PLUGIN="${CMAKE_INSTALL_PREFIX}/include/samurai/storage/eigen/array_eigen_addons.hpp"
+        # )
     endif()
 endif()
 
+# ----------------------------------------------------------------------------
+# VERSION CHECK
+# ----------------------------------------------------------------------------
 
-option(SAMURAI_WITH_MPI "Enable MPI" OFF)
-if(SAMURAI_WITH_MPI)
-  message(STATUS "SAMURAI_WITH_MPI = ON")
-  if (NOT HDF5_IS_PARALLEL)
-    message(FATAL_ERROR "HDF5 is not parallel. Please install a parallel version.")
-  endif()
-  find_dependency(Boost COMPONENTS serialization mpi)
-  target_link_libraries(samurai::samurai INTERFACE Boost::serialization Boost::mpi)
-  target_compile_definitions(samurai::samurai INTERFACE SAMURAI_WITH_MPI)
-endif()
+# Set version variables
+set(Samurai_VERSION "@PACKAGE_VERSION@")
+set(PACKAGE_VERSION "${Samurai_VERSION}")
 
-option(SAMURAI_WITH_PETSC "Enable PETSc" OFF)
-if(${SAMURAI_WITH_PETSC})
-  message(STATUS "SAMURAI_WITH_PETSC = ON")
-
-  include(CMakeFindDependencyMacro)
-  find_dependency(PkgConfig)
-
-  pkg_check_modules(PETSC REQUIRED PETSc)
-  include_directories(${PETSC_INCLUDE_DIRS})
-
-  target_compile_definitions(samurai::samurai INTERFACE SAMURAI_WITH_PETSC)
-  target_link_libraries(samurai::samurai INTERFACE ${PETSC_LINK_LIBRARIES})
-endif()
-
-
-option(SAMURAI_CHECK_NAN "Check NaN in computations" OFF)
-if(SAMURAI_CHECK_NAN)
-  message(STATUS "SAMURAI_CHECK_NAN = ON")
-  target_compile_definitions(samurai::samurai INTERFACE SAMURAI_CHECK_NAN)
-endif()
-
-
-set(FLUX_CONTAINER_LIST "array" "xtensor")
-set(SAMURAI_FLUX_CONTAINER "xtensor" CACHE STRING "Container to store fluxes: ${FLUX_CONTAINER_LIST}")
-set_property(CACHE SAMURAI_FLUX_CONTAINER PROPERTY STRINGS ${FLUX_CONTAINER_LIST})
-if(NOT SAMURAI_FLUX_CONTAINER IN_LIST FLUX_CONTAINER_LIST)
-    message(FATAL_ERROR "SAMURAI_FLUX_CONTAINER must be one of: ${FLUX_CONTAINER_LIST}")
+# Check if the requested version is compatible
+if(Package_FIND_VERSION_MAJOR AND PACKAGE_VERSION VERSION_LESS Package_FIND_VERSION_MAJOR)
+    set(Package_VERSION_COMPATIBLE FALSE)
 else()
-    string(TOUPPER ${SAMURAI_FLUX_CONTAINER} SAMURAI_FLUX_CONTAINER)
-    target_compile_definitions(samurai::samurai INTERFACE SAMURAI_FLUX_CONTAINER_${SAMURAI_FLUX_CONTAINER})
+    set(Package_VERSION_COMPATIBLE TRUE)
+    if(Package_FIND_VERSION_MINOR EQUAL PACKAGE_VERSION_MINOR)
+        set(Package_VERSION_EXACT TRUE)
+    endif()
+endif()
+
+# ----------------------------------------------------------------------------
+# MISC
+# ----------------------------------------------------------------------------
+
+# Tell the user what was found
+if(NOT Samurai_FIND_QUIETLY)
+    message(STATUS "Found Samurai: ${Samurai_VERSION}")
+    message(STATUS "  Field container: ${SAMURAI_FIELD_CONTAINER}")
+    message(STATUS "  Flux container: ${SAMURAI_FLUX_CONTAINER}")
+    message(STATUS "  Static matrix container: ${SAMURAI_STATIC_MAT_CONTAINER}")
+    if(SAMURAI_WITH_OPENMP)
+        message(STATUS "  OpenMP: ON")
+    endif()
+    if(SAMURAI_WITH_MPI)
+        message(STATUS "  MPI: ON")
+    endif()
+    if(SAMURAI_WITH_PETSC)
+        message(STATUS "  PETSc: ON")
+    endif()
+    if(WITH_STATS)
+        message(STATUS "  Stats: ON")
+    endif()
+endif()
+
+# ----------------------------------------------------------------------------
+# VALIDATION
+# ----------------------------------------------------------------------------
+
+check_required_components(Samurai)
+
+# ----------------------------------------------------------------------------
+# BACKWARD COMPATIBILITY
+# ----------------------------------------------------------------------------
+
+# For backward compatibility, also provide the old variable names
+set(SAMURAI_VERSION ${Samurai_VERSION})
+set(SAMURAI_FOUND TRUE)
+
+# The samurai target (without namespace) for old code
+if(NOT TARGET samurai AND TARGET samurai::samurai)
+    add_library(samurai ALIAS samurai::samurai)
 endif()

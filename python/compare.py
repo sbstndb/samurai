@@ -1,8 +1,8 @@
-import h5py
-import numpy as np
 import argparse
 import sys
 
+import h5py
+import numpy as np
 
 parser = argparse.ArgumentParser(description="Compare two h5 files.")
 parser.add_argument(
@@ -47,7 +47,7 @@ def construct_fields(mesh):
         for k in mesh.keys():
             if "fields" in mesh[k]:
                 for f in mesh[k]["fields"].keys():
-                    if f not in output.keys():
+                    if f not in output:
                         output[f] = mesh[k]["fields"][f][:]
                     else:
                         output[f] = np.concatenate((output[f], mesh[k]["fields"][f][:]))
@@ -77,7 +77,7 @@ def compare_meshes(file1, file2):
 
     tol = 1e-14
     for field in field1.keys():
-        if not field in field2.keys():
+        if field not in field2.keys():
             print(f"{field} is not in second file")
             sys.exit(f"files {file1} and {file2} are different")
 

@@ -37,7 +37,7 @@ def test_finite_volume_demo_with_restart(exec, Tf, config):
         "--Tf",
         Tf,
     ]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
     cmd = [
         get_executable(Path("../build/demos/FiniteVolume/"), exec),
@@ -50,7 +50,7 @@ def test_finite_volume_demo_with_restart(exec, Tf, config):
         "--restart-file",
         os.path.join(config["path"], f"{config['filename']}_restart_init"),
     ]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 
 @pytest.mark.h5diff()
@@ -73,7 +73,7 @@ def test_finite_volume_demo(exec, Tf, config):
         "--Tf",
         Tf,
     ]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 
 @pytest.mark.h5diff()
@@ -99,7 +99,7 @@ def test_finite_volume_demo_heat(time_scheme, config):
         cmd.append("--explicit")
     else:
         cmd.extend(["-ksp_type", "preonly", "-pc_type", "lu"])
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 
 @pytest.mark.h5diff()
@@ -126,7 +126,7 @@ def test_finite_volume_demo_heat_heterogeneous(time_scheme, config):
         cmd.append("--explicit")
     else:
         cmd.extend(["-ksp_type", "preonly", "-pc_type", "lu"])
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 
 @pytest.mark.h5diff()
@@ -145,7 +145,7 @@ def test_finite_volume_demo_stokes_stationary(config):
         "--min-level=5",
         "--max-level=5",
     ]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 
 @pytest.mark.h5diff()
@@ -166,7 +166,7 @@ def test_finite_volume_demo_stokes_nonstationary(config):
         "--max-level=6",
         "--Tf=0.1",
     ]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 
 @pytest.mark.h5diff()
@@ -183,7 +183,7 @@ def test_finite_volume_demo_burgers(config):
         "--init-sol=hat",
         "--Tf=0.1",
     ]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 
 @pytest.mark.h5diff()
@@ -202,7 +202,7 @@ def test_finite_volume_demo_mra_burgers(config):
         "--init-sol=hat",
         "--mr-eps=1e-5",
     ]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 @pytest.mark.h5diff()
 @pytest.mark.skipif(
@@ -233,7 +233,7 @@ def test_finite_volume_demo_nagumo(scheme, config):
         cmd.extend(["--Tf=0.1", "--dt=0.02", "--explicit-reaction"])
     elif scheme == "exp_diff_exp_react":
         cmd.extend(["--Tf=0.01", "--explicit-diffusion", "--explicit-reaction"])
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 
 @pytest.mark.h5diff()
@@ -255,7 +255,7 @@ def test_finite_volume_demo_lid_driven_cavity(config):
         "--max-level=6",
         "--Tf=0.03",
     ]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 
 @pytest.mark.h5diff()
@@ -280,7 +280,7 @@ def test_finite_volume_demo_linear_convection(time_scheme, config):
     ]
     if time_scheme == "implicit":
         cmd.append("--implicit")
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 @pytest.mark.h5diff()
 def test_finite_volume_demo_obstacle_linear_convection(config):
@@ -295,7 +295,7 @@ def test_finite_volume_demo_obstacle_linear_convection(config):
         "--nfiles=1",
         "--Tf=0.3",
     ]
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)
 
 
 @pytest.mark.parametrize("max_level", range(8, 14))
@@ -314,4 +314,4 @@ def test_finite_volume_burgers_os(max_level, enable_flux_reconstruction, eps, co
     ]
     if enable_flux_reconstruction:
         cmd.append("--enable-max-level-flux")
-    output = subprocess.run(cmd, check=True, capture_output=True)
+    _ = subprocess.run(cmd, check=True, capture_output=True)

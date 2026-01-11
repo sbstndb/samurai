@@ -1,0 +1,170 @@
+# Samurai Python Bindings - Conda Recipe
+#
+# This recipe builds the samurai-python package for conda distribution.
+# It requires the samurai C++ library to be available as a conda package.
+#
+# Build instructions:
+#   conda build conda-recipe/
+#   conda build --no-test -c conda-forge conda-recipe/
+#
+# Local installation:
+#   conda install --use-local samurai-python
+#
+# For conda-forge submission:
+#   1. Fork https://github.com/conda-forge/staged-recipes
+#   2. Add recipe to recipes/samurai-python/
+#   3. Submit PR
+
+{% set version = "0.30.0" %}
+
+package:
+  name: samurai-python
+  version: {{ version }}
+
+source:
+  # For local development from the same repository
+  path: ../
+
+  # For production builds from GitHub
+  # url: https://github.com/hpc-maths/samurai/archive/v{{ version }}.tar.gz
+  # sha256: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  # patches:
+  #   - patches/0001-fix-some-dependencies.patch
+
+build:
+  number: 0
+  # Skip build on Python 3.8 (minimum is 3.9)
+  skip: true  # [py<39]
+  # Script to build the package
+  script: {{ PYTHON }} -m pip install . --no-build-isolation -vv
+
+  # Build string that includes Python version and build number
+  string: py{{ PY_VER | replace('.', '') }}h{{ PKG_HASH }}_{{ build_number }}
+
+  # Run-time exports
+  run_exports:
+    - samurai >={{ version }}
+
+requirements:
+  build:
+    # C++ compiler
+    - {{ compiler('cxx') }}
+    # Build tools
+    - cmake >=3.20
+    - ninja  # [not win]
+    - python >=3.9
+    - pip
+
+  host:
+    # Python
+    - python >=3.9
+    # Build system dependencies
+    - scikit-build-core >=0.10
+    - pybind11 >=2.13
+    # Samurai C++ library (must be built first)
+    - samurai >={{ version }}
+    # Transitive dependencies (inherited from samurai)
+    - xtensor >=0.26
+    - highfive >=2.10
+    - pugixml
+    - fmt
+    - cli11
+    - eigen3  # [not win]
+    # HDF5
+    - hdf5
+
+  run:
+    # Python
+    - python >=3.9
+    # Samurai C++ library
+    - samurai >={{ version }}
+    # Runtime dependencies
+    - numpy >=1.20
+    # Transitive dependencies
+    - xtensor >=0.26
+    - highfive >=2.10
+
+test:
+  requires:
+    - pytest >=7.0
+    - numpy
+
+  imports:
+    - samurai_python
+    - samurai_python.utils
+
+  source_files:
+    - tests/
+
+  commands:
+    # Test that version is accessible
+    - python -c "import samurai_python; print(samurai_python.__version__)"
+
+    # Test basic import
+    - python -c "from samurai_python import sam"
+
+    # Test basic functionality (if samurai C++ is available)
+    - python -c "from samurai_python import sam; box = sam.geometry.box([0., 0.], [1., 1.]); print(box)"
+
+    # Run basic tests
+    - pytest tests/test_basic.py -v  # [not win]
+
+about:
+  home: https://github.com/hpc-maths/samurai
+  dev_url: https://github.com/hpc-maths/samurai
+  doc_url: https://hpc-math-samurai.readthedocs.io
+  doc_source_url: https://github.com/hpc-maths/samurai/tree/main/python
+  license: BSD-3-Clause
+  license_family: BSD
+  license_file:
+    - ../LICENSE
+    - LICENSE
+  summary: Python bindings for Samurai AMR library
+  description: |
+    Samurai Python provides Python bindings for the Samurai C++ library,
+    which implements Adaptive Mesh Refinement (AMR) and Multiresolution
+    Analysis for numerical PDE solvers.
+
+    Features:
+    - Adaptive Mesh Refinement (AMR)
+    - Multiresolution Analysis (MR)
+    - Finite Volume methods
+    - Lattice Boltzmann methods
+    - HDF5 I/O for visualization
+    - Python API for rapid prototyping
+
+    This package requires the samurai C++ library to be installed.
+  keywords:
+    - AMR
+    - adaptive-mesh-refinement
+    - multiresolution
+    - finite-volume
+    - lattice-boltzmann
+    - scientific-computing
+    - PDE
+    - numerical-methods
+    - HPC
+
+  # Identifiers for citation
+  identifier: samurai-python
+
+extra:
+  recipe-maintainers:
+    - samurai-developers
+    # Add GitHub usernames of maintainers
+    # - username1
+    # - username2
+
+  # For conda-forge
+  # Please add this package to conda-forge by submitting a PR to:
+  # https://github.com/conda-forge/staged-recipes
+
+  # Build results
+  final_build_arch: native
+  # Build on all platforms
+  skip_compile_pyc:
+    - "*"
+
+# Annotations for conda-forge
+# These help the conda-forge bot understand the recipe
+# https://github.com/conda-forge/conda-forge-ci-setup.git

@@ -1,0 +1,494 @@
+// Samurai Python Bindings - Multiresolution Adaptation
+//
+// Bindings for make_MRAdapt and update_ghost_mr functions
+
+#include <memory>
+#include <pybind11/pybind11.h>
+#include <samurai/algorithm/update.hpp>
+#include <samurai/field.hpp>
+#include <samurai/mesh_config.hpp>
+#include <samurai/mr/adapt.hpp>
+#include <samurai/mr/mesh.hpp>
+#include "common_types.hpp"
+
+namespace py = pybind11;
+
+// Use centralized type aliases from common_types.hpp
+using namespace samurai::python::bindings;
+
+// ============================================================
+// Python-callable wrapper for Adapt objects
+// ============================================================
+
+// Base class for type erasure
+class PyAdaptBase
+{
+  public:
+
+    virtual ~PyAdaptBase()                                                                     = default;
+    virtual void call(samurai::mra_config& config)                                             = 0;
+    virtual void call_with_velocity_2d(samurai::mra_config& config, VectorField2D_2& velocity) = 0;
+    virtual void call_with_velocity_3d(samurai::mra_config& config, VectorField3D_3& velocity) = 0;
+};
+
+// 1D Adapt wrapper (no velocity support needed)
+template <class AdaptType>
+class PyAdaptImpl1D : public PyAdaptBase
+{
+  public:
+
+    explicit PyAdaptImpl1D(AdaptType&& adapt)
+        : m_adapt(std::move(adapt))
+    {
+    }
+
+    void call(samurai::mra_config& config) override
+    {
+        m_adapt(config);
+    }
+
+    void call_with_velocity_2d(samurai::mra_config& config, VectorField2D_2& velocity) override
+    {
+        throw std::runtime_error("Cannot call 1D Adapt with 2D velocity field");
+    }
+
+    void call_with_velocity_3d(samurai::mra_config& config, VectorField3D_3& velocity) override
+    {
+        throw std::runtime_error("Cannot call 1D Adapt with 3D velocity field");
+    }
+
+  private:
+
+    AdaptType m_adapt;
+};
+
+// 2D Adapt wrapper (with 2D velocity support)
+template <class AdaptType>
+class PyAdaptImpl2D : public PyAdaptBase
+{
+  public:
+
+    explicit PyAdaptImpl2D(AdaptType&& adapt)
+        : m_adapt(std::move(adapt))
+    {
+    }
+
+    void call(samurai::mra_config& config) override
+    {
+        m_adapt(config);
+    }
+
+    void call_with_velocity_2d(samurai::mra_config& config, VectorField2D_2& velocity) override
+    {
+        m_adapt(config, velocity);
+    }
+
+    void call_with_velocity_3d(samurai::mra_config& config, VectorField3D_3& velocity) override
+    {
+        throw std::runtime_error("Cannot call 2D Adapt with 3D velocity field");
+    }
+
+  private:
+
+    AdaptType m_adapt;
+};
+
+// 3D Adapt wrapper (with 3D velocity support)
+template <class AdaptType>
+class PyAdaptImpl3D : public PyAdaptBase
+{
+  public:
+
+    explicit PyAdaptImpl3D(AdaptType&& adapt)
+        : m_adapt(std::move(adapt))
+    {
+    }
+
+    void call(samurai::mra_config& config) override
+    {
+        m_adapt(config);
+    }
+
+    void call_with_velocity_2d(samurai::mra_config& config, VectorField2D_2& velocity) override
+    {
+        throw std::runtime_error("Cannot call 3D Adapt with 2D velocity field");
+    }
+
+    void call_with_velocity_3d(samurai::mra_config& config, VectorField3D_3& velocity) override
+    {
+        m_adapt(config, velocity);
+    }
+
+  private:
+
+    AdaptType m_adapt;
+};
+
+// Wrapper class that can be created with or without velocity support
+class PyAdaptVariant
+{
+  public:
+
+    // 1D constructor
+    template <class AdaptType>
+    static PyAdaptVariant make_1d(AdaptType&& adapt)
+    {
+        PyAdaptVariant result;
+        result.m_impl = std::make_unique<PyAdaptImpl1D<AdaptType>>(std::move(adapt));
+        return result;
+    }
+
+    // 2D constructor
+    template <class AdaptType>
+    static PyAdaptVariant make_2d(AdaptType&& adapt)
+    {
+        PyAdaptVariant result;
+        result.m_impl = std::make_unique<PyAdaptImpl2D<AdaptType>>(std::move(adapt));
+        return result;
+    }
+
+    // 3D constructor
+    template <class AdaptType>
+    static PyAdaptVariant make_3d(AdaptType&& adapt)
+    {
+        PyAdaptVariant result;
+        result.m_impl = std::make_unique<PyAdaptImpl3D<AdaptType>>(std::move(adapt));
+        return result;
+    }
+
+    void call(samurai::mra_config& config)
+    {
+        m_impl->call(config);
+    }
+
+    void call_with_velocity_2d(samurai::mra_config& config, VectorField2D_2& velocity)
+    {
+        m_impl->call_with_velocity_2d(config, velocity);
+    }
+
+    void call_with_velocity_3d(samurai::mra_config& config, VectorField3D_3& velocity)
+    {
+        m_impl->call_with_velocity_3d(config, velocity);
+    }
+
+  private:
+
+    std::unique_ptr<PyAdaptBase> m_impl;
+
+    // Private default constructor
+    PyAdaptVariant() = default;
+};
+
+// ============================================================
+// Dimension-specific factory functions
+// Following pattern from operator_bindings.cpp (upwind_1d, upwind_2d, upwind_3d)
+// ============================================================
+
+// 1D update_ghost_mr wrapper
+ScalarField<1>& update_ghost_mr_1d(ScalarField<1>& field)
+{
+    samurai::update_ghost_mr(field);
+    return field;
+}
+
+// 2D update_ghost_mr wrapper
+ScalarField<2>& update_ghost_mr_2d(ScalarField<2>& field)
+{
+    samurai::update_ghost_mr(field);
+    return field;
+}
+
+// 3D update_ghost_mr wrapper
+ScalarField<3>& update_ghost_mr_3d(ScalarField<3>& field)
+{
+    samurai::update_ghost_mr(field);
+    return field;
+}
+
+// 1D make_MRAdapt wrapper
+PyAdaptVariant make_mr_adapt_1d(ScalarField<1>& field)
+{
+    auto adapt_obj = samurai::make_MRAdapt(field);
+    return PyAdaptVariant::make_1d(std::move(adapt_obj));
+}
+
+// 2D make_MRAdapt wrapper
+PyAdaptVariant make_mr_adapt_2d(ScalarField<2>& field)
+{
+    auto adapt_obj = samurai::make_MRAdapt(field);
+    return PyAdaptVariant::make_2d(std::move(adapt_obj));
+}
+
+// 3D make_MRAdapt wrapper
+PyAdaptVariant make_mr_adapt_3d(ScalarField<3>& field)
+{
+    auto adapt_obj = samurai::make_MRAdapt(field);
+    return PyAdaptVariant::make_3d(std::move(adapt_obj));
+}
+
+// ============================================================
+// VectorField wrappers for make_MRAdapt
+// ============================================================
+
+// 2D VectorField (VectorField2D_2) make_MRAdapt wrapper
+PyAdaptVariant make_mr_adapt_vector_2d_2(VectorField2D_2& field)
+{
+    auto adapt_obj = samurai::make_MRAdapt(field);
+    return PyAdaptVariant::make_2d(std::move(adapt_obj));
+}
+
+// 3D VectorField (VectorField3D_3) make_MRAdapt wrapper
+PyAdaptVariant make_mr_adapt_vector_3d_3(VectorField3D_3& field)
+{
+    auto adapt_obj = samurai::make_MRAdapt(field);
+    return PyAdaptVariant::make_3d(std::move(adapt_obj));
+}
+
+// ============================================================
+// VectorField wrappers for update_ghost_mr
+// ============================================================
+
+// 2D VectorField (VectorField2D_2) update_ghost_mr wrapper
+VectorField2D_2& update_ghost_mr_vector_2d_2(VectorField2D_2& field)
+{
+    samurai::update_ghost_mr(field);
+    return field;
+}
+
+// 3D VectorField (VectorField3D_3) update_ghost_mr wrapper
+VectorField3D_3& update_ghost_mr_vector_3d_3(VectorField3D_3& field)
+{
+    samurai::update_ghost_mr(field);
+    return field;
+}
+
+// ============================================================
+// Module initialization
+// ============================================================
+
+void init_adapt_bindings(py::module_& m)
+{
+    // ============================================================
+    // BREAKING CHANGE: No longer bind adaptation classes/functions to main module
+    // Users must use sam.adaptation.MRAdapt, sam.adaptation.make_MRAdapt(), etc.
+    // ============================================================
+
+    // ============================================================
+    // Create adaptation submodule for organized API access
+    // ============================================================
+    py::module_ adapt = m.def_submodule("adaptation",
+                                        "Mesh adaptation functions for Samurai AMR simulations\n\n"
+                                        "Factory Functions:\n"
+                                        "  make_MRAdapt(field) - Create multiresolution adaptation object\n"
+                                        "  update_ghost_mr(field) - Update ghost cells for MR analysis\n\n"
+                                        "Classes:\n"
+                                        "  MRAdapt - Multiresolution mesh adaptation callable\n\n"
+                                        "Examples:\n"
+                                        "    >>> import samurai_python as sam\n"
+                                        "    >>> MRadapt = sam.adaptation.make_MRAdapt(field)\n"
+                                        "    >>> MRadapt(sam.config.MRAConfig(epsilon=1e-4))\n"
+                                        "    >>> sam.adaptation.update_ghost_mr(field)\n");
+
+    // Bind MRAdapt class ONLY to adaptation submodule (not to main module)
+    py::class_<PyAdaptVariant>(adapt, "MRAdapt", R"pbdoc(
+        Multiresolution mesh adaptation callable.
+
+        Created by make_MRAdapt(), this object performs adaptive mesh refinement
+        based on the Harten multiresolution analysis algorithm.
+
+        Examples
+        --------
+        >>> import samurai_python as sam
+        >>> config = sam.config.MRAConfig()
+        >>> config.epsilon = 2e-4
+        >>> config.regularity = 2.0
+        >>> MRadaptation = sam.adaptation.make_MRAdapt(field)
+        >>> MRadaptation(config)  # Perform adaptation
+
+        For domains with obstacles, pass velocity field during call:
+        >>> MRadaptation = sam.adaptation.make_MRAdapt(field)  # Create with scalar field only
+        >>> MRadaptation(config, velocity)  # Pass velocity during call for obstacle BC
+
+        Notes
+        -----
+        Create the adaptation object once and reuse it throughout your simulation.
+        The same configuration can also be reused across multiple adaptation calls.
+        When using DomainBuilder with obstacles, pass velocity field to handle BC correctly.
+    )pbdoc")
+        .def(
+            "__call__",
+            [](PyAdaptVariant& self, samurai::mra_config& config)
+            {
+                self.call(config);
+            },
+            py::arg("config"),
+            "Perform mesh adaptation with the given configuration.")
+        .def(
+            "__call__",
+            [](PyAdaptVariant& self, samurai::mra_config& config, VectorField2D_2& velocity)
+            {
+                self.call_with_velocity_2d(config, velocity);
+            },
+            py::arg("config"),
+            py::arg("velocity"),
+            "Perform mesh adaptation with 2D velocity field (required for obstacle BC).")
+        .def(
+            "__call__",
+            [](PyAdaptVariant& self, samurai::mra_config& config, VectorField3D_3& velocity)
+            {
+                self.call_with_velocity_3d(config, velocity);
+            },
+            py::arg("config"),
+            py::arg("velocity"),
+            "Perform mesh adaptation with 3D velocity field (required for obstacle BC).");
+
+    // Bind update_ghost_mr for all dimensions ONLY to adaptation submodule (not to main module)
+    adapt.def("update_ghost_mr",
+              &update_ghost_mr_1d,
+              py::arg("field"),
+              R"pbdoc(
+        Update ghost cells for multiresolution analysis (1D).
+
+        Parameters
+        ----------
+        field : ScalarField1D
+            Field to update ghost cells for
+
+        Returns
+        -------
+        ScalarField1D
+            Returns the field for method chaining
+
+        Examples
+        --------
+        >>> sam.adaptation.update_ghost_mr(u).resize()
+        )pbdoc");
+
+    adapt.def("update_ghost_mr",
+              &update_ghost_mr_2d,
+              py::arg("field"),
+              R"pbdoc(
+        Update ghost cells for multiresolution analysis (2D).
+
+        Parameters
+        ----------
+        field : ScalarField2D
+            Field to update ghost cells for
+
+        Returns
+        -------
+        ScalarField2D
+            Returns the field for method chaining
+
+        Examples
+        --------
+        >>> sam.adaptation.update_ghost_mr(u).resize()
+        )pbdoc");
+
+    adapt.def("update_ghost_mr",
+              &update_ghost_mr_3d,
+              py::arg("field"),
+              R"pbdoc(
+        Update ghost cells for multiresolution analysis (3D).
+
+        Parameters
+        ----------
+        field : ScalarField3D
+            Field to update ghost cells for
+
+        Returns
+        -------
+        ScalarField3D
+            Returns the field for method chaining
+
+        Examples
+        --------
+        >>> sam.adaptation.update_ghost_mr(u).resize()
+        )pbdoc");
+
+    // Bind update_ghost_mr for VectorField types ONLY to adaptation submodule (not to main module)
+    adapt.def("update_ghost_mr",
+              &update_ghost_mr_vector_2d_2,
+              py::arg("field"),
+              R"pbdoc(
+        Update ghost cells for 2D vector field (2 components).
+
+        Parameters
+        ----------
+        field : VectorField2D
+            Vector field to update ghost cells for
+
+        Returns
+        -------
+        VectorField2D
+            Returns the field for method chaining
+
+        Examples
+        --------
+        >>> sam.adaptation.update_ghost_mr(velocity).resize()
+        )pbdoc");
+
+    adapt.def("update_ghost_mr",
+              &update_ghost_mr_vector_3d_3,
+              py::arg("field"),
+              R"pbdoc(
+        Update ghost cells for 3D vector field (3 components).
+
+        Parameters
+        ----------
+        field : VectorField3D
+            Vector field to update ghost cells for
+
+        Returns
+        -------
+        VectorField3D
+            Returns the field for method chaining
+
+        Examples
+        --------
+        >>> sam.adaptation.update_ghost_mr(velocity).resize()
+        )pbdoc");
+
+    // Bind make_MRAdapt for all dimensions ONLY to adaptation submodule (not to main module)
+    adapt.def("make_MRAdapt",
+              &make_mr_adapt_1d,
+              py::arg("field"),
+              R"pbdoc(
+        Create multiresolution adaptation object (1D).
+
+        Parameters
+        ----------
+        field : ScalarField1D
+            Field to adapt mesh for
+
+        Returns
+        -------
+        MRAdapt
+            Adaptation callable object
+
+        Examples
+        --------
+        >>> MRadapt = sam.adaptation.make_MRAdapt(field)
+        )pbdoc");
+
+    adapt.def("make_MRAdapt",
+              &make_mr_adapt_2d,
+              py::arg("field"),
+              "Create multiresolution adaptation object (2D). See 1D version for documentation.");
+
+    adapt.def("make_MRAdapt",
+              &make_mr_adapt_3d,
+              py::arg("field"),
+              "Create multiresolution adaptation object (3D). See 1D version for documentation.");
+
+    // Bind make_MRAdapt for VectorField types ONLY to adaptation submodule (not to main module)
+    adapt.def("make_MRAdapt",
+              &make_mr_adapt_vector_2d_2,
+              py::arg("field"),
+              "Create multiresolution adaptation object for 2D vector field (2 components). See 1D version for documentation.");
+
+    adapt.def("make_MRAdapt",
+              &make_mr_adapt_vector_3d_3,
+              py::arg("field"),
+              "Create multiresolution adaptation object for 3D vector field (3 components). See 1D version for documentation.");
+}

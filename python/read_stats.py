@@ -1,5 +1,5 @@
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 
 test_case = "D2Q4444_Euler_Lax_Liu"
 
@@ -11,8 +11,8 @@ max_level = data.max_level.max()
 levels = range(min_level, max_level+1)
 
 def plot(suffix, title, xlabel, ylabel, ax, kind='box', legend=None, stacked=True):
-    fields = [f'by_level.{l:02}.{suffix}' for l in levels]
-    new_name = {f: l for f, l in zip(fields, levels)}
+    fields = [f'by_level.{lvl:02}.{suffix}' for lvl in levels]
+    new_name = dict(zip(fields, levels))
 
     to_plot = data[fields].rename(columns=new_name)
     to_plot.plot(kind=kind, ax=ax, stacked=stacked)

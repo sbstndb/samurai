@@ -1,0 +1,38 @@
+# Ruff configuration for Python code quality
+# https://docs.astral.sh/ruff/
+
+target-version = "py38"
+line-length = 100
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "N806",   # variable in function should be lowercase (conflicts with C++ style)
+    "N803",   # argument name should be lowercase (conflicts with C++ style)
+    "N802",   # function name should be lowercase (conflicts with C++ style)
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+
+[lint.per-file-ignores]
+"tests/*.py" = ["S101", "E402"]  # allow assert and imports not at top in tests
+"examples/*.py" = ["E402", "RUF059"]  # allow imports not at top and unused fig from plt.subplots()
+"examples/legacy/*.py" = ["E402", "RUF059"]  # legacy examples
+"test_*.py" = ["E402"]  # standalone test files
+"compare.py" = ["E712", "E713", "SIM118"]  # legacy comparison script
+"scripts/*.py" = ["E402"]  # scripts may import after setup
+"viz/*.py" = ["RUF059"]  # visualization code may not use fig from plt.subplots()

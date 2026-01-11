@@ -12,23 +12,12 @@
 #include <samurai/mesh_config.hpp>
 #include <samurai/mr/mesh.hpp>
 #include <samurai/stencil.hpp>
+#include "common_types.hpp"
 
 namespace py = pybind11;
 
-// Type aliases matching field_bindings.cpp
-template <std::size_t dim>
-using MRMesh = samurai::MRMesh<samurai::complete_mesh_config<samurai::mesh_config<dim>, samurai::MRMeshId>>;
-
-template <std::size_t dim>
-using ScalarField = samurai::ScalarField<MRMesh<dim>, double>;
-
-template <std::size_t dim, std::size_t n_comp, bool SOA = false>
-using VectorField = samurai::VectorField<MRMesh<dim>, double, n_comp, SOA>;
-
-// Specific VectorField types for Burgers equation (n_comp == dim)
-using VectorField1D_2 = VectorField<1, 2, false>;
-using VectorField2D_2 = VectorField<2, 2, false>;
-using VectorField3D_3 = VectorField<3, 3, false>;
+// Use centralized type aliases from common_types.hpp
+using namespace samurai::python::bindings;
 
 // ============================================================
 // Dirichlet boundary condition bindings

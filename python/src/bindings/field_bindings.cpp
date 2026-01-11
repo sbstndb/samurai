@@ -15,24 +15,12 @@
 #include <samurai/io/restart.hpp>
 #include <samurai/mesh_config.hpp>
 #include <samurai/mr/mesh.hpp>
+#include "common_types.hpp"
 
 namespace py = pybind11;
 
-// Type aliases matching MRMesh bindings
-// Use the default interval type from Samurai
-using default_interval = samurai::Interval<double, std::size_t>;
-
-template <std::size_t dim>
-using MRMesh = samurai::MRMesh<samurai::complete_mesh_config<samurai::mesh_config<dim>, samurai::MRMeshId>>;
-
-template <std::size_t dim>
-using ScalarField = samurai::ScalarField<MRMesh<dim>, double>;
-
-template <std::size_t dim, std::size_t n_comp, bool SOA = false>
-using VectorField = samurai::VectorField<MRMesh<dim>, double, n_comp, SOA>;
-
-template <std::size_t dim>
-using Cell = samurai::Cell<dim, default_interval>;
+// Use centralized type aliases from common_types.hpp
+using namespace samurai::python::bindings;
 
 // ============================================================
 // Reduction helpers for ScalarField

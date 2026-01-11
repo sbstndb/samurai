@@ -318,27 +318,48 @@ Method chaining on `mesh_config` for readable setup.
 
 ### Current Status (as of Jan 2026)
 
-**Python branch (`origin/python`)** is active with recent commits:
-- `ea80d66c` - VectorField Python bindings
-- `065ff3ac` - ScalarField Python bindings
-- `12284ccc` - Box class Python bindings
-
-### Python Bindings Structure
-
-The Python branch contains:
-- `python/` directory (currently has utility scripts)
+**Python bindings (`python/` directory)** are now a **standalone package** (v0.30.0+):
+- `python/src/bindings/` - Pybind11 C++ bindings (13 files)
+- `python/src/samurai_python/` - Pure Python utilities
 - `python/examples/` - Python demo scripts
 - `python/tests/` - Python tests
-- Pybind11 bindings (likely in a separate source tree)
+- `python/conda-recipe/` - Conda package recipe
+
+### Python Bindings Structure (Standalone - v0.30.0+)
+
+**IMPORTANT:** The Python bindings are now built separately from the C++ library.
+
+**Build workflow:**
+```bash
+# 1. Build and install C++ library
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+cmake --install build --prefix /usr/local
+
+# 2. Build Python bindings (standalone)
+cd python/
+pip install .
+# Or: python dev.py build
+# Or: conda build conda-recipe/
+```
+
+**Development workflow:**
+```bash
+cd python/
+python dev.py build     # Build bindings
+python dev.py install   # Install (editable mode)
+python dev.py test      # Run tests
+make all               # Using Makefile
+```
 
 ### Integration Strategy for Python Work
 
 When working on Python bindings:
-1. **Check `origin/python` branch** for latest pybind11 code
-2. **Use `samurai::Box`** - Already has Python bindings
-3. **Follow pattern** from existing ScalarField/VectorField bindings
-4. **Test with** `python/examples/` scripts
-5. **Build target** likely: `build/python/` with pybind11 module
+1. **C++ library must be installed** and findable via `find_package(samurai CONFIG)`
+2. **Edit bindings in `python/src/bindings/`**
+3. **Build only bindings** with `python dev.py build` (fast iteration)
+4. **Test with** `python/tests/` using pytest
+5. **Python utilities** in `python/src/samurai_python/` are pure Python (no rebuild needed)
 
 ### Key Python-Bound Classes
 - `samurai::Box<dim, T>` - Geometric domain

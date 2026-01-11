@@ -14,36 +14,17 @@
 #include <samurai/schemes/fv/operators/convection_lin.hpp>
 #include <samurai/schemes/fv/operators/convection_nonlin.hpp>
 #include <samurai/stencil_field.hpp>
+#include "common_types.hpp"
 
 namespace py = pybind11;
 
-// Type aliases matching mesh_bindings.cpp
-using default_interval = samurai::Interval<int, long long int>;
+// Use centralized type aliases from common_types.hpp
+using namespace samurai::python::bindings;
 
-using Config1D         = samurai::mesh_config<1>;
-using CompleteConfig1D = samurai::complete_mesh_config<Config1D, samurai::MRMeshId>;
-using Mesh1D           = samurai::MRMesh<CompleteConfig1D>;
-
-using Config2D         = samurai::mesh_config<2>;
-using CompleteConfig2D = samurai::complete_mesh_config<Config2D, samurai::MRMeshId>;
-using Mesh2D           = samurai::MRMesh<CompleteConfig2D>;
-
-using Config3D         = samurai::mesh_config<3>;
-using CompleteConfig3D = samurai::complete_mesh_config<Config3D, samurai::MRMeshId>;
-using Mesh3D           = samurai::MRMesh<CompleteConfig3D>;
-
-// Field type aliases
-template <std::size_t dim>
-using ScalarField = samurai::ScalarField<samurai::MRMesh<samurai::complete_mesh_config<samurai::mesh_config<dim>, samurai::MRMeshId>>, double>;
-
-template <std::size_t dim, std::size_t n_comp, bool SOA = false>
-using VectorField = samurai::
-    VectorField<samurai::MRMesh<samurai::complete_mesh_config<samurai::mesh_config<dim>, samurai::MRMeshId>>, double, n_comp, SOA>;
-
-// Specific VectorField types for Burgers equation (n_comp == dim)
-using VectorField1D_2 = VectorField<1, 2, false>;
-using VectorField2D_2 = VectorField<2, 2, false>;
-using VectorField3D_3 = VectorField<3, 3, false>;
+// Note: operator_bindings.cpp uses Interval<int, long long int> for algorithms
+// which differs from the algorithm_interval in common_types.hpp (Interval<double, std::size_t>)
+// This is intentional for algorithm-specific use cases
+using algorithm_interval = samurai::Interval<int, long long int>;
 
 // 1D upwind operator - immediate evaluation version
 py::object upwind_1d(ScalarField<1>& field, double velocity)
@@ -58,7 +39,7 @@ py::object upwind_1d(ScalarField<1>& field, double velocity)
 
     // Evaluate the expression immediately using for_each_interval
     samurai::for_each_interval(mesh,
-                               [&result, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               [&result, &upwind_expr](std::size_t level, const algorithm_interval& interval, const auto& index)
                                {
                                    result(level, interval, index) = upwind_expr(level, interval, index);
                                });
@@ -79,7 +60,7 @@ py::object upwind_2d(ScalarField<2>& field, const std::array<double, 2>& velocit
 
     // Evaluate the expression immediately using for_each_interval
     samurai::for_each_interval(mesh,
-                               [&result, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               [&result, &upwind_expr](std::size_t level, const algorithm_interval& interval, const auto& index)
                                {
                                    result(level, interval, index) = upwind_expr(level, interval, index);
                                });
@@ -100,7 +81,7 @@ py::object upwind_3d(ScalarField<3>& field, const std::array<double, 3>& velocit
 
     // Evaluate the expression immediately using for_each_interval
     samurai::for_each_interval(mesh,
-                               [&result, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               [&result, &upwind_expr](std::size_t level, const algorithm_interval& interval, const auto& index)
                                {
                                    result(level, interval, index) = upwind_expr(level, interval, index);
                                });
@@ -151,7 +132,7 @@ void apply_upwind_1d(const ScalarField<1>& input, ScalarField<1>& output, double
 
     // Evaluate directly into output field (single pass, no allocation)
     samurai::for_each_interval(output.mesh(),
-                               [&output, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               [&output, &upwind_expr](std::size_t level, const algorithm_interval& interval, const auto& index)
                                {
                                    output(level, interval, index) = upwind_expr(level, interval, index);
                                });
@@ -165,7 +146,7 @@ void apply_upwind_2d(const ScalarField<2>& input, ScalarField<2>& output, const 
 
     // Evaluate directly into output field (single pass, no allocation)
     samurai::for_each_interval(output.mesh(),
-                               [&output, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               [&output, &upwind_expr](std::size_t level, const algorithm_interval& interval, const auto& index)
                                {
                                    output(level, interval, index) = upwind_expr(level, interval, index);
                                });
@@ -179,7 +160,7 @@ void apply_upwind_3d(const ScalarField<3>& input, ScalarField<3>& output, const 
 
     // Evaluate directly into output field (single pass, no allocation)
     samurai::for_each_interval(output.mesh(),
-                               [&output, &upwind_expr](std::size_t level, const default_interval& interval, const auto& index)
+                               [&output, &upwind_expr](std::size_t level, const algorithm_interval& interval, const auto& index)
                                {
                                    output(level, interval, index) = upwind_expr(level, interval, index);
                                });

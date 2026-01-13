@@ -4,13 +4,13 @@
 
 #include <CGAL/box_intersection_d.h>
 
-#include "../algorithm.hpp"
-#include "../cell_array.hpp"
-#include "../cell_flag.hpp"
-#include "../cell_list.hpp"
-#include "../field.hpp"
-#include "../graduation.hpp"
-#include "../subset/node.hpp"
+#include <samurai/algorithm.hpp>
+#include <samurai/cell_array.hpp>
+#include <samurai/cell_flag.hpp>
+#include <samurai/cell_list.hpp>
+#include <samurai/field.hpp>
+#include <samurai/algorithm/graduation.hpp>
+#include <samurai/subset/node.hpp>
 #include "cgal.hpp"
 
 namespace samurai

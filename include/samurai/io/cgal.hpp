@@ -130,13 +130,13 @@ namespace samurai
                 {
                     center = {scale * cell.center(0), scale * cell.center(1), scale * cell.center(2)};
                 }
-                xt::view(vi, i) = tri_coords - center;
+                xt::view(vi, i) = xt::eval(tri_coords - center);
             }
 
             xt::xtensor_fixed<double, xt::xshape<3, 3>> fj;
-            xt::view(fj, 0) = xt::view(vi, 1) - xt::view(vi, 0);
-            xt::view(fj, 1) = xt::view(vi, 2) - xt::view(vi, 1);
-            xt::view(fj, 2) = xt::view(vi, 0) - xt::view(vi, 2);
+            xt::view(fj, 0) = xt::eval(xt::view(vi, 1) - xt::view(vi, 0));
+            xt::view(fj, 1) = xt::eval(xt::view(vi, 2) - xt::view(vi, 1));
+            xt::view(fj, 2) = xt::eval(xt::view(vi, 0) - xt::view(vi, 2));
 
             xt::xtensor_fixed<double, xt::xshape<3>> aij;
             for (std::size_t i = 0; i < 3; ++i)

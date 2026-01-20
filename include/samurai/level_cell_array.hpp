@@ -214,6 +214,9 @@ namespace samurai
                 ar& m_offsets[d];
             }
             ar & m_level;
+            ar & m_is_box;
+            // ar & m_origin_point; // doesn't compile: xt::xtensor_fixed cannot be serialized
+            ar & m_scaling_factor;
         }
 #endif
         template <bool isIntervalListEmpty, bool isParentPointNew, size_t d>
@@ -493,7 +496,7 @@ namespace samurai
     {
         typename iterator::offset_type_iterator offset_index;
         typename iterator::iterator_container current_index;
-        typename iterator::coord_type index;
+        typename iterator::coord_type index{};
 
         for (std::size_t d = 0; d < dim; ++d)
         {
@@ -513,7 +516,7 @@ namespace samurai
     {
         typename iterator::offset_type_iterator offset_index;
         typename iterator::iterator_container current_index;
-        typename iterator::coord_type index;
+        typename iterator::coord_type index{};
 
         for (std::size_t d = 0; d < dim; ++d)
         {
@@ -535,7 +538,7 @@ namespace samurai
     {
         typename const_iterator::offset_type_iterator offset_index;
         typename const_iterator::iterator_container current_index;
-        typename const_iterator::coord_type index;
+        typename const_iterator::coord_type index{};
 
         for (std::size_t d = 0; d < dim; ++d)
         {
@@ -557,7 +560,7 @@ namespace samurai
     {
         typename const_iterator::offset_type_iterator offset_index;
         typename const_iterator::iterator_container current_index;
-        typename const_iterator::coord_type index;
+        typename const_iterator::coord_type index{};
 
         for (std::size_t d = 0; d < dim; ++d)
         {
